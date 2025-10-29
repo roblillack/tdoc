@@ -118,14 +118,17 @@ impl<W: Write> Formatter<W> {
         let mut previous_type: Option<ParagraphType> = None;
 
         for paragraph in paragraphs {
+            let previous_after = previous_type
+                .map(|ty| self.blank_lines_after(ty))
+                .unwrap_or(0);
             let blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
-            self.write_blank_lines(blank_lines)?;
+            self.write_blank_lines(previous_after.max(blank_lines))?;
             self.write_paragraph(paragraph, prefix, continuation_prefix)?;
             previous_type = Some(paragraph.paragraph_type);
         }
 
-        if previous_type == Some(ParagraphType::Header1) {
-            self.write_blank_lines(3)?;
+        if let Some(last_type) = previous_type {
+            self.write_blank_lines(self.blank_lines_after(last_type))?;
         }
 
         Ok(())
@@ -139,9 +142,15 @@ impl<W: Write> Formatter<W> {
     ) -> std::io::Result<()> {
         match paragraph.paragraph_type {
             ParagraphType::Header1 => {
-                self.write_header_paragraph(&paragraph.content, prefix)?;
+                self.write_header1_paragraph(&paragraph.content, prefix)?;
             }
-            ParagraphType::Text | ParagraphType::Header2 | ParagraphType::Header3 => {
+            ParagraphType::Header2 => {
+                self.write_header2_paragraph(&paragraph.content, prefix)?;
+            }
+            ParagraphType::Header3 => {
+                self.write_header3_paragraph(&paragraph.content, prefix)?;
+            }
+            ParagraphType::Text => {
                 self.write_text_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
             ParagraphType::Quote => {
@@ -187,16 +196,26 @@ impl<W: Write> Formatter<W> {
         current_type: ParagraphType,
     ) -> usize {
         match current_type {
-            ParagraphType::Header1 => 3, // ensure level-one headers are preceded by three blank lines
+            ParagraphType::Header1 => 3,
+            ParagraphType::Header2 => 3,
+            ParagraphType::Header3 => 2,
             _ => match previous_type {
-                Some(ParagraphType::Header1) => 3,
                 Some(_) => 1,
                 None => 0,
             },
         }
     }
 
-    fn write_header_paragraph(&mut self, spans: &[Span], prefix: &str) -> std::io::Result<()> {
+    fn blank_lines_after(&self, paragraph_type: ParagraphType) -> usize {
+        match paragraph_type {
+            ParagraphType::Header1 => 3,
+            ParagraphType::Header2 => 2,
+            ParagraphType::Header3 => 1,
+            _ => 0,
+        }
+    }
+
+    fn render_heading_text(&self, spans: &[Span]) -> std::io::Result<(String, usize)> {
         let mut parts = Vec::new();
         for span in spans {
             self.collect_formatted_text(span, &mut parts)?;
@@ -211,16 +230,21 @@ impl<W: Write> Formatter<W> {
             }
         }
 
-        let trimmed = combined.trim();
-        let bold_text = if trimmed.is_empty() {
-            String::new()
-        } else {
-            self.apply_bold(trimmed)
-        };
+        let trimmed = combined.trim().to_string();
+        if trimmed.is_empty() {
+            return Ok((String::new(), 0));
+        }
+
+        let bold_text = self.apply_bold(&trimmed);
+        let visible_width = self.visible_width(&bold_text);
+        Ok((bold_text, visible_width))
+    }
+
+    fn write_header1_paragraph(&mut self, spans: &[Span], prefix: &str) -> std::io::Result<()> {
+        let (bold_text, visible_width) = self.render_heading_text(spans)?;
 
         let prefix_width = prefix.chars().count();
         let available_width = self.style.wrap_width.saturating_sub(prefix_width);
-        let visible_width = self.visible_width(&bold_text);
         let padding = if available_width > visible_width {
             (available_width - visible_width) / 2
         } else {
@@ -232,6 +256,36 @@ impl<W: Write> Formatter<W> {
             write!(self.writer, " ")?;
         }
         write!(self.writer, "{}", bold_text)?;
+        writeln!(self.writer)?;
+
+        Ok(())
+    }
+
+    fn write_header2_paragraph(&mut self, spans: &[Span], prefix: &str) -> std::io::Result<()> {
+        let (bold_text, visible_width) = self.render_heading_text(spans)?;
+
+        write!(self.writer, "{}{}", prefix, bold_text)?;
+        writeln!(self.writer)?;
+
+        write!(self.writer, "{}", prefix)?;
+        for _ in 0..visible_width {
+            write!(self.writer, "=")?;
+        }
+        writeln!(self.writer)?;
+
+        Ok(())
+    }
+
+    fn write_header3_paragraph(&mut self, spans: &[Span], prefix: &str) -> std::io::Result<()> {
+        let (bold_text, visible_width) = self.render_heading_text(spans)?;
+
+        write!(self.writer, "{}{}", prefix, bold_text)?;
+        writeln!(self.writer)?;
+
+        write!(self.writer, "{}", prefix)?;
+        for _ in 0..visible_width {
+            write!(self.writer, "-")?;
+        }
         writeln!(self.writer)?;
 
         Ok(())
@@ -545,5 +599,142 @@ mod tests {
         assert!(lines[6].is_empty());
         assert!(lines[7].starts_with("Following text"));
         assert_eq!(lines[8], "\x1b[0m");
+    }
+
+    #[test]
+    fn test_header2_formatting_ascii() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![h2_("Heading 2"), p__("Following text")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 8);
+        assert!(lines[0].is_empty());
+        assert!(lines[1].is_empty());
+        assert!(lines[2].is_empty());
+
+        assert_eq!(lines[3], "Heading 2");
+        assert!(lines[4].chars().all(|c| c == '='));
+        assert_eq!(lines[4].chars().count(), lines[3].trim().chars().count());
+
+        assert!(lines[5].is_empty());
+        assert!(lines[6].is_empty());
+        assert_eq!(lines[7], "Following text");
+    }
+
+    #[test]
+    fn test_header2_formatting_ansi() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ansi(&mut output);
+
+        let doc = doc(vec![h2_("Heading 2"), p__("Following text")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b[1m"));
+
+        let lines: Vec<&str> = result.split('\n').collect();
+        let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+
+        assert!(lines.len() >= 9);
+        assert!(lines[0].is_empty());
+        assert!(lines[1].is_empty());
+        assert!(lines[2].is_empty());
+
+        let header_plain = ansi_regex.replace_all(lines[3], "").to_string();
+        assert_eq!(header_plain.trim(), "Heading 2");
+
+        assert!(lines[4].chars().all(|c| c == '='));
+        assert_eq!(
+            lines[4].chars().count(),
+            header_plain.trim().chars().count()
+        );
+
+        assert!(lines[5].is_empty());
+        assert!(lines[6].is_empty());
+        assert!(lines[7].starts_with("Following text"));
+        assert_eq!(lines[8], "\x1b[0m");
+    }
+
+    #[test]
+    fn test_header3_formatting_ascii() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![h3_("Heading 3"), p__("Following text")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 6);
+        assert!(lines[0].is_empty());
+        assert!(lines[1].is_empty());
+
+        assert_eq!(lines[2], "Heading 3");
+        assert!(lines[3].chars().all(|c| c == '-'));
+        assert_eq!(lines[3].chars().count(), lines[2].trim().chars().count());
+
+        assert!(lines[4].is_empty());
+        assert_eq!(lines[5], "Following text");
+    }
+
+    #[test]
+    fn test_header3_formatting_ansi() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ansi(&mut output);
+
+        let doc = doc(vec![h3_("Heading 3"), p__("Following text")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b[1m"));
+
+        let lines: Vec<&str> = result.split('\n').collect();
+        let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+
+        assert!(lines.len() >= 7);
+        assert!(lines[0].is_empty());
+        assert!(lines[1].is_empty());
+
+        let header_plain = ansi_regex.replace_all(lines[2], "").to_string();
+        assert_eq!(header_plain.trim(), "Heading 3");
+
+        assert!(lines[3].chars().all(|c| c == '-'));
+        assert_eq!(
+            lines[3].chars().count(),
+            header_plain.trim().chars().count()
+        );
+
+        assert!(lines[4].is_empty());
+        assert!(lines[5].starts_with("Following text"));
+        assert_eq!(lines[6], "\x1b[0m");
+    }
+
+    #[test]
+    fn test_heading_spacing_collapse() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![h2_("Heading 2"), h3_("Heading 3")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().collect();
+        let h2_idx = lines.iter().position(|line| line == &"Heading 2").unwrap();
+        let h2_underline_idx = h2_idx + 1;
+        let h3_idx = lines.iter().position(|line| line == &"Heading 3").unwrap();
+
+        assert!(lines[h2_underline_idx].chars().all(|c| c == '='));
+        let blank_count = h3_idx.saturating_sub(h2_underline_idx + 1);
+        assert_eq!(blank_count, 2);
+        assert!(lines[h3_idx + 1].chars().all(|c| c == '-'));
     }
 }

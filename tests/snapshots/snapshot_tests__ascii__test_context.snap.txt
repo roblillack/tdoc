@@ -1,4 +1,7 @@
+
+
 Text paragraphs
+---------------
 
 This is a rather long paragraph to show the text-wrapping supported by
 the ASCII and Markdown exporters. Applications integrating FTML support
@@ -9,4 +12,7 @@ line to a specific number. FTML itself does not encorce any specific
 rules here, the included Markdown exporter does wrap at 80 characters,
 though.
 
+
 Quoted paragraphs
+-----------------
+

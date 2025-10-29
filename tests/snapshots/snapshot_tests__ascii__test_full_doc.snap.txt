@@ -10,9 +10,14 @@ The purpose of this document is to demonstrate the following use-cases:
  • Describe the features supported by FTML.
  • Showcase the FTML standard formatting enforced by fmtftml.
 
+
+
 Supported features
+==================
+
 
 Inline styles
+-------------
 
 The following inline styles are supported in FTML:
 
@@ -23,7 +28,9 @@ The following inline styles are supported in FTML:
  • Striked text.
  • Text formatted as code.
 
+
 Text paragraphs
+---------------
 
 This is a rather long paragraph to show the text-wrapping supported by
 the ASCII and Markdown exporters. Applications integrating FTML support
@@ -34,7 +41,9 @@ line to a specific number. FTML itself does not encorce any specific
 rules here, the included Markdown exporter does wrap at 80 characters,
 though.
 
+
 Quoted paragraphs
+-----------------
 
 | Like any other blocks, quotes may contain any of the different paragraph
 | types as children. First, let's look into wrapping of quotes, though.
@@ -42,13 +51,16 @@ Quoted paragraphs
 | This is the second paragraph of the very same quote. This paragraph,
 | too, will be broken into multiple lines, if necessary.
 | Quoted Headers
+| --------------
 | As expected, you'll be able to quote all kinds of paragraphs—including
 | section headers.
 | | Now, finally, let's look at a second level quote. Like expected, this
 | | paragraph will also wrap at the same width, even if if it indented
 | | further then the paragraphs above.
 
+
 Bullet points
+-------------
 
 TBD
 
@@ -62,7 +74,9 @@ Example:
  • This is a bullet point with a bunch of hard line breaks.
  • | This bulletpoint contains a quote.
 
+
 Paragraph nesting
+-----------------
 
 FTML supports nesting of paragraphs, so this is entirely possible:
 
@@ -85,7 +99,11 @@ FTML supports nesting of paragraphs, so this is entirely possible:
 
 |  • 10. Ten!
 
+
+
 Whitespace and line-break handling
+==================================
+
 
 This is a line with a hard line-break:
 First line
@@ -106,7 +124,11 @@ A B
 | in the middle. But afterwards, of course, things should continue
 | normally.
 
+
+
 Unicode support
+===============
+
 
 The following three tests check for the word wrapping to break at the
 right spot.

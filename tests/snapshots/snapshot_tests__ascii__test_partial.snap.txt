@@ -10,9 +10,14 @@ The purpose of this document is to demonstrate the following use-cases:
  • Describe the features supported by FTML.
  • Showcase the FTML standard formatting enforced by fmtftml.
 
+
+
 Supported features
+==================
+
 
 Inline styles
+-------------
 
 The following inline styles are supported in FTML:
 
@@ -23,7 +28,9 @@ The following inline styles are supported in FTML:
  • Striked text.
  • Text formatted as code.
 
+
 Text paragraphs
+---------------
 
 This is a rather long paragraph to show the text-wrapping supported by
 the ASCII and Markdown exporters. Applications integrating FTML support
