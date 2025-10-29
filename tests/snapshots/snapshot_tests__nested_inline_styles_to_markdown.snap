@@ -1,0 +1,5 @@
+---
+source: tests/snapshot_tests.rs
+expression: markdown
+---
+This is **bold with _italic_ inside**.

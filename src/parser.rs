@@ -11,11 +11,17 @@ pub enum ParseError {
     #[error("Unexpected text content: {0}")]
     UnexpectedTextContent(String),
     #[error("Paragraphs not allowed inside leaf paragraph nodes when trying to add {new_type} below {parent_type}")]
-    InvalidNesting { new_type: ParagraphType, parent_type: ParagraphType },
+    InvalidNesting {
+        new_type: ParagraphType,
+        parent_type: ParagraphType,
+    },
     #[error("Closing unopened paragraph of type {0}")]
     ClosingUnopenedParagraph(ParagraphType),
     #[error("Cannot close {actual} with {expected}")]
-    MismatchedClosingTag { actual: ParagraphType, expected: ParagraphType },
+    MismatchedClosingTag {
+        actual: ParagraphType,
+        expected: ParagraphType,
+    },
     #[error("Unexpected list item, parent: {0:?}")]
     UnexpectedListItem(Option<ParagraphType>),
     #[error("Unexpected closing tag for list item")]
@@ -46,91 +52,95 @@ enum Token {
 struct Tokenizer {
     input: String,
     pos: usize,
-    putback_token: Option<(Token, usize)>,
+    putback_token: Option<(Token, usize, usize)>,
 }
 
 impl Tokenizer {
     fn new(input: String) -> Self {
-        Self { input, pos: 0, putback_token: None }
+        Self {
+            input,
+            pos: 0,
+            putback_token: None,
+        }
     }
-    
+
     fn next(&mut self) -> Option<Token> {
         // Return putback token if available and restore position
-        if let Some((token, saved_pos)) = self.putback_token.take() {
-            self.pos = saved_pos;
+        if let Some((token, _start_pos, end_pos)) = self.putback_token.take() {
+            self.pos = end_pos;
             return Some(token);
         }
-        
+
         self.skip_whitespace_between_tags();
-        
+
         if self.pos >= self.input.len() {
             return None;
         }
-        
+
         // Save position before parsing token
         let token_start_pos = self.pos;
-        let token = if self.input.get(self.pos..self.pos+1) == Some("<") {
+        let token = if self.input.get(self.pos..self.pos + 1) == Some("<") {
             self.parse_tag()
         } else {
             self.parse_text()
         };
-        
+
         token
     }
-    
+
     fn next_with_pos(&mut self) -> Option<(Token, usize)> {
         // Return putback token if available and restore position
-        if let Some((token, saved_pos)) = self.putback_token.take() {
-            self.pos = saved_pos;
-            return Some((token, saved_pos));
+        if let Some((token, start_pos, end_pos)) = self.putback_token.take() {
+            self.pos = end_pos;
+            return Some((token, start_pos));
         }
-        
+
         self.skip_whitespace_between_tags();
-        
+
         if self.pos >= self.input.len() {
             return None;
         }
-        
+
         // Save position before parsing token
         let token_start_pos = self.pos;
-        let token = if self.input.get(self.pos..self.pos+1) == Some("<") {
+        let token = if self.input.get(self.pos..self.pos + 1) == Some("<") {
             self.parse_tag()
         } else {
             self.parse_text()
         };
-        
+
         token.map(|t| (t, token_start_pos))
     }
-    
+
     fn putback(&mut self, token: Token, start_pos: usize) {
-        self.putback_token = Some((token, start_pos));
+        self.putback_token = Some((token, start_pos, self.pos));
     }
-    
+
     fn peek(&mut self) -> Option<Token> {
-        if let Some((ref token, _pos)) = self.putback_token {
+        if let Some((ref token, _start_pos, _end_pos)) = self.putback_token {
             return Some(token.clone());
         }
-        
+
         // Create a temporary tokenizer to peek without affecting state
         let saved_pos = self.pos;
         self.skip_whitespace_between_tags();
-        
+
         if self.pos >= self.input.len() {
             self.pos = saved_pos;
             return None;
         }
-        
-        let token = if self.input.get(self.pos..self.pos+1) == Some("<") {
+
+        let token = if self.input.get(self.pos..self.pos + 1) == Some("<") {
             self.parse_tag()
         } else {
             self.parse_text()
         };
-        
-        // Reset position 
+
+        // Reset position
         self.pos = saved_pos;
         token
     }
-    
+
     fn skip_whitespace_between_tags(&mut self) {
         // Skip ASCII/Unicode whitespace that appears between '>' and the next '<'
         // without touching whitespace that is part of text content.
@@ -159,15 +169,15 @@ impl Tokenizer {
             return;
         }
     }
-    
+
     fn parse_tag(&mut self) -> Option<Token> {
         let start_pos = self.pos;
         self.pos += 1; // skip '<'
-        
+
         let mut end_pos = self.pos;
         let mut in_quotes = false;
         let mut quote_char = '"';
-        
+
         // Find the end of the tag (looking for '>')
         while end_pos < self.input.len() {
             let remaining = &self.input[end_pos..];
@@ -185,29 +195,45 @@ impl Tokenizer {
                 break;
             }
         }
-        
+
         if end_pos >= self.input.len() {
             return None;
         }
-        
+
         let tag_content = &self.input[self.pos..end_pos];
         self.pos = end_pos + 1; // skip '>'
-        
+
         if tag_content.starts_with('/') {
-            let tag_name = tag_content[1..].trim().split_whitespace().next().unwrap_or("").to_string();
+            let tag_name = tag_content[1..]
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_string();
             Some(Token::EndTag(tag_name))
         } else if tag_content.ends_with('/') || tag_content == "br" {
-            let tag_name = tag_content.trim_end_matches('/').trim().split_whitespace().next().unwrap_or("").to_string();
+            let tag_name = tag_content
+                .trim_end_matches('/')
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_string();
             Some(Token::SelfClosingTag(tag_name))
         } else {
-            let tag_name = tag_content.trim().split_whitespace().next().unwrap_or("").to_string();
+            let tag_name = tag_content
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_string();
             Some(Token::StartTag(tag_name))
         }
     }
-    
+
     fn parse_text(&mut self) -> Option<Token> {
         let start = self.pos;
-        
+
         while self.pos < self.input.len() {
             let remaining = &self.input[self.pos..];
             if let Some(ch) = remaining.chars().next() {
@@ -219,7 +245,7 @@ impl Tokenizer {
                 break;
             }
         }
-        
+
         let text = &self.input[start..self.pos];
         if text.is_empty() {
             None
@@ -274,7 +300,13 @@ impl Parser {
         let mut list_item_level = 0;
 
         while let Some(token) = tokenizer.next() {
-            self.process_token(token, &mut document, &mut breadcrumbs, &mut list_item_level, &mut tokenizer)?;
+            self.process_token(
+                token,
+                &mut document,
+                &mut breadcrumbs,
+                &mut list_item_level,
+                &mut tokenizer,
+            )?;
         }
 
         Ok(document)
@@ -292,24 +324,40 @@ impl Parser {
             Token::StartTag(tag_name) => {
                 if tag_name == "li" {
                     if let Some(parent) = breadcrumbs.last_mut() {
-                        if parent.paragraph_type == ParagraphType::UnorderedList 
-                            || parent.paragraph_type == ParagraphType::OrderedList {
-                            let (list_content, remaining_token) = self.read_list_content(tokenizer)?;
+                        if parent.paragraph_type == ParagraphType::UnorderedList
+                            || parent.paragraph_type == ParagraphType::OrderedList
+                        {
+                            let (list_content, remaining_token) =
+                                self.read_list_content(tokenizer)?;
                             parent.add_list_item(list_content);
-                            
+
                             // If there's a remaining token (parent structure ending), handle it
                             if let Some(token) = remaining_token {
-                                return self.process_token(token, document, breadcrumbs, list_item_level, tokenizer);
+                                return self.process_token(
+                                    token,
+                                    document,
+                                    breadcrumbs,
+                                    list_item_level,
+                                    tokenizer,
+                                );
                             }
                             *list_item_level += 1;
                         } else {
-                            return Err(ParseError::UnexpectedListItem(Some(parent.paragraph_type)));
+                            return Err(ParseError::UnexpectedListItem(Some(
+                                parent.paragraph_type,
+                            )));
                         }
                     } else {
                         return Err(ParseError::UnexpectedListItem(None));
                     }
                 } else if let Some(&paragraph_type) = self.wrapper_elements.get(&tag_name) {
-                    self.process_start_paragraph(paragraph_type, document, breadcrumbs, list_item_level, tokenizer)?;
+                    self.process_start_paragraph(
+                        paragraph_type,
+                        document,
+                        breadcrumbs,
+                        list_item_level,
+                        tokenizer,
+                    )?;
                 }
             }
             Token::EndTag(tag_name) => {
@@ -331,10 +379,13 @@ impl Parser {
                     if breadcrumbs.is_empty() {
                         return Err(ParseError::UnexpectedTextContent(trimmed.to_string()));
                     }
-                    
+
                     // Check if we have text content in a non-leaf paragraph
                     if let Some(parent) = breadcrumbs.last() {
-                        if !parent.paragraph_type.is_leaf() && parent.paragraph_type != ParagraphType::UnorderedList && parent.paragraph_type != ParagraphType::OrderedList {
+                        if !parent.paragraph_type.is_leaf()
+                            && parent.paragraph_type != ParagraphType::UnorderedList
+                            && parent.paragraph_type != ParagraphType::OrderedList
+                        {
                             return Err(ParseError::UnexpectedTextContent(trimmed.to_string()));
                         }
                     }
@@ -353,7 +404,7 @@ impl Parser {
         tokenizer: &mut Tokenizer,
     ) -> Result<(), ParseError> {
         let mut paragraph = Paragraph::new(paragraph_type);
-        
+
         if paragraph_type.is_leaf() {
             // Read content for leaf paragraphs
             let content = self.read_content(tokenizer, paragraph_type.html_tag())?;
@@ -363,7 +414,7 @@ impl Parser {
             // For non-leaf paragraphs, add to breadcrumbs
             breadcrumbs.push(paragraph);
         }
-        
+
         Ok(())
     }
 
@@ -375,9 +426,9 @@ impl Parser {
     ) -> Result<(), ParseError> {
         if let Some(current) = breadcrumbs.last() {
             if current.paragraph_type != paragraph_type {
-                return Err(ParseError::MismatchedClosingTag { 
-                    actual: current.paragraph_type, 
-                    expected: paragraph_type 
+                return Err(ParseError::MismatchedClosingTag {
+                    actual: current.paragraph_type,
+                    expected: paragraph_type,
                 });
             }
         } else {
@@ -385,10 +436,12 @@ impl Parser {
         }
 
         let paragraph = breadcrumbs.pop().unwrap();
-        
+
         // Add the completed paragraph to its parent or document
         if let Some(parent) = breadcrumbs.last_mut() {
-            if parent.paragraph_type == ParagraphType::UnorderedList || parent.paragraph_type == ParagraphType::OrderedList {
+            if parent.paragraph_type == ParagraphType::UnorderedList
+                || parent.paragraph_type == ParagraphType::OrderedList
+            {
                 if let Some(last_entry) = parent.entries.last_mut() {
                     last_entry.push(paragraph);
                 } else {
@@ -401,7 +454,7 @@ impl Parser {
             // Add to document if no parent
             document.add_paragraph(paragraph);
         }
-        
+
         Ok(())
     }
 
@@ -413,7 +466,9 @@ impl Parser {
     ) -> Result<(), ParseError> {
         if let Some(parent) = breadcrumbs.last_mut() {
             // If the parent is a list, add to the current list entry
-            if parent.paragraph_type == ParagraphType::UnorderedList || parent.paragraph_type == ParagraphType::OrderedList {
+            if parent.paragraph_type == ParagraphType::UnorderedList
+                || parent.paragraph_type == ParagraphType::OrderedList
+            {
                 if let Some(last_entry) = parent.entries.last_mut() {
                     last_entry.push(paragraph.clone());
                 } else {
@@ -429,7 +484,10 @@ impl Parser {
         Ok(())
     }
 
-    fn read_list_content(&self, tokenizer: &mut Tokenizer) -> Result<(Vec<Paragraph>, Option<Token>), ParseError> {
+    fn read_list_content(
+        &self,
+        tokenizer: &mut Tokenizer,
+    ) -> Result<(Vec<Paragraph>, Option<Token>), ParseError> {
         let mut paragraphs = Vec::new();
         let mut breadcrumbs: Vec<Paragraph> = Vec::new();
 
@@ -447,7 +505,9 @@ impl Parser {
                                 let paragraph = breadcrumbs.pop().unwrap();
                                 if !paragraph_type.is_leaf() {
                                     let mut paragraph_with_children = paragraph;
-                                    paragraph_with_children.children.extend(paragraphs.drain(..));
+                                    paragraph_with_children
+                                        .children
+                                        .extend(paragraphs.drain(..));
                                     paragraphs.push(paragraph_with_children);
                                 } else {
                                     paragraphs.push(paragraph);
@@ -465,27 +525,32 @@ impl Parser {
                 Token::StartTag(tag_name) => {
                     if tag_name == "li" {
                         if let Some(parent) = breadcrumbs.last_mut() {
-                            if parent.paragraph_type == ParagraphType::UnorderedList 
-                                || parent.paragraph_type == ParagraphType::OrderedList {
-                                let (list_content, remaining_token) = self.read_list_content(tokenizer)?;
+                            if parent.paragraph_type == ParagraphType::UnorderedList
+                                || parent.paragraph_type == ParagraphType::OrderedList
+                            {
+                                let (list_content, remaining_token) =
+                                    self.read_list_content(tokenizer)?;
                                 parent.add_list_item(list_content);
-                                
+
                                 // If there's a remaining token (parent structure ending), bubble it up
                                 if let Some(token) = remaining_token {
                                     paragraphs.extend(breadcrumbs);
                                     return Ok((paragraphs, Some(token)));
                                 }
                             } else {
-                                return Err(ParseError::UnexpectedListItem(Some(parent.paragraph_type)));
+                                return Err(ParseError::UnexpectedListItem(Some(
+                                    parent.paragraph_type,
+                                )));
                             }
                         } else {
                             return Err(ParseError::UnexpectedListItem(None));
                         }
                     } else if let Some(&paragraph_type) = self.wrapper_elements.get(&tag_name) {
                         let mut paragraph = Paragraph::new(paragraph_type);
-                        
+
                         if paragraph_type.is_leaf() {
-                            let content = self.read_content(tokenizer, paragraph_type.html_tag())?;
+                            let content =
+                                self.read_content(tokenizer, paragraph_type.html_tag())?;
                             paragraph = paragraph.with_content(content);
                             paragraphs.push(paragraph);
                         } else {
@@ -509,7 +574,11 @@ impl Parser {
         Ok((paragraphs, None))
     }
 
-    fn read_content(&self, tokenizer: &mut Tokenizer, end_tag: &str) -> Result<Vec<Span>, ParseError> {
+    fn read_content(
+        &self,
+        tokenizer: &mut Tokenizer,
+        end_tag: &str,
+    ) -> Result<Vec<Span>, ParseError> {
         let mut spans = Vec::new();
         let mut buffer = String::new();
         let mut has_leading_entity = false;
@@ -519,7 +588,9 @@ impl Parser {
             match token {
                 Token::EndTag(tag_name) if tag_name == end_tag => {
                     if !buffer.is_empty() {
-                        spans.push(Span::new_text(self.decode_entities(&self.collapse_whitespace(&buffer, spans.is_empty(), true))));
+                        spans.push(Span::new_text(self.decode_entities(
+                            &self.collapse_whitespace(&buffer, spans.is_empty(), true),
+                        )));
                         buffer.clear();
                     }
                     break;
@@ -527,7 +598,11 @@ impl Parser {
                 Token::SelfClosingTag(tag_name) if tag_name == "br" => {
                     if !buffer.is_empty() {
                         let decoded = self.decode_entities(&buffer);
-                        spans.push(Span::new_text(self.collapse_whitespace(&decoded, spans.is_empty(), false)));
+                        spans.push(Span::new_text(self.collapse_whitespace(
+                            &decoded,
+                            spans.is_empty(),
+                            false,
+                        )));
                         buffer.clear();
                     }
                     spans.push(Span::new_text("\n"));
@@ -535,7 +610,9 @@ impl Parser {
                 Token::StartTag(tag_name) => {
                     if let Some(&style) = self.inline_elements.get(&tag_name) {
                         if !buffer.is_empty() {
-                            spans.push(Span::new_text(self.decode_entities(&self.collapse_whitespace(&buffer, spans.is_empty(), false))));
+                            spans.push(Span::new_text(self.decode_entities(
+                                &self.collapse_whitespace(&buffer, spans.is_empty(), false),
+                            )));
                             buffer.clear();
                         }
                         let span = self.read_span(tokenizer, style, &tag_name)?;
@@ -544,7 +621,9 @@ impl Parser {
                         // This is a structural element that should be handled by parent context
                         // Put the token back and return the content we've read so far
                         if !buffer.is_empty() {
-                            spans.push(Span::new_text(self.decode_entities(&self.collapse_whitespace(&buffer, spans.is_empty(), false))));
+                            spans.push(Span::new_text(self.decode_entities(
+                                &self.collapse_whitespace(&buffer, spans.is_empty(), false),
+                            )));
                         }
                         tokenizer.putback(Token::StartTag(tag_name), token_pos);
                         return Ok(spans);
@@ -560,7 +639,7 @@ impl Parser {
                     if text.ends_with(';') && text.contains('&') {
                         has_trailing_entity = true;
                     }
-                    
+
                     // If we just added a line break, trim leading whitespace from the next text
                     if !spans.is_empty() && spans.last().map(|s| s.text.as_str()) == Some("\n") {
                         buffer.push_str(text.trim_start());
@@ -584,7 +663,10 @@ impl Parser {
                     }
                 }
                 Token::SelfClosingTag(tag_name) => {
-                    return Err(ParseError::UnexpectedToken(format!("self-closing tag {}", tag_name)));
+                    return Err(ParseError::UnexpectedToken(format!(
+                        "self-closing tag {}",
+                        tag_name
+                    )));
                 }
             }
         }
@@ -593,21 +675,30 @@ impl Parser {
             let decoded = self.decode_entities(&buffer);
             let buffer_has_leading_entity = buffer.starts_with('&');
             let buffer_has_trailing_entity = buffer.ends_with(';') && buffer.contains('&');
-            
+
             if buffer_has_leading_entity {
                 has_leading_entity = true;
             }
             if buffer_has_trailing_entity {
                 has_trailing_entity = true;
             }
-            
-            spans.push(Span::new_text(self.collapse_whitespace(&decoded, spans.is_empty() && !buffer_has_leading_entity, !buffer_has_trailing_entity)));
+
+            spans.push(Span::new_text(self.collapse_whitespace(
+                &decoded,
+                spans.is_empty() && !buffer_has_leading_entity,
+                !buffer_has_trailing_entity,
+            )));
         }
 
         Ok(self.trim_whitespace_with_entities(spans, has_leading_entity, has_trailing_entity))
     }
 
-    fn read_span(&self, tokenizer: &mut Tokenizer, style: InlineStyle, end_tag: &str) -> Result<Span, ParseError> {
+    fn read_span(
+        &self,
+        tokenizer: &mut Tokenizer,
+        style: InlineStyle,
+        end_tag: &str,
+    ) -> Result<Span, ParseError> {
         let mut children = Vec::new();
         let mut buffer = String::new();
 
@@ -640,7 +731,7 @@ impl Parser {
                             children.push(Span::new_text("\n"));
                         }
                     }
-                    
+
                     // Mark that we just processed a line break so the next text can be trimmed
                     // This will be handled by the Text token processing
                 }
@@ -660,7 +751,12 @@ impl Parser {
                 }
                 Token::Text(text) => {
                     // If we just added a line break, trim leading whitespace from the next text
-                    if !children.is_empty() && children.last().map(|s| s.text.ends_with('\n')).unwrap_or(false) {
+                    if !children.is_empty()
+                        && children
+                            .last()
+                            .map(|s| s.text.ends_with('\n'))
+                            .unwrap_or(false)
+                    {
                         buffer.push_str(text.trim_start());
                     } else {
                         buffer.push_str(&text);
@@ -677,14 +773,14 @@ impl Parser {
 
     fn collapse_whitespace(&self, s: &str, first: bool, last: bool) -> String {
         let mut result = s.to_string();
-        
+
         if first {
             result = result.trim_start().to_string();
         }
         if last {
             result = result.trim_end().to_string();
         }
-        
+
         self.space_regex.replace_all(&result, " ").to_string()
     }
 
@@ -702,19 +798,24 @@ impl Parser {
 
     fn decode_entities(&self, s: &str) -> String {
         s.replace("&emsp14;", " ")
-         .replace("&lt;", "<")
-         .replace("&gt;", ">")
-         .replace("&amp;", "&")
-         .replace("&quot;", "\"")
-         .replace("&apos;", "'")
-         .replace("&nbsp;", " ")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&nbsp;", " ")
     }
 
     fn trim_whitespace(&self, mut spans: Vec<Span>) -> Vec<Span> {
         self.trim_whitespace_with_entities(spans, false, false)
     }
 
-    fn trim_whitespace_with_entities(&self, mut spans: Vec<Span>, preserve_leading: bool, preserve_trailing: bool) -> Vec<Span> {
+    fn trim_whitespace_with_entities(
+        &self,
+        mut spans: Vec<Span>,
+        preserve_leading: bool,
+        preserve_trailing: bool,
+    ) -> Vec<Span> {
         // Trim leading whitespace (unless we need to preserve it due to entities)
         if !preserve_leading {
             while let Some(first) = spans.first_mut() {
@@ -760,7 +861,7 @@ impl Parser {
 pub fn parse<R: Read>(mut reader: R) -> Result<Document, ParseError> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
-    
+
     let parser = Parser::new();
     parser.parse_string(&input)
 }
@@ -774,7 +875,7 @@ mod tests {
     fn test_simple_paragraph() {
         let input = "<p>This is a test.</p>";
         let doc = parse(Cursor::new(input)).unwrap();
-        
+
         assert_eq!(doc.paragraphs.len(), 1);
         assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Text);
         assert_eq!(doc.paragraphs[0].content.len(), 1);
@@ -785,7 +886,7 @@ mod tests {
     fn test_header_paragraph() {
         let input = "<h1>Header</h1>";
         let doc = parse(Cursor::new(input)).unwrap();
-        
+
         assert_eq!(doc.paragraphs.len(), 1);
         assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Header1);
         assert_eq!(doc.paragraphs[0].content[0].text, "Header");
@@ -795,7 +896,7 @@ mod tests {
     fn test_bold_text() {
         let input = "<p>This is <b>bold</b> text.</p>";
         let doc = parse(Cursor::new(input)).unwrap();
-        
+
         assert_eq!(doc.paragraphs[0].content.len(), 3);
         assert_eq!(doc.paragraphs[0].content[0].text, "This is ");
         assert_eq!(doc.paragraphs[0].content[1].style, InlineStyle::Bold);
@@ -807,7 +908,7 @@ mod tests {
     fn test_line_break() {
         let input = "<p>A<br/>B</p>";
         let doc = parse(Cursor::new(input)).unwrap();
-        
+
         assert_eq!(doc.paragraphs[0].content.len(), 3);
         assert_eq!(doc.paragraphs[0].content[0].text, "A");
         assert_eq!(doc.paragraphs[0].content[1].text, "\n");

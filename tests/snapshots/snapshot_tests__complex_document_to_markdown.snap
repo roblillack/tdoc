@@ -1,0 +1,16 @@
+---
+source: tests/snapshot_tests.rs
+expression: markdown
+---
+# Title
+
+Introduction paragraph with **bold** text.
+
+## Section 1
+
+Some content here.
+
+- List item 1
+- List item 2
+
+> A quoted paragraph.

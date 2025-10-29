@@ -1,0 +1,7 @@
+---
+source: tests/snapshot_tests.rs
+expression: markdown
+---
+1. First
+2. Second
+3. Third

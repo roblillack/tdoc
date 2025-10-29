@@ -1,0 +1,7 @@
+---
+source: tests/snapshot_tests.rs
+expression: markdown
+---
+- - Nested 1
+- - Nested 2
+- Item 2
