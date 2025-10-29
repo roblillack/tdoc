@@ -35,3 +35,4 @@ atty = "0.2"
 
 [dev-dependencies]
 assert_matches = "1.5"
+insta = "1.40"
