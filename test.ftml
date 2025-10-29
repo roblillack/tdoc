@@ -1,0 +1,9 @@
+<h1>Test Document</h1>
+<p>This is a <b>test</b> document with <i>formatting</i>.</p>
+<blockquote>
+  <p>This is a quoted paragraph.</p>
+</blockquote>
+<ul>
+  <li><p>First item</p></li>
+  <li><p>Second item</p></li>
+</ul>

@@ -1,0 +1,8 @@
+<blockquote>
+  <p>This is a quote with a list:</p>
+  <ul>
+    <li>
+      <p>First item</p>
+    </li>
+  </ul>
+</blockquote>
