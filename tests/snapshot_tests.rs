@@ -40,17 +40,6 @@ fn test_ftml_to_markdown_snapshots() {
             .and_then(|n| n.to_str())
             .unwrap_or_else(|| panic!("Invalid filename: {:?}", path));
 
-        // Skip files known to have parsing issues or that cause hangs
-        let skip_files = [
-            "test_nested_p.ftml",
-            "test_partial.ftml",
-            "test_specific.ftml",
-        ];
-        if skip_files.contains(&file_name) {
-            eprintln!("Skipping {}: known parsing issues", file_name);
-            continue;
-        }
-
         // Read FTML file
         let ftml_content = match fs::read_to_string(&path) {
             Ok(content) => content,
@@ -84,6 +73,81 @@ fn test_ftml_to_markdown_snapshots() {
 
         // Snapshot the markdown output
         insta::assert_binary_snapshot!(snapshot_name.as_str(), markdown_output);
+    }
+}
+
+/// Test that snapshots FTML through the ASCII formatter for all test files
+#[test]
+fn test_ftml_to_ascii_snapshots() {
+    // Get the test data directory
+    let mut test_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    test_dir.push("tests/data/ftml");
+
+    // Read all .ftml files from the directory
+    let entries = fs::read_dir(&test_dir)
+        .unwrap_or_else(|e| panic!("Failed to read test directory {:?}: {}", test_dir, e));
+
+    // Collect and sort file paths
+    let mut ftml_files: Vec<PathBuf> = entries
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            if path.extension()? == "ftml" {
+                Some(path)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    ftml_files.sort();
+
+    assert!(
+        !ftml_files.is_empty(),
+        "No .ftml files found in {:?}",
+        test_dir
+    );
+
+    for path in ftml_files {
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_else(|| panic!("Invalid filename: {:?}", path));
+
+        // Read FTML file
+        let ftml_content = match fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(e) => {
+                eprintln!("Failed to read {}: {}", file_name, e);
+                continue;
+            }
+        };
+
+        // Parse FTML
+        let document = match ftml::parse(Cursor::new(&ftml_content)) {
+            Ok(doc) => doc,
+            Err(e) => {
+                eprintln!("Failed to parse {}: {}", file_name, e);
+                continue;
+            }
+        };
+
+        // Format with the ASCII formatter
+        let mut ascii_output = Vec::new();
+        let mut formatter = ftml::formatter::Formatter::new_ascii(&mut ascii_output);
+
+        if let Err(e) = formatter.write_document(&document) {
+            eprintln!("Failed to format {} as ASCII: {}", file_name, e);
+            continue;
+        }
+
+        let base_name = file_name.strip_suffix(".ftml").unwrap_or(file_name);
+
+        // Create snapshot name from filename with an ASCII-specific prefix
+        let snapshot_name = format!("ascii__{}.txt", base_name);
+
+        // Snapshot the ASCII formatted output
+        insta::assert_binary_snapshot!(snapshot_name.as_str(), ascii_output);
     }
 }
 

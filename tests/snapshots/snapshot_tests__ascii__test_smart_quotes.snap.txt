@@ -1,0 +1,2 @@
+Applications should "do the right thing" regarding FTML itself does not
+encorce rules.

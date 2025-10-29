@@ -1,0 +1,6 @@
+---
+source: tests/snapshot_tests.rs
+expression: ascii_output
+extension: txt
+snapshot_kind: binary
+---
