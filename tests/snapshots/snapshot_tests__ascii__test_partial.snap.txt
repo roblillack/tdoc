@@ -8,6 +8,7 @@
 The purpose of this document is to demonstrate the following use-cases:
 
  • Describe the features supported by FTML.
+
  • Showcase the FTML standard formatting enforced by fmtftml.
 
 
@@ -22,10 +23,15 @@ Inline styles
 The following inline styles are supported in FTML:
 
  • Bold text.
+
  • Italic text.
+
  • Highlighted text.
+
  • Underlined text.
+
  • Striked text.
+
  • Text formatted as code.
 
 

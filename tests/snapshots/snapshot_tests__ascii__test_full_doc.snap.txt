@@ -8,6 +8,7 @@
 The purpose of this document is to demonstrate the following use-cases:
 
  • Describe the features supported by FTML.
+
  • Showcase the FTML standard formatting enforced by fmtftml.
 
 
@@ -22,10 +23,15 @@ Inline styles
 The following inline styles are supported in FTML:
 
  • Bold text.
+
  • Italic text.
+
  • Highlighted text.
+
  • Underlined text.
+
  • Striked text.
+
  • Text formatted as code.
 
 
@@ -48,12 +54,17 @@ Quoted paragraphs
 | Like any other blocks, quotes may contain any of the different
 | paragraph types as children. First, let's look into wrapping of
 | quotes, though. As you can see, this is a very long line again.
+| 
 | This is the second paragraph of the very same quote. This paragraph,
 | too, will be broken into multiple lines, if necessary.
+| 
+| 
 | Quoted Headers
 | --------------
+| 
 | As expected, you'll be able to quote all kinds of paragraphs—including
 | section headers.
+| 
 | | Now, finally, let's look at a second level quote. Like expected,
 | | this paragraph will also wrap at the same width, even if if it
 | | indented further then the paragraphs above.
@@ -67,11 +78,14 @@ TBD
 Example:
 
  • This is a bullet point.
- • This is another bullet point.
 
- • Contrasting to the first bullet point, this one contains multiple
-  paragraps, with this one being the second one.
+ • This is another bullet point.
+   
+   Contrasting to the first bullet point, this one contains multiple
+   paragraps, with this one being the second one.
+
  • This is a bullet point with a bunch of hard line breaks.
+
  • | This bulletpoint contains a quote.
 
 
@@ -82,22 +96,35 @@ FTML supports nesting of paragraphs, so this is entirely possible:
 
 | Please see, how the following list is part of a quote and contains
 | nested paragraphs.
+| 
 |  • This is a paragraph inside of a quoted paragraph
+| 
 |  • | This bullet points contains another quote:
+|  • | 
 |  • | You can never have enough nesting of paragraphs.
-|   | —Robert Lillack
+|    |    —Robert Lillack
+| 
 |  •  1. One
+|    
 |  •  2. …
+|    
 |  •  3. …
+|    
 |  •  4. …
+|    
 |  •  5. …
+|    
 |  •  6. …
+|    
 |  •  7. …
+|    
 |  •  8. …
+|    
 |  •  9. …
+|    
 |  • 10. aaaaand
-
-|  • 10. Ten!
+|        
+|        Ten!
 
 
 

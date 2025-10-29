@@ -99,7 +99,7 @@ impl<W: Write> Formatter<W> {
 
     pub fn write_document(&mut self, document: &Document) -> std::io::Result<()> {
         let indent = " ".repeat(self.style.left_padding);
-        self.write_paragraphs(&document.paragraphs, &indent, &indent)?;
+        self.write_paragraphs(&document.paragraphs, &indent, &indent, &indent)?;
 
         // Write reset styles if we have any
         if !self.style.reset_styles.is_empty() {
@@ -114,21 +114,56 @@ impl<W: Write> Formatter<W> {
         paragraphs: &[Paragraph],
         prefix: &str,
         continuation_prefix: &str,
+        blank_line_prefix: &str,
+    ) -> std::io::Result<()> {
+        self.write_paragraphs_with_prefixes(
+            paragraphs,
+            &[],
+            prefix,
+            continuation_prefix,
+            blank_line_prefix,
+        )
+    }
+
+    fn write_paragraphs_with_prefixes(
+        &mut self,
+        paragraphs: &[Paragraph],
+        first_line_prefixes: &[&str],
+        default_first_line_prefix: &str,
+        continuation_prefix: &str,
+        blank_line_prefix: &str,
     ) -> std::io::Result<()> {
         let mut previous_type: Option<ParagraphType> = None;
 
-        for paragraph in paragraphs {
+        for (idx, paragraph) in paragraphs.iter().enumerate() {
             let previous_after = previous_type
                 .map(|ty| self.blank_lines_after(ty))
                 .unwrap_or(0);
             let blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
-            self.write_blank_lines(previous_after.max(blank_lines))?;
-            self.write_paragraph(paragraph, prefix, continuation_prefix)?;
+            self.write_blank_lines_with_prefix(
+                blank_line_prefix,
+                previous_after.max(blank_lines),
+            )?;
+            let paragraph_prefix = if idx < first_line_prefixes.len() {
+                first_line_prefixes[idx]
+            } else {
+                default_first_line_prefix
+            };
+
+            self.write_paragraph(
+                paragraph,
+                paragraph_prefix,
+                continuation_prefix,
+                blank_line_prefix,
+            )?;
             previous_type = Some(paragraph.paragraph_type);
         }
 
         if let Some(last_type) = previous_type {
-            self.write_blank_lines(self.blank_lines_after(last_type))?;
+            self.write_blank_lines_with_prefix(
+                blank_line_prefix,
+                self.blank_lines_after(last_type),
+            )?;
         }
 
         Ok(())
@@ -139,6 +174,7 @@ impl<W: Write> Formatter<W> {
         paragraph: &Paragraph,
         prefix: &str,
         continuation_prefix: &str,
+        blank_line_prefix: &str,
     ) -> std::io::Result<()> {
         match paragraph.paragraph_type {
             ParagraphType::Header1 => {
@@ -158,34 +194,83 @@ impl<W: Write> Formatter<W> {
                 let quote_continuation =
                     format!("{}{}", continuation_prefix, self.style.quote_prefix);
 
-                for child in &paragraph.children {
-                    self.write_paragraph(child, &quote_prefix, &quote_continuation)?;
-                }
+                self.write_paragraphs(
+                    &paragraph.children,
+                    &quote_prefix,
+                    &quote_continuation,
+                    &quote_prefix,
+                )?;
             }
             ParagraphType::UnorderedList => {
-                for entry in &paragraph.entries {
+                for (idx, entry) in paragraph.entries.iter().enumerate() {
+                    if idx > 0 {
+                        self.write_blank_lines_with_prefix(blank_line_prefix, 1)?;
+                    }
+
                     let bullet_prefix =
                         format!("{}{}", prefix, self.style.unordered_list_item_prefix);
-                    let bullet_continuation = format!("{}  ", continuation_prefix);
+                    let bullet_continuation = {
+                        let desired_width = bullet_prefix.chars().count();
+                        let current_width = continuation_prefix.chars().count();
+                        let mut continuation = continuation_prefix.to_string();
+                        if desired_width > current_width {
+                            continuation
+                                .push_str(&" ".repeat(desired_width - current_width));
+                        }
+                        continuation
+                    };
 
-                    self.write_paragraphs(entry, &bullet_prefix, &bullet_continuation)?;
+                    self.write_paragraphs_with_prefixes(
+                        entry,
+                        &[bullet_prefix.as_str()],
+                        &bullet_continuation,
+                        &bullet_continuation,
+                        &bullet_continuation,
+                    )?;
                 }
             }
             ParagraphType::OrderedList => {
                 for (i, entry) in paragraph.entries.iter().enumerate() {
-                    let bullet_prefix = format!("{}{:2}. ", prefix, i + 1);
-                    let bullet_continuation = format!("{}    ", continuation_prefix);
+                    if i > 0 {
+                        self.write_blank_lines_with_prefix(blank_line_prefix, 1)?;
+                    }
 
-                    self.write_paragraphs(entry, &bullet_prefix, &bullet_continuation)?;
+                    let bullet_prefix = format!("{}{:2}. ", prefix, i + 1);
+                    let bullet_continuation = {
+                        let desired_width = bullet_prefix.chars().count();
+                        let current_width = continuation_prefix.chars().count();
+                        let mut continuation = continuation_prefix.to_string();
+                        if desired_width > current_width {
+                            continuation
+                                .push_str(&" ".repeat(desired_width - current_width));
+                        }
+                        continuation
+                    };
+
+                    self.write_paragraphs_with_prefixes(
+                        entry,
+                        &[bullet_prefix.as_str()],
+                        &bullet_continuation,
+                        &bullet_continuation,
+                        &bullet_continuation,
+                    )?;
                 }
             }
         }
         Ok(())
     }
 
-    fn write_blank_lines(&mut self, count: usize) -> std::io::Result<()> {
+    fn write_blank_lines_with_prefix(
+        &mut self,
+        prefix: &str,
+        count: usize,
+    ) -> std::io::Result<()> {
         for _ in 0..count {
-            writeln!(self.writer)?;
+            if prefix.is_empty() {
+                writeln!(self.writer)?;
+            } else {
+                writeln!(self.writer, "{}", prefix)?;
+            }
         }
         Ok(())
     }
@@ -421,9 +506,27 @@ impl<W: Write> Formatter<W> {
             return Ok(());
         }
 
-        let words: Vec<&str> = text.split_whitespace().collect();
+        let trimmed_text = text.trim_start_matches(' ');
+        let leading_spaces = text.len() - trimmed_text.len();
         let mut current_line = String::new();
         let mut line_width = initial_width;
+
+        if trimmed_text.is_empty() {
+            return Ok(());
+        }
+
+        for _ in 0..leading_spaces {
+            current_line.push(' ');
+            line_width += 1;
+        }
+
+        let words: Vec<&str> = trimmed_text.split_whitespace().collect();
+        if words.is_empty() {
+            if !current_line.is_empty() {
+                write!(self.writer, "{}", current_line)?;
+            }
+            return Ok(());
+        }
 
         for (i, word) in words.iter().enumerate() {
             let word_width = self.visible_width(word);
@@ -441,8 +544,8 @@ impl<W: Write> Formatter<W> {
                 current_line.clear();
             }
 
-            // Add space if needed
-            if !current_line.is_empty() {
+            // Add space if needed (only if there is already non-indentation content on this line)
+            if !current_line.trim().is_empty() {
                 current_line.push(' ');
                 line_width += 1;
             }
@@ -533,6 +636,118 @@ mod tests {
 
         assert!(result.contains(" • Item 1"));
         assert!(result.contains(" • Item 2"));
+        assert!(result.contains(" • Item 1\n\n • Item 2"));
+    }
+
+    #[test]
+    fn test_ordered_list_formatting() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![ol_(vec![
+            li_(vec![p__("First")]),
+            li_(vec![p__("Second")]),
+        ])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains(" 1. First"));
+        assert!(result.contains(" 2. Second"));
+        assert!(result.contains(" 1. First\n\n 2. Second"));
+    }
+
+    #[test]
+    fn test_list_item_multiple_paragraphs() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![ul_(vec![li_(vec![
+            p__("Primary text."),
+            p__("Follow-up paragraph."),
+        ])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains(" • Primary text."));
+        assert!(result.contains("   \n   Follow-up paragraph."));
+        assert!(!result.contains(" • Follow-up paragraph."));
+    }
+
+    #[test]
+    fn test_list_item_forced_newline_spacing() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![ul_(vec![li_(vec![p_(vec![span(
+            "First line\nSecond line",
+        )])])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains(" • First line\n   Second line"));
+    }
+
+    #[test]
+    fn test_quote_multiple_paragraphs_spacing() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![quote_(vec![p__("Paragraph one."), p__("Paragraph two.")])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("| Paragraph one."));
+        assert!(result.contains("| \n| Paragraph two."));
+    }
+
+    #[test]
+    fn test_quote_list_spacing() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![quote_(vec![ul_(vec![
+            li_(vec![p__("Item 1")]),
+            li_(vec![p__("Item 2")]),
+        ])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("|  • Item 1"));
+        assert!(result.contains("| \n|  • Item 2"));
+    }
+
+    #[test]
+    fn test_quote_list_with_nested_quote_spacing() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![quote_(vec![
+            p__("Please see, how the following list is part of a quote and contains nested paragraphs."),
+            ul_(vec![
+                li_(vec![p__("This is a paragraph inside of a quoted paragraph")]),
+                li_(vec![
+                    p__("This bullet points contains another quote:"),
+                    quote_(vec![p_(vec![span(
+                        "You can never have enough nesting of paragraphs.\n   —Robert Lillack",
+                    )])]),
+                ]),
+            ]),
+        ])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let bullet_count = result.matches(" • ").count();
+        assert_eq!(bullet_count, 2);
+        assert!(result.contains("|  • This bullet points contains another quote:"));
+        assert!(result.contains("|    | You can never have enough nesting of paragraphs."));
+        assert!(result.contains("|    |    —Robert Lillack"));
+        assert!(!result.contains("|  • |"));
     }
 
     #[test]
