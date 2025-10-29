@@ -207,12 +207,13 @@ impl<W: Write> Formatter<W> {
                         self.write_blank_lines_with_prefix(blank_line_prefix, 1)?;
                     }
 
+                    let base_prefix = continuation_prefix;
                     let bullet_prefix =
-                        format!("{}{}", prefix, self.style.unordered_list_item_prefix);
+                        format!("{}{}", base_prefix, self.style.unordered_list_item_prefix);
                     let bullet_continuation = {
                         let desired_width = bullet_prefix.chars().count();
-                        let current_width = continuation_prefix.chars().count();
-                        let mut continuation = continuation_prefix.to_string();
+                        let current_width = base_prefix.chars().count();
+                        let mut continuation = base_prefix.to_string();
                         if desired_width > current_width {
                             continuation
                                 .push_str(&" ".repeat(desired_width - current_width));
@@ -235,11 +236,12 @@ impl<W: Write> Formatter<W> {
                         self.write_blank_lines_with_prefix(blank_line_prefix, 1)?;
                     }
 
-                    let bullet_prefix = format!("{}{:2}. ", prefix, i + 1);
+                    let base_prefix = continuation_prefix;
+                    let bullet_prefix = format!("{}{:2}. ", base_prefix, i + 1);
                     let bullet_continuation = {
                         let desired_width = bullet_prefix.chars().count();
-                        let current_width = continuation_prefix.chars().count();
-                        let mut continuation = continuation_prefix.to_string();
+                        let current_width = base_prefix.chars().count();
+                        let mut continuation = base_prefix.to_string();
                         if desired_width > current_width {
                             continuation
                                 .push_str(&" ".repeat(desired_width - current_width));
@@ -688,6 +690,26 @@ mod tests {
         let result = String::from_utf8(output).unwrap();
 
         assert!(result.contains(" • First line\n   Second line"));
+    }
+
+    #[test]
+    fn test_nested_list_item_additional_paragraphs_spacing() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        // Ensure a list item that only contains another list does not reintroduce bullets for nested paragraphs
+        let doc = doc(vec![ul_(vec![li_(vec![ul_(vec![li_(vec![
+            p__("Inner item primary text."),
+            p__("Inner item follow-up paragraph."),
+        ])])])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("    • Inner item primary text."));
+        assert!(result.contains("      Inner item follow-up paragraph."));
+        assert!(!result.contains(" •  • "));
+        assert!(!result.contains("• Inner item follow-up paragraph."));
     }
 
     #[test]
