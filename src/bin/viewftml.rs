@@ -109,6 +109,8 @@ fn main() {
                 }
             }
 
+            drop(formatter); // Close pager stdin so the pager knows input is complete
+
             // Wait for pager to finish
             let _ = pager_process.wait();
         } else {
