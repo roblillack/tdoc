@@ -495,7 +495,6 @@ impl<W: Write> Formatter<W> {
         prefix: &str,
         continuation_prefix: &str,
     ) -> std::io::Result<()> {
-        // First, concatenate all non-newline parts to get the full text
         let mut full_text = String::new();
         let mut has_forced_breaks = false;
 
@@ -508,24 +507,26 @@ impl<W: Write> Formatter<W> {
             }
         }
 
-        // If we have forced line breaks, handle them specially
+        let mut active_styles: Vec<InlineStyle> = Vec::new();
+
         if has_forced_breaks {
             let lines: Vec<&str> = full_text.split('\n').collect();
             for (i, line) in lines.iter().enumerate() {
-                if i > 0 {
-                    writeln!(self.writer)?;
-                    write!(self.writer, "{}", continuation_prefix)?;
-                    self.write_wrapped_line(
-                        line,
-                        continuation_prefix.chars().count(),
-                        continuation_prefix,
-                    )?;
-                } else {
+                if i == 0 {
                     write!(self.writer, "{}", prefix)?;
                     self.write_wrapped_line(
                         line,
                         prefix.chars().count(),
                         continuation_prefix,
+                        &mut active_styles,
+                    )?;
+                } else {
+                    self.write_line_break(continuation_prefix, &active_styles)?;
+                    self.write_wrapped_line(
+                        line,
+                        continuation_prefix.chars().count(),
+                        continuation_prefix,
+                        &mut active_styles,
                     )?;
                 }
             }
@@ -535,6 +536,7 @@ impl<W: Write> Formatter<W> {
                 &full_text,
                 prefix.chars().count(),
                 continuation_prefix,
+                &mut active_styles,
             )?;
         }
 
@@ -546,6 +548,7 @@ impl<W: Write> Formatter<W> {
         text: &str,
         initial_width: usize,
         continuation_prefix: &str,
+        active_styles: &mut Vec<InlineStyle>,
     ) -> std::io::Result<()> {
         if text.is_empty() {
             return Ok(());
@@ -581,10 +584,11 @@ impl<W: Write> Formatter<W> {
             if line_width + space_needed + word_width > self.style.wrap_width
                 && !current_line.is_empty()
             {
-                // Write current line and start a new one
-                write!(self.writer, "{}", current_line.trim_end())?;
-                writeln!(self.writer)?;
-                write!(self.writer, "{}", continuation_prefix)?;
+                {
+                    let trimmed_line = current_line.trim_end();
+                    write!(self.writer, "{}", trimmed_line)?;
+                }
+                self.write_line_break(continuation_prefix, active_styles)?;
                 line_width = continuation_prefix.chars().count();
                 current_line.clear();
             }
@@ -597,14 +601,90 @@ impl<W: Write> Formatter<W> {
 
             current_line.push_str(word);
             line_width += word_width;
+            self.update_active_styles_from_text(word, active_styles);
         }
 
         // Write any remaining content
         if !current_line.is_empty() {
-            write!(self.writer, "{}", current_line)?;
+            let trimmed_line = current_line.trim_end();
+            write!(self.writer, "{}", trimmed_line)?;
         }
 
         Ok(())
+    }
+
+    fn write_line_break(
+        &mut self,
+        continuation_prefix: &str,
+        active_styles: &[InlineStyle],
+    ) -> std::io::Result<()> {
+        self.write_style_resets(active_styles)?;
+        writeln!(self.writer)?;
+        write!(self.writer, "{}", continuation_prefix)?;
+        self.reapply_active_styles(active_styles)?;
+        Ok(())
+    }
+
+    fn write_style_resets(&mut self, active_styles: &[InlineStyle]) -> std::io::Result<()> {
+        for style in active_styles.iter().rev() {
+            if let Some(tags) = self.style.text_styles.get(style) {
+                write!(self.writer, "{}", tags.end)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn reapply_active_styles(&mut self, active_styles: &[InlineStyle]) -> std::io::Result<()> {
+        for style in active_styles {
+            if let Some(tags) = self.style.text_styles.get(style) {
+                write!(self.writer, "{}", tags.begin)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn update_active_styles_from_text(
+        &self,
+        text: &str,
+        active_styles: &mut Vec<InlineStyle>,
+    ) {
+        let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+        for capture in ansi_regex.find_iter(text) {
+            let sequence = capture.as_str();
+            if let Some(style) = self.find_style_start(sequence) {
+                active_styles.push(style);
+            } else if let Some(style) = self.find_style_end(sequence) {
+                if let Some(idx) = active_styles.iter().rposition(|s| *s == style) {
+                    active_styles.remove(idx);
+                }
+            }
+        }
+    }
+
+    fn find_style_start(&self, sequence: &str) -> Option<InlineStyle> {
+        self.style
+            .text_styles
+            .iter()
+            .find_map(|(style, tags)| {
+                if tags.begin == sequence {
+                    Some(*style)
+                } else {
+                    None
+                }
+            })
+    }
+
+    fn find_style_end(&self, sequence: &str) -> Option<InlineStyle> {
+        self.style
+            .text_styles
+            .iter()
+            .find_map(|(style, tags)| {
+                if tags.end == sequence {
+                    Some(*style)
+                } else {
+                    None
+                }
+            })
     }
 
     fn visible_width(&self, text: &str) -> usize {
@@ -651,6 +731,43 @@ mod tests {
         assert!(result.contains("\x1b[1m")); // Bold begin
         assert!(result.contains("\x1b[22m")); // Bold end
         assert!(result.contains("\x1b[0m")); // Reset at end
+    }
+
+    #[test]
+    fn test_ansi_wrapped_style_does_not_color_prefix() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ansi(&mut output);
+        formatter.style.wrap_width = 20;
+
+        let doc = doc(vec![ul_(vec![li_(vec![p_(vec![mark__(
+            "Highlighted content that wraps to another line.",
+        )])])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(
+            result.contains("\x1b[27m\n   \x1b[7m"),
+            "Expected highlight styling to reset before the newline and resume after the indent"
+        );
+    }
+
+    #[test]
+    fn test_ansi_forced_newline_reapplies_after_prefix() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ansi(&mut output);
+
+        let doc = doc(vec![quote_(vec![p_(vec![mark__(
+            "Styled first line\nstyled second line continues.",
+        )])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(
+            result.contains("\x1b[27m\n| \x1b[7m"),
+            "Expected quote prefix to remain unstyled around forced line breaks"
+        );
     }
 
     #[test]
