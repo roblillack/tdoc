@@ -385,28 +385,45 @@ impl<W: Write> Formatter<W> {
                 if i > 0 {
                     writeln!(self.writer)?;
                     write!(self.writer, "{}", continuation_prefix)?;
-                }
-                if i == 0 {
+                    self.write_wrapped_line(
+                        line,
+                        continuation_prefix.chars().count(),
+                        continuation_prefix,
+                    )?;
+                } else {
                     write!(self.writer, "{}", prefix)?;
+                    self.write_wrapped_line(
+                        line,
+                        prefix.chars().count(),
+                        continuation_prefix,
+                    )?;
                 }
-                self.write_wrapped_line(line, continuation_prefix)?;
             }
         } else {
             write!(self.writer, "{}", prefix)?;
-            self.write_wrapped_line(&full_text, continuation_prefix)?;
+            self.write_wrapped_line(
+                &full_text,
+                prefix.chars().count(),
+                continuation_prefix,
+            )?;
         }
 
         Ok(())
     }
 
-    fn write_wrapped_line(&mut self, text: &str, continuation_prefix: &str) -> std::io::Result<()> {
+    fn write_wrapped_line(
+        &mut self,
+        text: &str,
+        initial_width: usize,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
         if text.is_empty() {
             return Ok(());
         }
 
         let words: Vec<&str> = text.split_whitespace().collect();
         let mut current_line = String::new();
-        let mut line_width = 0;
+        let mut line_width = initial_width;
 
         for (i, word) in words.iter().enumerate() {
             let word_width = self.visible_width(word);
@@ -420,8 +437,8 @@ impl<W: Write> Formatter<W> {
                 write!(self.writer, "{}", current_line.trim_end())?;
                 writeln!(self.writer)?;
                 write!(self.writer, "{}", continuation_prefix)?;
-                current_line.clear();
                 line_width = continuation_prefix.chars().count();
+                current_line.clear();
             }
 
             // Add space if needed
@@ -535,6 +552,28 @@ mod tests {
         // Should contain line breaks due to wrapping
         let lines: Vec<&str> = result.lines().collect();
         assert!(lines.len() > 1);
+    }
+
+    #[test]
+    fn test_wrap_width_with_left_padding() {
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ascii();
+        style.wrap_width = 10;
+        style.left_padding = 4;
+        let mut formatter = Formatter::new(&mut output, style);
+
+        let doc = doc(vec![p__("123456 7890 1234")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().filter(|line| !line.is_empty()).collect();
+
+        assert!(lines.len() >= 2);
+        assert!(lines.iter().all(|line| line.starts_with("    ")));
+        assert!(lines[0].chars().count() <= 10);
+        assert!(lines[1].contains("7890"));
+        assert!(lines.iter().any(|line| line.contains("1234")));
     }
 
     #[test]

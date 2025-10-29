@@ -45,18 +45,18 @@ though.
 Quoted paragraphs
 -----------------
 
-| Like any other blocks, quotes may contain any of the different paragraph
-| types as children. First, let's look into wrapping of quotes, though.
-| As you can see, this is a very long line again.
+| Like any other blocks, quotes may contain any of the different
+| paragraph types as children. First, let's look into wrapping of
+| quotes, though. As you can see, this is a very long line again.
 | This is the second paragraph of the very same quote. This paragraph,
 | too, will be broken into multiple lines, if necessary.
 | Quoted Headers
 | --------------
 | As expected, you'll be able to quote all kinds of paragraphs—including
 | section headers.
-| | Now, finally, let's look at a second level quote. Like expected, this
-| | paragraph will also wrap at the same width, even if if it indented
-| | further then the paragraphs above.
+| | Now, finally, let's look at a second level quote. Like expected,
+| | this paragraph will also wrap at the same width, even if if it
+| | indented further then the paragraphs above.
 
 
 Bullet points
