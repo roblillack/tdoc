@@ -104,7 +104,7 @@ FTML supports nesting of paragraphs, so this is entirely possible:
 |    | You can never have enough nesting of paragraphs.
 |    |    —Robert Lillack
 | 
-|     1. One
+|  •  1. One
 |    
 |     2. …
 |    

@@ -274,7 +274,13 @@ impl<W: Write> Formatter<W> {
                     }
 
                     let base_prefix = continuation_prefix;
-                    let bullet_prefix = format!("{}{:2}. ", base_prefix, i + 1);
+                    let numbering_prefix = if i == 0 && prefix != continuation_prefix {
+                        prefix
+                    } else {
+                        base_prefix
+                    };
+
+                    let bullet_prefix = format!("{}{:2}. ", numbering_prefix, i + 1);
                     let bullet_continuation = {
                         let desired_width = bullet_prefix.chars().count();
                         let current_width = base_prefix.chars().count();
@@ -747,6 +753,38 @@ mod tests {
         assert!(result.contains("      Inner item follow-up paragraph."));
         assert!(!result.contains(" •  • "));
         assert!(!result.contains("• Inner item follow-up paragraph."));
+    }
+
+    #[test]
+    fn test_list_item_only_nested_ordered_list_shows_bullet() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![ul_(vec![li_(vec![ol_(vec![
+            li_(vec![p__("First")]),
+            li_(vec![p__("Second")]),
+        ])])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().collect();
+        let bullet_index = lines
+            .iter()
+            .position(|line| *line == " •  1. First")
+            .expect("Bullet line with first ordered entry missing");
+
+        let first_entry = lines
+            .get(bullet_index + 1)
+            .expect("Expected spacer after first ordered list entry");
+        assert!(first_entry.trim().is_empty());
+
+        let second_entry = lines
+            .iter()
+            .skip(bullet_index + 2)
+            .find(|line| line.trim_start().starts_with("2. Second"))
+            .expect("Second ordered list entry missing");
+        assert!(second_entry.starts_with("    2. Second"));
     }
 
     #[test]
