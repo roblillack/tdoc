@@ -50,7 +50,7 @@ fn write_paragraph<W: Write>(
         ParagraphType::Quote => {
             let quote_prefix = format!("{}> ", prefix);
             let quote_continuation = format!("{}> ", continuation_prefix);
-            
+
             for child in &paragraph.children {
                 write_paragraph(writer, child, &quote_prefix, &quote_continuation)?;
             }
@@ -59,7 +59,7 @@ fn write_paragraph<W: Write>(
             for entry in &paragraph.entries {
                 let bullet_prefix = format!("{}- ", prefix);
                 let bullet_continuation = format!("{}  ", continuation_prefix);
-                
+
                 write_paragraphs(writer, entry, &bullet_prefix, &bullet_continuation)?;
             }
         }
@@ -67,7 +67,7 @@ fn write_paragraph<W: Write>(
             for (i, entry) in paragraph.entries.iter().enumerate() {
                 let bullet_prefix = format!("{}{}. ", prefix, i + 1);
                 let bullet_continuation = format!("{}   ", continuation_prefix);
-                
+
                 write_paragraphs(writer, entry, &bullet_prefix, &bullet_continuation)?;
             }
         }
@@ -88,7 +88,7 @@ fn write_span<W: Write>(writer: &mut W, span: &Span) -> std::io::Result<()> {
         InlineStyle::Bold => ("**", "**"),
         InlineStyle::Italic => ("_", "_"),
         InlineStyle::Highlight => ("<mark>", "</mark>"), // Markdown doesn't have native highlight
-        InlineStyle::Underline => ("<u>", "</u>"),      // Markdown doesn't have native underline
+        InlineStyle::Underline => ("<u>", "</u>"),       // Markdown doesn't have native underline
         InlineStyle::Strike => ("~~", "~~"),
         InlineStyle::Link => {
             // Handle links if we had link targets
@@ -107,7 +107,7 @@ fn write_span<W: Write>(writer: &mut W, span: &Span) -> std::io::Result<()> {
     write!(writer, "{}", begin_tag)?;
     write_span_content(writer, span)?;
     write!(writer, "{}", end_tag)?;
-    
+
     Ok(())
 }
 
@@ -140,10 +140,10 @@ mod tests {
     fn test_simple_paragraph() {
         let mut output = Vec::new();
         let doc = doc(vec![p__("Hello world!")]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "Hello world!\n");
     }
 
@@ -151,10 +151,10 @@ mod tests {
     fn test_header() {
         let mut output = Vec::new();
         let doc = doc(vec![h1_("Main Header")]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "# Main Header\n");
     }
 
@@ -166,10 +166,10 @@ mod tests {
             b__("bold"),
             span(" text."),
         ])]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "This is **bold** text.\n");
     }
 
@@ -181,10 +181,10 @@ mod tests {
             i__("italic"),
             span(" text."),
         ])]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "This is _italic_ text.\n");
     }
 
@@ -192,10 +192,10 @@ mod tests {
     fn test_quote() {
         let mut output = Vec::new();
         let doc = doc(vec![quote_(vec![p__("This is quoted.")])]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "> This is quoted.\n");
     }
 
@@ -206,10 +206,10 @@ mod tests {
             li_(vec![p__("First item")]),
             li_(vec![p__("Second item")]),
         ])]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "- First item\n- Second item\n");
     }
 
@@ -220,10 +220,10 @@ mod tests {
             li_(vec![p__("First item")]),
             li_(vec![p__("Second item")]),
         ])]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "1. First item\n2. Second item\n");
     }
 
@@ -235,24 +235,21 @@ mod tests {
             code__("println!()"),
             span(" for output."),
         ])]);
-        
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "Use `println!()` for output.\n");
     }
 
     #[test]
     fn test_line_break() {
         let mut output = Vec::new();
-        let doc = doc(vec![p_(vec![
-            span("Line one\n"),
-            span("Line two"),
-        ])]);
-        
+        let doc = doc(vec![p_(vec![span("Line one\n"), span("Line two")])]);
+
         write(&mut output, &doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert_eq!(result, "Line one\\\nLine two\n");
     }
 }
