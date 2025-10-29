@@ -79,11 +79,11 @@ fn main() {
 
     // Determine output mode
     let use_pager = !disable_ansi && atty::is(atty::Stream::Stdout);
-    
+
     if use_pager {
         if let Ok((mut pager_process, pager_stdin)) = run_pager() {
             let mut style = FormattingStyle::ansi();
-            
+
             // Adjust formatting based on terminal width
             if let Ok((width, _)) = terminal::size() {
                 let width = width as usize;
@@ -99,7 +99,7 @@ fn main() {
                     style.left_padding = padding;
                 }
             }
-            
+
             let mut formatter = Formatter::new(pager_stdin, style);
             match formatter.write_document(&document) {
                 Ok(()) => {}
@@ -108,7 +108,7 @@ fn main() {
                     std::process::exit(1);
                 }
             }
-            
+
             // Wait for pager to finish
             let _ = pager_process.wait();
         } else {
@@ -129,7 +129,7 @@ fn main() {
         } else {
             Formatter::new_ansi(io::stdout())
         };
-        
+
         match formatter.write_document(&document) {
             Ok(()) => {}
             Err(e) => {
@@ -144,9 +144,7 @@ fn create_reader(input_file: &str) -> Result<(bool, Box<dyn Read>), Box<dyn std:
     // Try to parse as URL
     if let Ok(url) = Url::parse(input_file) {
         if url.scheme() == "http" || url.scheme() == "https" {
-            let client = Client::builder()
-                .timeout(Duration::from_secs(10))
-                .build()?;
+            let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
             let response = client.get(input_file).send()?;
             let reader = Box::new(response);
             return Ok((true, reader));
@@ -159,7 +157,7 @@ fn create_reader(input_file: &str) -> Result<(bool, Box<dyn Read>), Box<dyn std:
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.to_lowercase() != "ftml")
         .unwrap_or(true);
-        
+
     let file = File::open(input_file)?;
     let reader = Box::new(BufReader::new(file));
     Ok((expect_html, reader))
@@ -168,19 +166,20 @@ fn create_reader(input_file: &str) -> Result<(bool, Box<dyn Read>), Box<dyn std:
 fn run_pager() -> Result<(std::process::Child, std::process::ChildStdin), std::io::Error> {
     let pager_cmd = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
     let mut cmd_parts: Vec<&str> = pager_cmd.split_whitespace().collect();
-    
+
     if cmd_parts.is_empty() {
         cmd_parts = vec!["less"];
     }
 
     let program = cmd_parts[0];
     let mut args: Vec<&str> = cmd_parts.into_iter().skip(1).collect();
-    
+
     // Add -R flag for less/more to support ANSI colors
-    let program_name = Path::new(program).file_name()
+    let program_name = Path::new(program)
+        .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or(program);
-        
+
     if program_name == "less" || program_name == "more" {
         args.push("-R");
     }
@@ -207,7 +206,7 @@ mod tests {
         assert!(true);
     }
 
-    #[test] 
+    #[test]
     fn test_url_parsing() {
         let result = create_reader("https://example.com");
         match result {

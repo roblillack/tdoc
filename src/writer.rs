@@ -89,11 +89,11 @@ impl Writer {
                     }
                     self.write_indent(writer, level + 1)?;
                     writeln!(writer, "<li>")?;
-                    
+
                     for child in entry {
                         self.write_paragraph(writer, child, level + 2)?;
                     }
-                    
+
                     self.write_indent(writer, level + 1)?;
                     writeln!(writer, "</li>")?;
                 }
@@ -123,7 +123,7 @@ impl Writer {
     ) -> io::Result<()> {
         // Try single-line output first
         let single_line = self.render_single_line(content, tag, level);
-        
+
         if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
             self.write_indent(writer, level)?;
             write!(writer, "{}", single_line)?;
@@ -133,45 +133,45 @@ impl Writer {
         // Multi-line output
         self.write_indent(writer, level)?;
         writeln!(writer, "<{}>", tag)?;
-        
+
         self.write_indent(writer, level + 1)?;
         self.write_spans(writer, content, level + 1, true, true)?;
         writeln!(writer)?;
-        
+
         self.write_indent(writer, level)?;
         writeln!(writer, "</{}>", tag)
     }
 
     fn render_single_line(&self, content: &[Span], tag: &str, level: usize) -> String {
         let mut result = String::new();
-        
+
         // Add indentation
         for _ in 0..level {
             result.push_str(&self.indentation);
         }
-        
+
         result.push_str(&format!("<{}>", tag));
-        
+
         for (idx, span) in content.iter().enumerate() {
             result.push_str(&self.render_span_simple(span, idx == 0, idx == content.len() - 1));
         }
-        
+
         result.push_str(&format!("</{}>\n", tag));
         result
     }
 
     fn render_span_simple(&self, span: &Span, first: bool, last: bool) -> String {
         let mut result = String::new();
-        
+
         if !span.children.is_empty() {
             if let Some(tag) = self.style_tags.get(&span.style) {
                 result.push_str(&format!("<{}>", tag));
             }
-            
+
             for child in &span.children {
                 result.push_str(&self.render_span_simple(child, false, false));
             }
-            
+
             if let Some(tag) = self.style_tags.get(&span.style) {
                 result.push_str(&format!("</{}>", tag));
             }
@@ -180,7 +180,7 @@ impl Writer {
             let text_with_breaks = encoded_text.replace('\n', "<br />\n");
             result.push_str(&text_with_breaks);
         }
-        
+
         result
     }
 
@@ -231,19 +231,19 @@ impl Writer {
 
     fn emit_text<W: Write>(&self, writer: &mut W, text: &str, level: usize) -> io::Result<()> {
         let lines: Vec<&str> = text.split('\n').collect();
-        
+
         for (line_idx, line) in lines.iter().enumerate() {
             if line_idx > 0 {
                 writeln!(writer)?;
                 self.write_indent(writer, level)?;
             }
-            
+
             let words: Vec<&str> = self.any_space_regex.split(line).collect();
             let mut current_width = level * self.indentation.chars().count();
-            
+
             for (word_idx, word) in words.iter().enumerate() {
                 let word_width = word.chars().count();
-                
+
                 if word_idx > 0 {
                     if current_width + word_width + 1 >= self.max_width {
                         writeln!(writer)?;
@@ -254,12 +254,12 @@ impl Writer {
                         current_width += 1;
                     }
                 }
-                
+
                 write!(writer, "{}", word)?;
                 current_width += word_width;
             }
         }
-        
+
         Ok(())
     }
 
@@ -275,28 +275,43 @@ impl Writer {
 
         // Handle spaces at start/end and multiple spaces
         if first {
-            result = self.spaces_at_start_regex.replace_all(&result, |caps: &regex::Captures| {
-                self.replace_spaces(&caps[0])
-            }).to_string();
+            result = self
+                .spaces_at_start_regex
+                .replace_all(&result, |caps: &regex::Captures| {
+                    self.replace_spaces(&caps[0])
+                })
+                .to_string();
         }
-        
+
         if last {
-            result = self.spaces_at_end_regex.replace_all(&result, |caps: &regex::Captures| {
-                self.replace_spaces(&caps[0])
-            }).to_string();
+            result = self
+                .spaces_at_end_regex
+                .replace_all(&result, |caps: &regex::Captures| {
+                    self.replace_spaces(&caps[0])
+                })
+                .to_string();
         }
-        
-        result = self.multiple_spaces_regex.replace_all(&result, |caps: &regex::Captures| {
-            self.replace_spaces(&caps[0])
-        }).to_string();
-        
-        result = self.trailing_spaces_regex.replace_all(&result, |caps: &regex::Captures| {
-            self.replace_trailing_spaces(&caps[0])
-        }).to_string();
-        
-        result = self.leading_spaces_regex.replace_all(&result, |caps: &regex::Captures| {
-            self.replace_leading_spaces(&caps[0])
-        }).to_string();
+
+        result = self
+            .multiple_spaces_regex
+            .replace_all(&result, |caps: &regex::Captures| {
+                self.replace_spaces(&caps[0])
+            })
+            .to_string();
+
+        result = self
+            .trailing_spaces_regex
+            .replace_all(&result, |caps: &regex::Captures| {
+                self.replace_trailing_spaces(&caps[0])
+            })
+            .to_string();
+
+        result = self
+            .leading_spaces_regex
+            .replace_all(&result, |caps: &regex::Captures| {
+                self.replace_leading_spaces(&caps[0])
+            })
+            .to_string();
 
         // Encode HTML entities
         result = result.replace('<', "&lt;");
@@ -321,8 +336,8 @@ impl Writer {
         if s.len() <= 1 {
             return s.to_string();
         }
-        let spaces = &s[..s.len()-1];
-        let last_char = &s[s.len()-1..];
+        let spaces = &s[..s.len() - 1];
+        let last_char = &s[s.len() - 1..];
         format!("{}{}", "&emsp14;".repeat(spaces.len()), last_char)
     }
 }
@@ -339,55 +354,51 @@ mod tests {
 
     #[test]
     fn test_simple_paragraph() {
-        let paragraph = Paragraph::new_text()
-            .with_content(vec![Span::new_text("This is a test.")]);
+        let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("This is a test.")]);
         let doc = Document::new().with_paragraphs(vec![paragraph]);
-        
+
         let writer = Writer::new();
         let result = writer.write_to_string(&doc).unwrap();
-        
+
         assert_eq!(result, "<p>This is a test.</p>\n");
     }
 
     #[test]
     fn test_bold_text() {
-        let bold_span = Span::new_styled(InlineStyle::Bold)
-            .with_children(vec![Span::new_text("bold")]);
-        let paragraph = Paragraph::new_text()
-            .with_content(vec![
-                Span::new_text("This is "),
-                bold_span,
-                Span::new_text(" text."),
-            ]);
+        let bold_span =
+            Span::new_styled(InlineStyle::Bold).with_children(vec![Span::new_text("bold")]);
+        let paragraph = Paragraph::new_text().with_content(vec![
+            Span::new_text("This is "),
+            bold_span,
+            Span::new_text(" text."),
+        ]);
         let doc = Document::new().with_paragraphs(vec![paragraph]);
-        
+
         let writer = Writer::new();
         let result = writer.write_to_string(&doc).unwrap();
-        
+
         assert_eq!(result, "<p>This is <b>bold</b> text.</p>\n");
     }
 
     #[test]
     fn test_header() {
-        let paragraph = Paragraph::new_header1()
-            .with_content(vec![Span::new_text("Header")]);
+        let paragraph = Paragraph::new_header1().with_content(vec![Span::new_text("Header")]);
         let doc = Document::new().with_paragraphs(vec![paragraph]);
-        
+
         let writer = Writer::new();
         let result = writer.write_to_string(&doc).unwrap();
-        
+
         assert_eq!(result, "<h1>Header</h1>\n");
     }
 
     #[test]
     fn test_entity_encoding() {
-        let paragraph = Paragraph::new_text()
-            .with_content(vec![Span::new_text(" test ")]);
+        let paragraph = Paragraph::new_text().with_content(vec![Span::new_text(" test ")]);
         let doc = Document::new().with_paragraphs(vec![paragraph]);
-        
+
         let writer = Writer::new();
         let result = writer.write_to_string(&doc).unwrap();
-        
+
         assert_eq!(result, "<p>&emsp14;test&emsp14;</p>\n");
     }
 }

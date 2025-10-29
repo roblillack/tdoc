@@ -166,9 +166,8 @@ mod tests {
 
     #[test]
     fn test_paragraph_creation() {
-        let p = Paragraph::new_text()
-            .with_content(vec![Span::new_text("Hello")]);
-        
+        let p = Paragraph::new_text().with_content(vec![Span::new_text("Hello")]);
+
         assert_eq!(p.paragraph_type, ParagraphType::Text);
         assert_eq!(p.content.len(), 1);
         assert_eq!(p.content[0].text, "Hello");

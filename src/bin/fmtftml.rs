@@ -88,7 +88,7 @@ mod tests {
             .args(&["run", "--bin", "fmtftml", "--", "--help"])
             .output()
             .expect("Failed to execute command");
-        
+
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("Format and prettify FTML documents"));

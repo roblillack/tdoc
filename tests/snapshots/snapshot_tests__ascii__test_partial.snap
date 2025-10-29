@@ -1,5 +1,6 @@
 ---
 source: tests/snapshot_tests.rs
+assertion_line: 150
 expression: ascii_output
 extension: txt
 snapshot_kind: binary

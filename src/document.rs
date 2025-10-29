@@ -41,11 +41,10 @@ mod tests {
     fn test_document_creation() {
         let doc = Document::new();
         assert!(doc.is_empty());
-        
-        let p = Paragraph::new_text()
-            .with_content(vec![Span::new_text("Hello")]);
+
+        let p = Paragraph::new_text().with_content(vec![Span::new_text("Hello")]);
         let doc = Document::new().with_paragraphs(vec![p]);
-        
+
         assert!(!doc.is_empty());
         assert_eq!(doc.paragraphs.len(), 1);
     }
@@ -55,7 +54,7 @@ mod tests {
         let mut doc = Document::new();
         let p = Paragraph::new_text();
         doc.add_paragraph(p);
-        
+
         assert!(!doc.is_empty());
         assert_eq!(doc.paragraphs.len(), 1);
     }

@@ -1,4 +1,9 @@
-This is an example FTML document
+
+
+
+                    This is an example FTML document
+
+
 
 The purpose of this document is to demonstrate the following use-cases:
 

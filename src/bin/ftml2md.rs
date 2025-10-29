@@ -88,7 +88,7 @@ mod tests {
             .args(&["run", "--bin", "ftml2md", "--", "--help"])
             .output()
             .expect("Failed to execute command");
-        
+
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("Convert FTML documents to Markdown"));

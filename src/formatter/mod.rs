@@ -51,14 +51,8 @@ impl FormattingStyle {
 
     pub fn ansi() -> Self {
         let mut text_styles = HashMap::new();
-        text_styles.insert(
-            InlineStyle::Bold,
-            StyleTags::new("\x1b[1m", "\x1b[22m"),
-        );
-        text_styles.insert(
-            InlineStyle::Italic,
-            StyleTags::new("\x1b[3m", "\x1b[23m"),
-        );
+        text_styles.insert(InlineStyle::Bold, StyleTags::new("\x1b[1m", "\x1b[22m"));
+        text_styles.insert(InlineStyle::Italic, StyleTags::new("\x1b[3m", "\x1b[23m"));
         text_styles.insert(
             InlineStyle::Highlight,
             StyleTags::new("\x1b[7m", "\x1b[27m"),
@@ -67,10 +61,7 @@ impl FormattingStyle {
             InlineStyle::Underline,
             StyleTags::new("\x1b[4m", "\x1b[24m"),
         );
-        text_styles.insert(
-            InlineStyle::Strike,
-            StyleTags::new("\x1b[9m", "\x1b[29m"),
-        );
+        text_styles.insert(InlineStyle::Strike, StyleTags::new("\x1b[9m", "\x1b[29m"));
 
         Self {
             reset_styles: "\x1b[0m".to_string(),
@@ -124,12 +115,19 @@ impl<W: Write> Formatter<W> {
         prefix: &str,
         continuation_prefix: &str,
     ) -> std::io::Result<()> {
-        for (i, paragraph) in paragraphs.iter().enumerate() {
-            if i > 0 {
-                writeln!(self.writer)?;
-            }
+        let mut previous_type: Option<ParagraphType> = None;
+
+        for paragraph in paragraphs {
+            let blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
+            self.write_blank_lines(blank_lines)?;
             self.write_paragraph(paragraph, prefix, continuation_prefix)?;
+            previous_type = Some(paragraph.paragraph_type);
         }
+
+        if previous_type == Some(ParagraphType::Header1) {
+            self.write_blank_lines(3)?;
+        }
+
         Ok(())
     }
 
@@ -140,25 +138,27 @@ impl<W: Write> Formatter<W> {
         continuation_prefix: &str,
     ) -> std::io::Result<()> {
         match paragraph.paragraph_type {
-            ParagraphType::Text
-            | ParagraphType::Header1
-            | ParagraphType::Header2
-            | ParagraphType::Header3 => {
+            ParagraphType::Header1 => {
+                self.write_header_paragraph(&paragraph.content, prefix)?;
+            }
+            ParagraphType::Text | ParagraphType::Header2 | ParagraphType::Header3 => {
                 self.write_text_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
             ParagraphType::Quote => {
                 let quote_prefix = format!("{}{}", prefix, self.style.quote_prefix);
-                let quote_continuation = format!("{}{}", continuation_prefix, self.style.quote_prefix);
-                
+                let quote_continuation =
+                    format!("{}{}", continuation_prefix, self.style.quote_prefix);
+
                 for child in &paragraph.children {
                     self.write_paragraph(child, &quote_prefix, &quote_continuation)?;
                 }
             }
             ParagraphType::UnorderedList => {
                 for entry in &paragraph.entries {
-                    let bullet_prefix = format!("{}{}", prefix, self.style.unordered_list_item_prefix);
+                    let bullet_prefix =
+                        format!("{}{}", prefix, self.style.unordered_list_item_prefix);
                     let bullet_continuation = format!("{}  ", continuation_prefix);
-                    
+
                     self.write_paragraphs(entry, &bullet_prefix, &bullet_continuation)?;
                 }
             }
@@ -166,11 +166,74 @@ impl<W: Write> Formatter<W> {
                 for (i, entry) in paragraph.entries.iter().enumerate() {
                     let bullet_prefix = format!("{}{:2}. ", prefix, i + 1);
                     let bullet_continuation = format!("{}    ", continuation_prefix);
-                    
+
                     self.write_paragraphs(entry, &bullet_prefix, &bullet_continuation)?;
                 }
             }
         }
+        Ok(())
+    }
+
+    fn write_blank_lines(&mut self, count: usize) -> std::io::Result<()> {
+        for _ in 0..count {
+            writeln!(self.writer)?;
+        }
+        Ok(())
+    }
+
+    fn blank_lines_before(
+        &self,
+        previous_type: Option<ParagraphType>,
+        current_type: ParagraphType,
+    ) -> usize {
+        match current_type {
+            ParagraphType::Header1 => 3, // ensure level-one headers are preceded by three blank lines
+            _ => match previous_type {
+                Some(ParagraphType::Header1) => 3,
+                Some(_) => 1,
+                None => 0,
+            },
+        }
+    }
+
+    fn write_header_paragraph(&mut self, spans: &[Span], prefix: &str) -> std::io::Result<()> {
+        let mut parts = Vec::new();
+        for span in spans {
+            self.collect_formatted_text(span, &mut parts)?;
+        }
+
+        let mut combined = String::new();
+        for part in parts {
+            if part == "\n" {
+                combined.push(' ');
+            } else {
+                combined.push_str(&part);
+            }
+        }
+
+        let trimmed = combined.trim();
+        let bold_text = if trimmed.is_empty() {
+            String::new()
+        } else {
+            self.apply_bold(trimmed)
+        };
+
+        let prefix_width = prefix.chars().count();
+        let available_width = self.style.wrap_width.saturating_sub(prefix_width);
+        let visible_width = self.visible_width(&bold_text);
+        let padding = if available_width > visible_width {
+            (available_width - visible_width) / 2
+        } else {
+            0
+        };
+
+        write!(self.writer, "{}", prefix)?;
+        for _ in 0..padding {
+            write!(self.writer, " ")?;
+        }
+        write!(self.writer, "{}", bold_text)?;
+        writeln!(self.writer)?;
+
         Ok(())
     }
 
@@ -195,6 +258,18 @@ impl<W: Write> Formatter<W> {
         writeln!(self.writer)?;
 
         Ok(())
+    }
+
+    fn apply_bold(&self, text: &str) -> String {
+        if text.is_empty() {
+            return String::new();
+        }
+
+        if let Some(style_tags) = self.style.text_styles.get(&InlineStyle::Bold) {
+            format!("{}{}{}", style_tags.begin, text, style_tags.end)
+        } else {
+            text.to_string()
+        }
     }
 
     fn collect_formatted_text(&self, span: &Span, parts: &mut Vec<String>) -> std::io::Result<()> {
@@ -239,7 +314,7 @@ impl<W: Write> Formatter<W> {
         // First, concatenate all non-newline parts to get the full text
         let mut full_text = String::new();
         let mut has_forced_breaks = false;
-        
+
         for part in parts {
             if part == "\n" {
                 has_forced_breaks = true;
@@ -282,9 +357,11 @@ impl<W: Write> Formatter<W> {
         for (i, word) in words.iter().enumerate() {
             let word_width = self.visible_width(word);
             let space_needed = if i > 0 { 1 } else { 0 };
-            
+
             // Check if we need to wrap
-            if line_width + space_needed + word_width > self.style.wrap_width && !current_line.is_empty() {
+            if line_width + space_needed + word_width > self.style.wrap_width
+                && !current_line.is_empty()
+            {
                 // Write current line and start a new one
                 write!(self.writer, "{}", current_line.trim_end())?;
                 writeln!(self.writer)?;
@@ -292,13 +369,13 @@ impl<W: Write> Formatter<W> {
                 current_line.clear();
                 line_width = continuation_prefix.chars().count();
             }
-            
+
             // Add space if needed
             if !current_line.is_empty() {
                 current_line.push(' ');
                 line_width += 1;
             }
-            
+
             current_line.push_str(word);
             line_width += word_width;
         }
@@ -328,18 +405,14 @@ mod tests {
     fn test_ascii_formatting() {
         let mut output = Vec::new();
         let mut formatter = Formatter::new_ascii(&mut output);
-        
-        let doc = doc(vec![p_(vec![
-            span("Hello "),
-            b__("world"),
-            span("!"),
-        ])]);
+
+        let doc = doc(vec![p_(vec![span("Hello "), b__("world"), span("!")])]);
 
         formatter.write_document(&doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         println!("ASCII format result: '{}'", result);
-        
+
         // ASCII formatter should not add any styling
         assert!(result.contains("Hello world!"));
         assert!(!result.contains("\x1b["));
@@ -349,16 +422,12 @@ mod tests {
     fn test_ansi_formatting() {
         let mut output = Vec::new();
         let mut formatter = Formatter::new_ansi(&mut output);
-        
-        let doc = doc(vec![p_(vec![
-            span("Hello "),
-            b__("world"),
-            span("!"),
-        ])]);
+
+        let doc = doc(vec![p_(vec![span("Hello "), b__("world"), span("!")])]);
 
         formatter.write_document(&doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         // ANSI formatter should add bold styling
         assert!(result.contains("\x1b[1m")); // Bold begin
         assert!(result.contains("\x1b[22m")); // Bold end
@@ -369,12 +438,12 @@ mod tests {
     fn test_quote_formatting() {
         let mut output = Vec::new();
         let mut formatter = Formatter::new_ascii(&mut output);
-        
+
         let doc = doc(vec![quote_(vec![p__("Quoted text")])]);
 
         formatter.write_document(&doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert!(result.contains("| Quoted text"));
     }
 
@@ -382,7 +451,7 @@ mod tests {
     fn test_list_formatting() {
         let mut output = Vec::new();
         let mut formatter = Formatter::new_ascii(&mut output);
-        
+
         let doc = doc(vec![ul_(vec![
             li_(vec![p__("Item 1")]),
             li_(vec![p__("Item 2")]),
@@ -390,7 +459,7 @@ mod tests {
 
         formatter.write_document(&doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         assert!(result.contains(" • Item 1"));
         assert!(result.contains(" • Item 2"));
     }
@@ -401,14 +470,80 @@ mod tests {
         let mut style = FormattingStyle::ascii();
         style.wrap_width = 20; // Very short for testing
         let mut formatter = Formatter::new(&mut output, style);
-        
-        let doc = doc(vec![p__("This is a very long line that should definitely be wrapped")]);
+
+        let doc = doc(vec![p__(
+            "This is a very long line that should definitely be wrapped",
+        )]);
 
         formatter.write_document(&doc).unwrap();
         let result = String::from_utf8(output).unwrap();
-        
+
         // Should contain line breaks due to wrapping
         let lines: Vec<&str> = result.lines().collect();
         assert!(lines.len() > 1);
+    }
+
+    #[test]
+    fn test_header_formatting_ascii() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![h1_("Heading"), p__("Following text")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 8);
+        assert!(lines[0].is_empty());
+        assert!(lines[1].is_empty());
+        assert!(lines[2].is_empty());
+
+        let header_line = lines[3];
+        assert_eq!(header_line.trim(), "Heading");
+
+        let leading_spaces = header_line.len() - header_line.trim_start().len();
+        let expected_padding = (super::DEFAULT_WRAP_WIDTH - header_line.trim().len()) / 2;
+        assert_eq!(leading_spaces, expected_padding);
+
+        assert!(lines[4].is_empty());
+        assert!(lines[5].is_empty());
+        assert!(lines[6].is_empty());
+        assert_eq!(lines[7], "Following text");
+    }
+
+    #[test]
+    fn test_header_formatting_ansi() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ansi(&mut output);
+
+        let doc = doc(vec![h1_("Heading"), p__("Following text")]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b[1m"));
+        assert!(result.contains("\x1b[22m"));
+
+        let lines: Vec<&str> = result.split('\n').collect();
+        assert!(lines.len() >= 9);
+        assert!(lines[0].is_empty());
+        assert!(lines[1].is_empty());
+        assert!(lines[2].is_empty());
+
+        let header_line = lines[3];
+        let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+        let header_plain = ansi_regex.replace_all(header_line, "").to_string();
+        assert_eq!(header_plain.trim(), "Heading");
+
+        let leading_spaces = header_plain.len() - header_plain.trim_start().len();
+        let expected_padding = (super::DEFAULT_WRAP_WIDTH - header_plain.trim().len()) / 2;
+        assert_eq!(leading_spaces, expected_padding);
+
+        assert!(lines[4].is_empty());
+        assert!(lines[5].is_empty());
+        assert!(lines[6].is_empty());
+        assert!(lines[7].starts_with("Following text"));
+        assert_eq!(lines[8], "\x1b[0m");
     }
 }

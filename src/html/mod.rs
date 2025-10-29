@@ -5,7 +5,7 @@ use std::io::Read;
 pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
-    
+
     let parser = HtmlParser::new();
     Ok(parser.parse_string(&input))
 }
@@ -49,13 +49,13 @@ impl HtmlParser {
     fn parse_string(&self, input: &str) -> Document {
         // Simple HTML to FTML conversion
         // This is a basic implementation that demonstrates the conversion logic
-        
+
         let mut document = Document::new();
         let cleaned_input = self.clean_html(input);
-        
+
         // Convert common HTML patterns to FTML
         let converted = self.convert_html_to_ftml(&cleaned_input);
-        
+
         // Parse the converted FTML using our existing parser
         if let Ok(ftml_doc) = crate::parse(std::io::Cursor::new(converted)) {
             return ftml_doc;
@@ -65,7 +65,7 @@ impl HtmlParser {
         let paragraph = Paragraph::new_text()
             .with_content(vec![Span::new_text(self.extract_text_content(input))]);
         document.add_paragraph(paragraph);
-        
+
         document
     }
 
@@ -73,11 +73,11 @@ impl HtmlParser {
         // Remove HTML comments
         let comment_regex = regex::Regex::new(r"<!--.*?-->").unwrap();
         let mut cleaned = comment_regex.replace_all(input, "").to_string();
-        
+
         // Remove script and style tags
         let script_regex = regex::Regex::new(r"(?is)<script[^>]*>.*?</script>").unwrap();
         cleaned = script_regex.replace_all(&cleaned, "").to_string();
-        
+
         let style_regex = regex::Regex::new(r"(?is)<style[^>]*>.*?</style>").unwrap();
         cleaned = style_regex.replace_all(&cleaned, "").to_string();
 
@@ -92,7 +92,7 @@ impl HtmlParser {
         result = result.replace("&amp;", "&");
         result = result.replace("&quot;", "\"");
         result = result.replace("&#39;", "'");
-        
+
         // Convert common HTML inline elements to FTML
         result = result.replace("<strong>", "<b>");
         result = result.replace("</strong>", "</b>");
@@ -124,17 +124,19 @@ impl HtmlParser {
 
     fn remove_attributes(&self, input: &str) -> String {
         let tag_regex = regex::Regex::new(r"<(/?)(\w+)(?:\s+[^>]*)?(/?)>").unwrap();
-        tag_regex.replace_all(input, |caps: &regex::Captures| {
-            let closing_slash = &caps[1];
-            let tag_name = &caps[2];
-            let self_closing = &caps[3];
-            
-            if self_closing.is_empty() {
-                format!("<{}{}>", closing_slash, tag_name)
-            } else {
-                format!("<{}{} />", closing_slash, tag_name)
-            }
-        }).to_string()
+        tag_regex
+            .replace_all(input, |caps: &regex::Captures| {
+                let closing_slash = &caps[1];
+                let tag_name = &caps[2];
+                let self_closing = &caps[3];
+
+                if self_closing.is_empty() {
+                    format!("<{}{}>", closing_slash, tag_name)
+                } else {
+                    format!("<{}{} />", closing_slash, tag_name)
+                }
+            })
+            .to_string()
     }
 
     fn wrap_bare_text(&self, input: &str) -> String {
@@ -180,7 +182,7 @@ impl HtmlParser {
     fn extract_text_content(&self, input: &str) -> String {
         let tag_regex = regex::Regex::new(r"<[^>]*>").unwrap();
         let text = tag_regex.replace_all(input, " ");
-        
+
         // Decode HTML entities
         let mut result = text.to_string();
         result = result.replace("&nbsp;", " ");
@@ -189,10 +191,13 @@ impl HtmlParser {
         result = result.replace("&gt;", ">");
         result = result.replace("&quot;", "\"");
         result = result.replace("&#39;", "'");
-        
+
         // Normalize whitespace
         let whitespace_regex = regex::Regex::new(r"\s+").unwrap();
-        whitespace_regex.replace_all(&result, " ").trim().to_string()
+        whitespace_regex
+            .replace_all(&result, " ")
+            .trim()
+            .to_string()
     }
 }
 
@@ -205,7 +210,7 @@ mod tests {
     fn test_simple_html_conversion() {
         let input = "<p>Hello <strong>world</strong>!</p>";
         let doc = parse(Cursor::new(input)).unwrap();
-        
+
         assert!(!doc.paragraphs.is_empty());
         assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Text);
     }

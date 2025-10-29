@@ -67,14 +67,18 @@ fn test_parsing_and_writing_styles() {
         ),
         (
             "This is a <b><i>second</i> test</b>.",
-            vec![span("This is a "), b_(vec![i__("second"), span(" test")]), span(".")],
+            vec![
+                span("This is a "),
+                b_(vec![i__("second"), span(" test")]),
+                span("."),
+            ],
         ),
     ];
 
     fn check_parse_and_write(input: &str, expected_doc: &Document, expected_output: &str) {
         let parsed_doc = parse(Cursor::new(&format!("<p>{}</p>\n", input))).unwrap();
         assert_eq!(parsed_doc, *expected_doc, "Parsing failed for: {}", input);
-        
+
         let mut buf = Vec::new();
         write(&mut buf, expected_doc).unwrap();
         let output = String::from_utf8(buf).unwrap();
@@ -107,7 +111,11 @@ fn test_parsing_inline_styles() {
         ),
         (
             "This is a <b><i>second</i> test</b>.",
-            vec![span("This is a "), b_(vec![i__("second"), span(" test")]), span(".")],
+            vec![
+                span("This is a "),
+                b_(vec![i__("second"), span(" test")]),
+                span("."),
+            ],
         ),
     ];
 
@@ -121,8 +129,14 @@ fn test_parsing_inline_styles() {
 #[test]
 fn test_write_spaces() {
     let tests = vec![
-        ("<p>&emsp14;This is a test.</p>\n", vec![span(" This is a test.")]),
-        ("<p>This is a test.&emsp14;</p>\n", vec![span("This is a test. ")]),
+        (
+            "<p>&emsp14;This is a test.</p>\n",
+            vec![span(" This is a test.")],
+        ),
+        (
+            "<p>This is a test.&emsp14;</p>\n",
+            vec![span("This is a test. ")],
+        ),
         ("<p>A&emsp14;&emsp14;&emsp14;B</p>\n", vec![span("A   B")]),
     ];
 
@@ -180,12 +194,12 @@ fn test_nested_list() {
 <p>c</p>
 </li>
 </ul>"#;
-    
+
     let expected = doc(vec![ul_(vec![
         li_(vec![ul_(vec![li_(vec![p__("a")])])]),
         li_(vec![p__("b"), p__("c")]),
     ])]);
-    
+
     let result = parse(Cursor::new(input)).unwrap();
     assert_eq!(result, expected);
 }
@@ -197,15 +211,20 @@ fn test_parsing_errors() {
         ("<p>one<p>two</p></p>", "Closing unopened paragraph"),
         ("<blockquote>one</blockquote>", "Unexpected text content"),
     ];
-    
+
     for (input, expected_error) in tests {
         let result = parse(Cursor::new(input));
         assert!(result.is_err(), "Expected error for input: {}", input);
         let error = result.unwrap_err();
         assert!(
-            error.to_string().to_lowercase().contains(&expected_error.to_lowercase()),
+            error
+                .to_string()
+                .to_lowercase()
+                .contains(&expected_error.to_lowercase()),
             "Error '{}' should contain '{}' for input: {}",
-            error, expected_error, input
+            error,
+            expected_error,
+            input
         );
     }
 }
@@ -215,7 +234,7 @@ fn test_trim_whitespace() {
     // Test the whitespace trimming functionality
     let input = "<p>  \n  test, test.  \n  </p>";
     let doc = parse(Cursor::new(input)).unwrap();
-    
+
     // Should trim leading/trailing whitespace
     assert_eq!(doc.paragraphs[0].content[0].text, "test, test.");
 }
@@ -246,7 +265,7 @@ fn test_parsing_hard_newlines() {
     assert_eq!(parsed_doc, expected);
 }
 
-#[test] 
+#[test]
 fn test_all_inline_styles() {
     let tests = vec![
         ("<p><b>bold</b></p>", InlineStyle::Bold),
@@ -268,10 +287,16 @@ fn test_all_paragraph_types() {
     let tests = vec![
         ("<p>text</p>", ParagraphType::Text),
         ("<h1>header1</h1>", ParagraphType::Header1),
-        ("<h2>header2</h2>", ParagraphType::Header2), 
+        ("<h2>header2</h2>", ParagraphType::Header2),
         ("<h3>header3</h3>", ParagraphType::Header3),
-        ("<blockquote><p>quote</p></blockquote>", ParagraphType::Quote),
-        ("<ul><li><p>item</p></li></ul>", ParagraphType::UnorderedList),
+        (
+            "<blockquote><p>quote</p></blockquote>",
+            ParagraphType::Quote,
+        ),
+        (
+            "<ul><li><p>item</p></li></ul>",
+            ParagraphType::UnorderedList,
+        ),
         ("<ol><li><p>item</p></li></ol>", ParagraphType::OrderedList),
     ];
 
@@ -290,16 +315,14 @@ fn test_list_item_parsing() {
     <p>Test item</p>
   </li>
 </ul>"#;
-    
+
     let parsed_doc = parse(Cursor::new(input)).unwrap();
-    let expected = doc(vec![ul_(vec![
-        li_(vec![p__("Test item")]),
-    ])]);
-    
+    let expected = doc(vec![ul_(vec![li_(vec![p__("Test item")])])]);
+
     assert_eq!(parsed_doc, expected);
 }
 
-#[test] 
+#[test]
 fn test_complex_list_structure() {
     // Test case for complex list structures like in testdocument.ftml
     let input = r#"<ul>
@@ -316,17 +339,17 @@ fn test_complex_list_structure() {
     </blockquote>
   </li>
 </ul>"#;
-    
+
     let parsed_doc = parse(Cursor::new(input)).unwrap();
     let expected = doc(vec![ul_(vec![
         li_(vec![p__("First item")]),
         li_(vec![
             p__("Second item with multiple paragraphs"),
-            p__("This is the second paragraph of the same list item")
+            p__("This is the second paragraph of the same list item"),
         ]),
         li_(vec![quote_(vec![p__("A list item containing a quote")])]),
     ])]);
-    
+
     assert_eq!(parsed_doc, expected);
 }
 
@@ -338,7 +361,7 @@ fn test_testdocument_specific_structure() {
     <p><b>Bold</b> text.</p>
   </li>
 </ul>"#;
-    
+
     // This should reproduce the actual error if it's related to inline elements within list items
     let _parsed_doc = parse(Cursor::new(input)).unwrap();
 }
@@ -371,7 +394,7 @@ fn test_testdocument_exact_section() {
     <p>Text formatted as <code>code</code>.</p>
   </li>
 </ul>"#;
-    
+
     let _parsed_doc = parse(Cursor::new(input)).unwrap();
 }
 
@@ -388,7 +411,7 @@ fn test_nested_lists_structure() {
       </ol>
     </li>
 </ul>"#;
-    
+
     let _parsed_doc = parse(Cursor::new(input));
     // This should fail with "Non-inline token: l" error
 }

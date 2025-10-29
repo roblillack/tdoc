@@ -108,9 +108,9 @@ mod tests {
     fn test_span_display() {
         let span = Span::new_text("test");
         assert_eq!(format!("{}", span), "'test'");
-        
-        let bold_span = Span::new_styled(InlineStyle::Bold)
-            .with_children(vec![Span::new_text("bold text")]);
+
+        let bold_span =
+            Span::new_styled(InlineStyle::Bold).with_children(vec![Span::new_text("bold text")]);
         assert_eq!(format!("{}", bold_span), "[bold:'bold text']");
     }
 
@@ -118,7 +118,7 @@ mod tests {
     fn test_ends_with_line_break() {
         let span = Span::new_text("test\n");
         assert!(span.ends_with_line_break());
-        
+
         let span = Span::new_text("test");
         assert!(!span.ends_with_line_break());
     }
@@ -127,9 +127,9 @@ mod tests {
     fn test_width() {
         let span = Span::new_text("test");
         assert_eq!(span.width(), 4);
-        
-        let bold_span = Span::new_styled(InlineStyle::Bold)
-            .with_children(vec![Span::new_text("hi")]);
+
+        let bold_span =
+            Span::new_styled(InlineStyle::Bold).with_children(vec![Span::new_text("hi")]);
         assert_eq!(bold_span.width(), 2);
     }
 }
