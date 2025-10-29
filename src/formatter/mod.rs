@@ -190,16 +190,53 @@ impl<W: Write> Formatter<W> {
                 self.write_text_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
             ParagraphType::Quote => {
-                let quote_prefix = format!("{}{}", prefix, self.style.quote_prefix);
                 let quote_continuation =
                     format!("{}{}", continuation_prefix, self.style.quote_prefix);
 
-                self.write_paragraphs(
-                    &paragraph.children,
-                    &quote_prefix,
-                    &quote_continuation,
-                    &quote_prefix,
-                )?;
+                let shared_prefix_len = prefix
+                    .chars()
+                    .zip(continuation_prefix.chars())
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                let list_context = prefix != continuation_prefix
+                    && shared_prefix_len > 0
+                    && !paragraph.children.is_empty()
+                    && paragraph.children.len() > 1
+                    && matches!(
+                        paragraph.children.first().map(|p| p.paragraph_type),
+                        Some(ParagraphType::Text)
+                    );
+
+                if list_context {
+                    let quote_prefix =
+                        format!("{}{}", continuation_prefix, self.style.quote_prefix);
+
+                    // Maintain owned storage for custom prefixes so borrowed slices stay valid.
+                    let mut owned_prefixes = Vec::with_capacity(2);
+                    owned_prefixes.push(quote_prefix);
+                    owned_prefixes.push(quote_continuation.clone());
+
+                    let default_first_prefix = owned_prefixes[0].as_str();
+                    let continuation = owned_prefixes[1].as_str();
+                    let first_line_prefixes = [prefix];
+
+                    self.write_paragraphs_with_prefixes(
+                        &paragraph.children,
+                        &first_line_prefixes,
+                        default_first_prefix,
+                        continuation,
+                        continuation_prefix,
+                    )?;
+                } else {
+                    let quote_prefix = format!("{}{}", prefix, self.style.quote_prefix);
+
+                    self.write_paragraphs(
+                        &paragraph.children,
+                        &quote_prefix,
+                        &quote_continuation,
+                        &quote_prefix,
+                    )?;
+                }
             }
             ParagraphType::UnorderedList => {
                 for (idx, entry) in paragraph.entries.iter().enumerate() {
@@ -770,6 +807,78 @@ mod tests {
         assert!(result.contains("|    | You can never have enough nesting of paragraphs."));
         assert!(result.contains("|    |    —Robert Lillack"));
         assert!(!result.contains("|  • |"));
+    }
+
+    #[test]
+    fn test_quote_list_with_nested_quote_blank_line_indent() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![quote_(vec![ul_(vec![li_(vec![
+            p__("Para 1"),
+            quote_(vec![p__("Para 2")]),
+        ])])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        println!("{}", result);
+        let lines: Vec<&str> = result.lines().collect();
+        let para1_index = lines
+            .iter()
+            .position(|line| *line == "|  • Para 1")
+            .expect("Para 1 line missing");
+
+        assert_eq!(lines.get(para1_index + 1), Some(&"|    "));
+        assert_eq!(lines.get(para1_index + 2), Some(&"|    | Para 2"));
+    }
+
+    #[test]
+    fn test_quote_list_with_nested_quote_blank_line_indent_ansi() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ansi(&mut output);
+
+        let doc = doc(vec![quote_(vec![ul_(vec![li_(vec![
+            p__("Para 1"),
+            quote_(vec![p__("Para 2")]),
+        ])])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().collect();
+        let para1_index = lines
+            .iter()
+            .position(|line| *line == "|  • Para 1")
+            .expect("Para 1 line missing");
+
+        assert_eq!(lines.get(para1_index + 1), Some(&"|    "));
+        assert_eq!(lines.get(para1_index + 2), Some(&"|    | Para 2"));
+        assert_eq!(lines.last(), Some(&"\u{1b}[0m"));
+    }
+
+    #[test]
+    fn test_quote_list_with_nested_quote_intro_inside_quote() {
+        let mut output = Vec::new();
+        let mut formatter = Formatter::new_ascii(&mut output);
+
+        let doc = doc(vec![quote_(vec![ul_(vec![li_(vec![quote_(vec![
+            p__("Para 1"),
+            p__("Para 2"),
+        ])])])])]);
+
+        formatter.write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result.lines().collect();
+        let para1_index = lines
+            .iter()
+            .position(|line| *line == "|  • Para 1")
+            .expect("Para 1 line missing");
+
+        assert_eq!(lines.get(para1_index + 1), Some(&"|    "));
+        assert_eq!(lines.get(para1_index + 2), Some(&"|    | Para 2"));
+        assert!(!result.contains("|  • | Para 1"));
     }
 
     #[test]
