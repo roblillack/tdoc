@@ -142,7 +142,7 @@ First line
 Second line.
 
 This is a line with multiple spaces:
-A B
+A   B
 
 | This is a paragraph that contains a very long line of highlighted text
 | to force the formatter to break

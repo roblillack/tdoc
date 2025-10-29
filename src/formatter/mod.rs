@@ -568,43 +568,74 @@ impl<W: Write> Formatter<W> {
             line_width += 1;
         }
 
-        let words: Vec<&str> = trimmed_text.split_whitespace().collect();
-        if words.is_empty() {
+        let mut tokens: Vec<(bool, String)> = Vec::new();
+        let mut current = String::new();
+        let mut current_is_whitespace: Option<bool> = None;
+
+        for ch in trimmed_text.chars() {
+            let is_whitespace = ch.is_whitespace();
+            match current_is_whitespace {
+                Some(prev) if prev == is_whitespace => current.push(ch),
+                Some(prev) => {
+                    tokens.push((prev, std::mem::take(&mut current)));
+                    current.push(ch);
+                    current_is_whitespace = Some(is_whitespace);
+                }
+                None => {
+                    current.push(ch);
+                    current_is_whitespace = Some(is_whitespace);
+                }
+            }
+        }
+
+        if let Some(prev) = current_is_whitespace {
+            tokens.push((prev, current));
+        }
+
+        if tokens.is_empty() {
             if !current_line.is_empty() {
                 write!(self.writer, "{}", current_line)?;
             }
             return Ok(());
         }
 
-        for (i, word) in words.iter().enumerate() {
-            let word_width = self.visible_width(word);
-            let space_needed = if i > 0 { 1 } else { 0 };
+        let mut pending_whitespace = String::new();
 
-            // Check if we need to wrap
-            if line_width + space_needed + word_width > self.style.wrap_width
+        for (is_whitespace, token) in tokens {
+            if is_whitespace {
+                pending_whitespace.push_str(&token);
+                continue;
+            }
+
+            let word_width = self.visible_width(&token);
+            let whitespace_width = if current_line.is_empty() {
+                0
+            } else {
+                pending_whitespace.chars().count()
+            };
+
+            if line_width + whitespace_width + word_width > self.style.wrap_width
                 && !current_line.is_empty()
             {
-                {
-                    let trimmed_line = current_line.trim_end();
-                    write!(self.writer, "{}", trimmed_line)?;
-                }
+                let trimmed_line = current_line.trim_end();
+                write!(self.writer, "{}", trimmed_line)?;
                 self.write_line_break(continuation_prefix, active_styles)?;
                 line_width = continuation_prefix.chars().count();
                 current_line.clear();
+                pending_whitespace.clear();
             }
 
-            // Add space if needed (only if there is already non-indentation content on this line)
-            if !current_line.trim().is_empty() {
-                current_line.push(' ');
-                line_width += 1;
+            if !pending_whitespace.is_empty() && !current_line.is_empty() {
+                line_width += whitespace_width;
+                current_line.push_str(&pending_whitespace);
             }
+            pending_whitespace.clear();
 
-            current_line.push_str(word);
+            current_line.push_str(&token);
             line_width += word_width;
-            self.update_active_styles_from_text(word, active_styles);
+            self.update_active_styles_from_text(&token, active_styles);
         }
 
-        // Write any remaining content
         if !current_line.is_empty() {
             let trimmed_line = current_line.trim_end();
             write!(self.writer, "{}", trimmed_line)?;
@@ -731,6 +762,25 @@ mod tests {
         assert!(result.contains("\x1b[1m")); // Bold begin
         assert!(result.contains("\x1b[22m")); // Bold end
         assert!(result.contains("\x1b[0m")); // Reset at end
+    }
+
+    #[test]
+    fn test_ascii_and_ansi_preserve_consecutive_spaces() {
+        let doc = doc(vec![p_(vec![span("A   B")])]);
+
+        let mut ascii_output = Vec::new();
+        Formatter::new_ascii(&mut ascii_output)
+            .write_document(&doc)
+            .unwrap();
+        let ascii_result = String::from_utf8(ascii_output).unwrap();
+        assert_eq!(ascii_result, "A   B\n");
+
+        let mut ansi_output = Vec::new();
+        Formatter::new_ansi(&mut ansi_output)
+            .write_document(&doc)
+            .unwrap();
+        let ansi_result = String::from_utf8(ansi_output).unwrap();
+        assert_eq!(ansi_result, "A   B\n\x1b[0m");
     }
 
     #[test]
