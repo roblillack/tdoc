@@ -3,7 +3,7 @@
 The purpose of this document is to demonstrate the following use\-cases:
 
 - Describe the features supported by FTML.
-- Showcase the FTML standard formatting enforced by `fmtftml`.
+- Showcase the FTML standard formatting enforced by `tdoc`.
 
 ## Supported features
 
