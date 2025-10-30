@@ -53,9 +53,7 @@ impl MarkdownBuilder {
                         self.add_paragraph_to_parent(paragraph);
                     }
                     Some(BlockContext::ListItem { paragraphs }) => {
-                        if let Some(BlockContext::List { entries, .. }) =
-                            self.stack.last_mut()
-                        {
+                        if let Some(BlockContext::List { entries, .. }) = self.stack.last_mut() {
                             entries.push(paragraphs);
                         }
                     }
@@ -110,8 +108,9 @@ impl MarkdownBuilder {
                 self.start_paragraph(paragraph_type);
             }
             Tag::BlockQuote => {
-                self.stack
-                    .push(BlockContext::Quote { children: Vec::new() });
+                self.stack.push(BlockContext::Quote {
+                    children: Vec::new(),
+                });
             }
             Tag::List(start) => {
                 let ordered = start.is_some();
@@ -121,8 +120,9 @@ impl MarkdownBuilder {
                 });
             }
             Tag::Item => {
-                self.stack
-                    .push(BlockContext::ListItem { paragraphs: Vec::new() });
+                self.stack.push(BlockContext::ListItem {
+                    paragraphs: Vec::new(),
+                });
             }
             Tag::Emphasis => {
                 self.ensure_paragraph()
@@ -137,13 +137,11 @@ impl MarkdownBuilder {
                     .start_inline(Span::new_styled(InlineStyle::Strike));
             }
             Tag::Link(_link_type, dest, _) => {
-                let span =
-                    Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
+                let span = Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
                 self.ensure_paragraph().start_inline(span);
             }
             Tag::Image(_link_type, dest, _) => {
-                let span =
-                    Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
+                let span = Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
                 self.ensure_paragraph().start_inline(span);
             }
             Tag::CodeBlock(_) => {
@@ -305,7 +303,9 @@ impl MarkdownBuilder {
 
     fn start_paragraph(&mut self, paragraph_type: ParagraphType) -> &mut ParagraphContext {
         self.stack
-            .push(BlockContext::Paragraph(ParagraphContext::new(paragraph_type)));
+            .push(BlockContext::Paragraph(ParagraphContext::new(
+                paragraph_type,
+            )));
         match self.stack.last_mut() {
             Some(BlockContext::Paragraph(context)) => context,
             _ => unreachable!(),
@@ -355,10 +355,19 @@ impl MarkdownBuilder {
 }
 
 enum BlockContext {
-    Document { paragraphs: Vec<Paragraph> },
-    Quote { children: Vec<Paragraph> },
-    List { ordered: bool, entries: Vec<Vec<Paragraph>> },
-    ListItem { paragraphs: Vec<Paragraph> },
+    Document {
+        paragraphs: Vec<Paragraph>,
+    },
+    Quote {
+        children: Vec<Paragraph>,
+    },
+    List {
+        ordered: bool,
+        entries: Vec<Vec<Paragraph>>,
+    },
+    ListItem {
+        paragraphs: Vec<Paragraph>,
+    },
     Paragraph(ParagraphContext),
 }
 
@@ -397,7 +406,9 @@ impl ParagraphContext {
 
     fn push_code(&mut self, text: &str) {
         let mut span = Span::new_styled(InlineStyle::Code);
-        span.text = text.to_string();
+        if !text.is_empty() {
+            span.children.push(Span::new_text(text));
+        }
         self.push_span(span);
     }
 
@@ -413,7 +424,9 @@ impl ParagraphContext {
 
     fn end_inline(&mut self, style: InlineStyle) {
         if let Some(span) = self.inline_stack.pop() {
-            if span.style != style && !(span.style == InlineStyle::Link && style == InlineStyle::Link) {
+            if span.style != style
+                && !(span.style == InlineStyle::Link && style == InlineStyle::Link)
+            {
                 // Style mismatch; keep span as-is
             }
             self.push_span(span);
@@ -470,9 +483,13 @@ fn write_paragraphs<W: Write>(
 ) -> std::io::Result<()> {
     for (i, paragraph) in paragraphs.iter().enumerate() {
         if i > 0 {
+            if !continuation_prefix.is_empty() {
+                write!(writer, "{}", continuation_prefix)?;
+            }
             writeln!(writer)?;
         }
-        write_paragraph(writer, paragraph, prefix, continuation_prefix)?;
+        let current_prefix = if i == 0 { prefix } else { continuation_prefix };
+        write_paragraph(writer, paragraph, current_prefix, continuation_prefix)?;
     }
     Ok(())
 }
@@ -486,29 +503,37 @@ fn write_paragraph<W: Write>(
     match paragraph.paragraph_type {
         ParagraphType::Text => {
             write!(writer, "{}", prefix)?;
-            write_spans(writer, &paragraph.content)?;
+            let mut state = LineState::new(continuation_prefix);
+            write_spans(writer, &paragraph.content, &mut state)?;
             writeln!(writer)?;
         }
         ParagraphType::Header1 => {
             write!(writer, "{}# ", prefix)?;
-            write_spans(writer, &paragraph.content)?;
+            let mut state = LineState::new(continuation_prefix);
+            write_spans(writer, &paragraph.content, &mut state)?;
             writeln!(writer)?;
         }
         ParagraphType::Header2 => {
             write!(writer, "{}## ", prefix)?;
-            write_spans(writer, &paragraph.content)?;
+            let mut state = LineState::new(continuation_prefix);
+            write_spans(writer, &paragraph.content, &mut state)?;
             writeln!(writer)?;
         }
         ParagraphType::Header3 => {
             write!(writer, "{}### ", prefix)?;
-            write_spans(writer, &paragraph.content)?;
+            let mut state = LineState::new(continuation_prefix);
+            write_spans(writer, &paragraph.content, &mut state)?;
             writeln!(writer)?;
         }
         ParagraphType::Quote => {
             let quote_prefix = format!("{}> ", prefix);
             let quote_continuation = format!("{}> ", continuation_prefix);
 
-            for child in &paragraph.children {
+            for (idx, child) in paragraph.children.iter().enumerate() {
+                if idx > 0 {
+                    write!(writer, "{}", quote_continuation)?;
+                    writeln!(writer)?;
+                }
                 write_paragraph(writer, child, &quote_prefix, &quote_continuation)?;
             }
         }
@@ -532,60 +557,297 @@ fn write_paragraph<W: Write>(
     Ok(())
 }
 
-fn write_spans<W: Write>(writer: &mut W, spans: &[Span]) -> std::io::Result<()> {
+fn write_spans<W: Write>(
+    writer: &mut W,
+    spans: &[Span],
+    state: &mut LineState<'_>,
+) -> std::io::Result<()> {
     for span in spans {
-        write_span(writer, span)?;
+        write_span(writer, span, state)?;
     }
     Ok(())
 }
 
-fn write_span<W: Write>(writer: &mut W, span: &Span) -> std::io::Result<()> {
-    let (begin_tag, end_tag) = match span.style {
+fn write_span<W: Write>(
+    writer: &mut W,
+    span: &Span,
+    state: &mut LineState<'_>,
+) -> std::io::Result<()> {
+    match span.style {
+        InlineStyle::Link => {
+            if let Some(target) = &span.link_target {
+                state.write_chunk(writer, "[")?;
+                write_span_content(writer, span, state)?;
+                let closing = format!("]({})", escape_link_destination(target));
+                state.write_chunk(writer, &closing)?;
+                Ok(())
+            } else {
+                write_span_content(writer, span, state)
+            }
+        }
+        InlineStyle::Code => write_code_span(writer, span, state),
+        style => {
+            let (begin_tag, end_tag) = inline_tags(style);
+            if !begin_tag.is_empty() {
+                state.write_chunk(writer, begin_tag)?;
+            }
+            write_span_content(writer, span, state)?;
+            if !end_tag.is_empty() {
+                state.write_chunk(writer, end_tag)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+fn write_span_content<W: Write>(
+    writer: &mut W,
+    span: &Span,
+    state: &mut LineState<'_>,
+) -> std::io::Result<()> {
+    if !span.text.is_empty() {
+        write_plain_text(writer, &span.text, state)?;
+    }
+
+    for child in &span.children {
+        write_span(writer, child, state)?;
+    }
+
+    Ok(())
+}
+
+fn write_plain_text<W: Write>(
+    writer: &mut W,
+    text: &str,
+    state: &mut LineState<'_>,
+) -> std::io::Result<()> {
+    if text.is_empty() {
+        return Ok(());
+    }
+
+    let mut start = 0;
+    for (idx, ch) in text.char_indices() {
+        if ch == '\n' {
+            let chunk = &text[start..idx];
+            if !chunk.is_empty() {
+                let escaped = escape_markdown_text(chunk);
+                state.write_chunk(writer, escaped.as_str())?;
+            }
+            state.write_chunk(writer, "\\")?;
+            state.handle_newline(writer)?;
+            start = idx + ch.len_utf8();
+        }
+    }
+
+    if start < text.len() {
+        let chunk = &text[start..];
+        if !chunk.is_empty() {
+            let escaped = escape_markdown_text(chunk);
+            state.write_chunk(writer, escaped.as_str())?;
+        }
+    }
+
+    Ok(())
+}
+
+fn inline_tags(style: InlineStyle) -> (&'static str, &'static str) {
+    match style {
         InlineStyle::None => ("", ""),
         InlineStyle::Bold => ("**", "**"),
         InlineStyle::Italic => ("_", "_"),
-        InlineStyle::Highlight => ("<mark>", "</mark>"), // Markdown doesn't have native highlight
-        InlineStyle::Underline => ("<u>", "</u>"),       // Markdown doesn't have native underline
+        InlineStyle::Highlight => ("<mark>", "</mark>"),
+        InlineStyle::Underline => ("<u>", "</u>"),
         InlineStyle::Strike => ("~~", "~~"),
-        InlineStyle::Link => {
-            // Handle links if we had link targets
-            if let Some(target) = &span.link_target {
-                write!(writer, "[")?;
-                write_span_content(writer, span)?;
-                write!(writer, "]({})", target)?;
-                return Ok(());
-            } else {
-                ("", "")
+        _ => ("", ""),
+    }
+}
+
+fn escape_markdown_text(text: &str) -> String {
+    fn needs_escape(ch: char) -> bool {
+        matches!(
+            ch,
+            '\\' | '`'
+                | '*'
+                | '_'
+                | '{'
+                | '}'
+                | '['
+                | ']'
+                | '('
+                | ')'
+                | '#'
+                | '+'
+                | '-'
+                | '|'
+                | '~'
+        ) || ch == '<'
+            || ch == '>'
+            || ch == '&'
+    }
+
+    if !text.chars().any(needs_escape) {
+        return text.to_string();
+    }
+
+    let mut escaped = String::with_capacity(text.len());
+    for ch in text.chars() {
+        match ch {
+            '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '(' | ')' | '#' | '+' | '-' | '|'
+            | '~' => {
+                escaped.push('\\');
+                escaped.push(ch);
+            }
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '&' => escaped.push_str("&amp;"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
+fn escape_link_destination(dest: &str) -> String {
+    const HEX_DIGITS: &[u8; 16] = b"0123456789ABCDEF";
+
+    let mut escaped = String::with_capacity(dest.len());
+
+    for byte in dest.bytes() {
+        match byte {
+            b'a'..=b'z'
+            | b'A'..=b'Z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'.'
+            | b'_'
+            | b'~'
+            | b':'
+            | b'/'
+            | b'?'
+            | b'#'
+            | b'@'
+            | b'!'
+            | b'$'
+            | b'&'
+            | b'\''
+            | b'*'
+            | b'+'
+            | b','
+            | b';'
+            | b'='
+            | b'%'
+            | b'['
+            | b']' => escaped.push(byte as char),
+            _ => {
+                escaped.push('%');
+                escaped.push(HEX_DIGITS[(byte >> 4) as usize] as char);
+                escaped.push(HEX_DIGITS[(byte & 0x0F) as usize] as char);
             }
         }
-        InlineStyle::Code => ("`", "`"),
-    };
+    }
 
-    write!(writer, "{}", begin_tag)?;
-    write_span_content(writer, span)?;
-    write!(writer, "{}", end_tag)?;
+    escaped
+}
 
+fn write_code_span<W: Write>(
+    writer: &mut W,
+    span: &Span,
+    state: &mut LineState<'_>,
+) -> std::io::Result<()> {
+    let mut content = String::new();
+    collect_plain_text(span, &mut content);
+
+    if content.contains('\r') {
+        content = content.replace('\r', " ");
+    }
+    if content.contains('\n') {
+        content = content.replace('\n', " ");
+    }
+
+    let delimiter_len = longest_backtick_sequence(&content) + 1;
+    let delimiter = "`".repeat(delimiter_len.max(1));
+    let needs_padding = content.starts_with(' ') || content.ends_with(' ');
+
+    state.ensure_prefix(writer)?;
+    writer.write_all(delimiter.as_bytes())?;
+    if needs_padding {
+        writer.write_all(b" ")?;
+    }
+    writer.write_all(content.as_bytes())?;
+    if needs_padding {
+        writer.write_all(b" ")?;
+    }
+    writer.write_all(delimiter.as_bytes())?;
+    state.mark_written();
     Ok(())
 }
 
-fn write_span_content<W: Write>(writer: &mut W, span: &Span) -> std::io::Result<()> {
-    if span.children.is_empty() {
-        // Handle line breaks in markdown
-        if span.text.ends_with('\n') {
-            let text_without_newline = span.text.trim_end_matches('\n');
-            if !text_without_newline.is_empty() {
-                write!(writer, "{}", text_without_newline)?;
+fn collect_plain_text(span: &Span, buffer: &mut String) {
+    if !span.text.is_empty() {
+        buffer.push_str(&span.text);
+    }
+    for child in &span.children {
+        collect_plain_text(child, buffer);
+    }
+}
+
+fn longest_backtick_sequence(text: &str) -> usize {
+    let mut max = 0;
+    let mut current = 0;
+    for ch in text.chars() {
+        if ch == '`' {
+            current += 1;
+            if current > max {
+                max = current;
             }
-            writeln!(writer, "\\")?; // Markdown line break
         } else {
-            write!(writer, "{}", span.text)?;
-        }
-    } else {
-        for child in &span.children {
-            write_span(writer, child)?;
+            current = 0;
         }
     }
-    Ok(())
+    max
+}
+
+struct LineState<'a> {
+    continuation_prefix: &'a str,
+    at_line_start: bool,
+}
+
+impl<'a> LineState<'a> {
+    fn new(continuation_prefix: &'a str) -> Self {
+        Self {
+            continuation_prefix,
+            at_line_start: false,
+        }
+    }
+
+    fn write_chunk<W: Write>(&mut self, writer: &mut W, chunk: &str) -> std::io::Result<()> {
+        if chunk.is_empty() {
+            return Ok(());
+        }
+        self.ensure_prefix(writer)?;
+        writer.write_all(chunk.as_bytes())?;
+        self.at_line_start = false;
+        Ok(())
+    }
+
+    fn ensure_prefix<W: Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        if self.at_line_start {
+            if !self.continuation_prefix.is_empty() {
+                writer.write_all(self.continuation_prefix.as_bytes())?;
+            }
+            self.at_line_start = false;
+        }
+        Ok(())
+    }
+
+    fn handle_newline<W: Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(b"\n")?;
+        self.at_line_start = true;
+        Ok(())
+    }
+
+    fn mark_written(&mut self) {
+        self.at_line_start = false;
+    }
 }
 
 #[cfg(test)]
@@ -637,11 +899,7 @@ mod tests {
     fn test_parse_underline() {
         let input = "A <u>styled</u> word";
         let parsed = parse(Cursor::new(input)).unwrap();
-        let expected = doc(vec![p_(vec![
-            span("A "),
-            u__("styled"),
-            span(" word"),
-        ])]);
+        let expected = doc(vec![p_(vec![span("A "), u__("styled"), span(" word")])]);
         assert_eq!(parsed, expected);
     }
 
@@ -649,11 +907,7 @@ mod tests {
     fn test_parse_del_strike() {
         let input = "A <del>struck</del> word";
         let parsed = parse(Cursor::new(input)).unwrap();
-        let expected = doc(vec![p_(vec![
-            span("A "),
-            s__("struck"),
-            span(" word"),
-        ])]);
+        let expected = doc(vec![p_(vec![span("A "), s__("struck"), span(" word")])]);
         assert_eq!(parsed, expected);
     }
 

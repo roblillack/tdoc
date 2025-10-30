@@ -256,17 +256,11 @@ mod tests {
             detect_format_from_extension(Some("markdown")),
             InputFormat::Markdown
         );
-        assert_eq!(
-            detect_format_from_extension(Some("htm")),
-            InputFormat::Html
-        );
+        assert_eq!(detect_format_from_extension(Some("htm")), InputFormat::Html);
         assert_eq!(
             detect_format_from_extension(Some("html")),
             InputFormat::Html
         );
-        assert_eq!(
-            detect_format_from_extension(Some("TXT")),
-            InputFormat::Html
-        );
+        assert_eq!(detect_format_from_extension(Some("TXT")), InputFormat::Html);
     }
 }
