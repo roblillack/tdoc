@@ -1,3 +1,5 @@
+pub mod gockl;
+
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
 use std::collections::HashMap;
 use std::io::Read;

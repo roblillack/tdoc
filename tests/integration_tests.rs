@@ -23,10 +23,7 @@ fn test_parsing_simple_paragraphs() {
             ftml! { p { "Test " b { "bold" } } },
         ),
         ("<h1> Hello World! </h1>", ftml! { h1 { "Hello World!" } }),
-        (
-            "<p>A<br/> B</p>",
-            ftml! { p { "A" "\n" "B" } },
-        ),
+        ("<p>A<br/> B</p>", ftml! { p { "A" "\n" "B" } }),
         (
             "<ul><li><p>a</p></li><li><p>b</p></li></ul>",
             ftml! { ul { li { p { "a" } } li { p { "b" } } } },
@@ -47,8 +44,14 @@ fn test_parsing_simple_paragraphs() {
 fn test_parsing_and_writing_styles() {
     let simple_tests: Vec<(&str, Document)> = vec![
         ("This is a test.", ftml! { p { "This is a test." } }),
-        ("&emsp14;This is a test.", ftml! { p { " This is a test." } }),
-        ("This is a test.&emsp14;", ftml! { p { "This is a test. " } }),
+        (
+            "&emsp14;This is a test.",
+            ftml! { p { " This is a test." } },
+        ),
+        (
+            "This is a test.&emsp14;",
+            ftml! { p { "This is a test. " } },
+        ),
         ("A&emsp14;&emsp14;&emsp14;B", ftml! { p { "A   B" } }),
     ];
 
