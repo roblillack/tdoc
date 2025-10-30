@@ -7,8 +7,15 @@ use std::path::Path;
 use std::process::{Command as Process, Stdio};
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
-use tdoc::{html, parse, write};
+use tdoc::{html, markdown, parse, write};
 use url::Url;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputFormat {
+    Ftml,
+    Html,
+    Markdown,
+}
 
 fn main() {
     let matches = Command::new("viewftml")
@@ -40,7 +47,7 @@ fn main() {
     let disable_ansi = matches.get_flag("no-ansi");
     let save_ftml = matches.get_flag("save");
 
-    let (expect_html, reader) = match create_reader(input_file) {
+    let (input_format, reader) = match create_reader(input_file) {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Unable to read {}: {}", input_file, e);
@@ -48,22 +55,28 @@ fn main() {
         }
     };
 
-    let document = if expect_html {
-        match html::parse(reader) {
+    let document = match input_format {
+        InputFormat::Html => match html::parse(reader) {
             Ok(doc) => doc,
             Err(e) => {
                 eprintln!("Unable to parse {}: {}", input_file, e);
                 std::process::exit(1);
             }
-        }
-    } else {
-        match parse(reader) {
+        },
+        InputFormat::Markdown => match markdown::parse(reader) {
+            Ok(doc) => doc,
+            Err(e) => {
+                eprintln!("Unable to parse {} as Markdown: {}", input_file, e);
+                std::process::exit(1);
+            }
+        },
+        InputFormat::Ftml => match parse(reader) {
             Ok(doc) => doc,
             Err(e) => {
                 eprintln!("Unable to parse {}: {}", input_file, e);
                 std::process::exit(1);
             }
-        }
+        },
     };
 
     if save_ftml {
@@ -142,27 +155,32 @@ fn main() {
     }
 }
 
-fn create_reader(input_file: &str) -> Result<(bool, Box<dyn Read>), Box<dyn std::error::Error>> {
+fn create_reader(
+    input_file: &str,
+) -> Result<(InputFormat, Box<dyn Read>), Box<dyn std::error::Error>> {
     // Try to parse as URL
     if let Ok(url) = Url::parse(input_file) {
         if url.scheme() == "http" || url.scheme() == "https" {
             let client = Client::builder().timeout(Duration::from_secs(10)).build()?;
             let response = client.get(input_file).send()?;
             let reader = Box::new(response);
-            return Ok((true, reader));
+            let extension = Path::new(url.path())
+                .extension()
+                .and_then(|ext| ext.to_str());
+            let format = detect_format_from_extension(extension);
+            return Ok((format, reader));
         }
     }
 
     // Local file
-    let expect_html = Path::new(input_file)
+    let extension = Path::new(input_file)
         .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.to_lowercase() != "ftml")
-        .unwrap_or(true);
+        .and_then(|ext| ext.to_str());
+    let format = detect_format_from_extension(extension);
 
     let file = File::open(input_file)?;
     let reader = Box::new(BufReader::new(file));
-    Ok((expect_html, reader))
+    Ok((format, reader))
 }
 
 fn run_pager() -> Result<(std::process::Child, std::process::ChildStdin), std::io::Error> {
@@ -196,6 +214,15 @@ fn run_pager() -> Result<(std::process::Child, std::process::ChildStdin), std::i
     Ok((child, stdin))
 }
 
+fn detect_format_from_extension(ext: Option<&str>) -> InputFormat {
+    match ext.map(|value| value.to_ascii_lowercase()) {
+        Some(ref ext) if ext == "ftml" => InputFormat::Ftml,
+        Some(ref ext) if ext == "md" || ext == "markdown" => InputFormat::Markdown,
+        Some(ref ext) if ext == "htm" || ext == "html" => InputFormat::Html,
+        _ => InputFormat::Html,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,9 +236,31 @@ mod tests {
     #[test]
     fn test_url_parsing() {
         let result = create_reader("https://example.com");
-        if let Ok((expect_html, _)) = result {
-            assert!(expect_html);
+        if let Ok((format, _)) = result {
+            assert_eq!(format, InputFormat::Html);
         }
         // If error, network might not be available in test environment - test passes
+    }
+
+    #[test]
+    fn test_detect_format_from_extension() {
+        assert_eq!(
+            detect_format_from_extension(Some("ftml")),
+            InputFormat::Ftml
+        );
+        assert_eq!(
+            detect_format_from_extension(Some("md")),
+            InputFormat::Markdown
+        );
+        assert_eq!(
+            detect_format_from_extension(Some("markdown")),
+            InputFormat::Markdown
+        );
+        assert_eq!(detect_format_from_extension(Some("htm")), InputFormat::Html);
+        assert_eq!(
+            detect_format_from_extension(Some("html")),
+            InputFormat::Html
+        );
+        assert_eq!(detect_format_from_extension(Some("TXT")), InputFormat::Html);
     }
 }

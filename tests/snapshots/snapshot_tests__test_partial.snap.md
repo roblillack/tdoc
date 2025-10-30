@@ -1,6 +1,6 @@
 # This is an example FTML document
 
-The purpose of this document is to demonstrate the following use-cases:
+The purpose of this document is to demonstrate the following use\-cases:
 
 - Describe the features supported by FTML.
 - Showcase the FTML standard formatting enforced by `fmtftml`.
@@ -20,4 +20,7 @@ The following inline styles are supported in FTML:
 
 ### Text paragraphs
 
-This is a rather long paragraph to show the text-wrapping supported by the ASCII and Markdown exporters. Applications integrating FTML support should “do the right thing” regarding breaking lines in paragraphs. This could mean that the full available width of the window or screen is used, or that the lines
+This is a rather long paragraph to show the text\-wrapping supported by the
+ASCII and Markdown exporters. Applications integrating FTML support should “do
+the right thing” regarding breaking lines in paragraphs. This could mean that
+the full available width of the window or screen is used, or that the lines

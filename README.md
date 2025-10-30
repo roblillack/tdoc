@@ -29,7 +29,7 @@ For the full FTML specification, see the [original repository](https://github.co
 tdoc provides a comprehensive toolkit for working with FTML documents in Rust:
 
 - **Load and Save**: Parse FTML documents from files or streams, and write them back with proper formatting
-- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, and all supported paragraph types
+- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code` and all supported paragraph types
 - **Format Conversion**: Convert between FTML and other formats:
   - **Markdown**: Export FTML documents to Markdown for compatibility with documentation systems
   - **HTML**: Import HTML documents into FTML (basic support), with plans for full HTML export
@@ -200,22 +200,24 @@ fmtftml -w document.ftml
 
 This Rust implementation is a work in progress. Here's how it compares to the [Go version](https://github.com/roblillack/ftml):
 
-| Feature               | Rust (tdoc)            | Go (ftml)     | Notes                                  |
-| --------------------- | ---------------------- | ------------- | -------------------------------------- |
-| **Core Library**      |                        |               |                                        |
-| FTML Parsing          | ✅ Full                | ✅ Full       | Both implementations complete          |
-| FTML Writing          | ✅ Full                | ✅ Full       | Both implementations complete          |
-| Document Formatting   | ✅ Full                | ✅ Full       | Both implementations complete          |
-| **Import/Export**     |                        |               |                                        |
-| Markdown Import       | ❌ Planned             | ❌ Planned    | No implementation yet                  |
-| Markdown Export       | ⚠️ Basic               | ✅ Full       | Both support all FTML elements         |
-| HTML Import           | ❌ Rudimentary support | ✅ Full       | Only Go version has proper HTML parser |
-| HTML Export           | ❌ Planned             | ✅ Full       | Not yet implemented in Rust            |
-| **CLI Tools**         |                        |               |                                        |
-| Document Viewer       | ✅ `viewftml`          | ✅ `viewftml` | Both with terminal formatting          |
-| **Advanced Features** |                        |               |                                        |
-| URL Fetching          | ✅ Yes                 | ❌ No         | `viewftml` can fetch from URLs         |
-| Paged Output          | ✅ Yes                 | ✅ Yes        | Both support pager integration         |
+| Feature                | Rust (tdoc)            | Go (ftml)     | Notes                                  |
+| ---------------------- | ---------------------- | ------------- | -------------------------------------- |
+| **Core Library**       |                        |               |                                        |
+| FTML Parsing           | ✅ Full                | ✅ Full       | Both implementations complete          |
+| FTML Writing           | ✅ Full                | ✅ Full       | Both implementations complete          |
+| **Terminal Rendering** |                        |               |                                        |
+| ASCII Support          | ✅ Full                | ✅ Full       | Both implementations complete          |
+| ANSI Support           | ✅ Full                | ✅ Full       | Both implementations complete          |
+| **Import/Export**      |                        |               |                                        |
+| Markdown Import        | ✅ Full                | ❌ Planned    | No implementation yet                  |
+| Markdown Export        | ⚠️ Basic               | ✅ Full       | Both support all FTML elements         |
+| HTML Import            | ❌ Rudimentary support | ✅ Full       | Only Go version has proper HTML parser |
+| HTML Export            | ❌ Planned             | ✅ Full       | Not yet implemented in Rust            |
+| **CLI Tools**          |                        |               |                                        |
+| Document Viewer        | ✅ `viewftml`          | ✅ `viewftml` | Both with terminal formatting          |
+| **Advanced Features**  |                        |               |                                        |
+| URL Fetching           | ✅ Yes                 | ❌ No         | `viewftml` can fetch from URLs         |
+| Paged Output           | ✅ Yes                 | ✅ Yes        | Both support pager integration         |
 
 **Note on HTML Import**: The current HTML import in the Rust version is functional but uses a simplified regex-based approach to convert HTML to FTML before parsing. It handles common patterns but may not correctly parse complex or malformed HTML. The Go version has a more robust HTML parser. Improvements to the Rust HTML import are planned for future releases.
 
