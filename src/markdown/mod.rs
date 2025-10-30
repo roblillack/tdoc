@@ -471,6 +471,8 @@ impl ParagraphContext {
     }
 }
 
+const LINE_WIDTH: usize = 80;
+
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
     write_paragraphs(writer, &document.paragraphs, "", "")
 }
@@ -502,28 +504,23 @@ fn write_paragraph<W: Write>(
 ) -> std::io::Result<()> {
     match paragraph.paragraph_type {
         ParagraphType::Text => {
-            write!(writer, "{}", prefix)?;
-            let mut state = LineState::new(continuation_prefix);
-            write_spans(writer, &paragraph.content, &mut state)?;
-            writeln!(writer)?;
+            let content = render_spans_to_string(&paragraph.content)?;
+            write_wrapped_lines(writer, prefix, continuation_prefix, &content)?;
         }
         ParagraphType::Header1 => {
-            write!(writer, "{}# ", prefix)?;
-            let mut state = LineState::new(continuation_prefix);
-            write_spans(writer, &paragraph.content, &mut state)?;
-            writeln!(writer)?;
+            let content = render_spans_to_string(&paragraph.content)?;
+            let first_prefix = format!("{}# ", prefix);
+            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
         }
         ParagraphType::Header2 => {
-            write!(writer, "{}## ", prefix)?;
-            let mut state = LineState::new(continuation_prefix);
-            write_spans(writer, &paragraph.content, &mut state)?;
-            writeln!(writer)?;
+            let content = render_spans_to_string(&paragraph.content)?;
+            let first_prefix = format!("{}## ", prefix);
+            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
         }
         ParagraphType::Header3 => {
-            write!(writer, "{}### ", prefix)?;
-            let mut state = LineState::new(continuation_prefix);
-            write_spans(writer, &paragraph.content, &mut state)?;
-            writeln!(writer)?;
+            let content = render_spans_to_string(&paragraph.content)?;
+            let first_prefix = format!("{}### ", prefix);
+            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
         }
         ParagraphType::Quote => {
             let quote_prefix = format!("{}> ", prefix);
@@ -614,6 +611,98 @@ fn write_span_content<W: Write>(
     }
 
     Ok(())
+}
+
+fn render_spans_to_string(spans: &[Span]) -> std::io::Result<String> {
+    let mut buffer = Vec::new();
+    let mut state = LineState::new("");
+    write_spans(&mut buffer, spans, &mut state)?;
+    Ok(String::from_utf8(buffer).expect("Rendered markdown should be valid UTF-8"))
+}
+
+fn write_wrapped_lines<W: Write>(
+    writer: &mut W,
+    first_prefix: &str,
+    continuation_prefix: &str,
+    content: &str,
+) -> std::io::Result<()> {
+    let mut wrote_line = false;
+
+    for (idx, raw_line) in content.split('\n').enumerate() {
+        let prefix_for_line = if idx == 0 {
+            first_prefix
+        } else {
+            continuation_prefix
+        };
+
+        for line in wrap_single_line(raw_line, prefix_for_line, continuation_prefix) {
+            if wrote_line {
+                writeln!(writer)?;
+            }
+            writer.write_all(line.as_bytes())?;
+            wrote_line = true;
+        }
+    }
+
+    writeln!(writer)?;
+    Ok(())
+}
+
+fn wrap_single_line(line: &str, first_prefix: &str, continuation_prefix: &str) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current_line = String::new();
+    current_line.push_str(first_prefix);
+
+    let mut base_len = first_prefix.chars().count();
+    let mut current_len = base_len;
+    let mut pending_whitespace = String::new();
+
+    let mut chars = line.char_indices().peekable();
+    while let Some((start, ch)) = chars.next() {
+        let is_space = ch.is_whitespace();
+        let mut end = start + ch.len_utf8();
+        while let Some(&(next_idx, next_ch)) = chars.peek() {
+            if next_ch.is_whitespace() == is_space {
+                chars.next();
+                end = next_idx + next_ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+
+        let token = &line[start..end];
+
+        if is_space {
+            pending_whitespace.push_str(token);
+            continue;
+        }
+
+        let pending_len = pending_whitespace.chars().count();
+        let token_len = token.chars().count();
+
+        if current_len + pending_len + token_len > LINE_WIDTH && current_len > base_len {
+            lines.push(current_line);
+            current_line = String::new();
+            current_line.push_str(continuation_prefix);
+            base_len = continuation_prefix.chars().count();
+            current_len = base_len;
+            pending_whitespace.clear();
+        } else {
+            current_line.push_str(&pending_whitespace);
+            current_len += pending_len;
+            pending_whitespace.clear();
+        }
+
+        current_line.push_str(token);
+        current_len += token_len;
+    }
+
+    if !pending_whitespace.is_empty() {
+        current_line.push_str(&pending_whitespace);
+    }
+
+    lines.push(current_line);
+    lines
 }
 
 fn write_plain_text<W: Write>(

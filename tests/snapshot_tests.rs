@@ -53,6 +53,54 @@ fn load_ftml_document(path: &Path, file_name: &str) -> Option<tdoc::Document> {
     }
 }
 
+fn normalize_soft_breaks(document: &mut tdoc::Document) {
+    for paragraph in &mut document.paragraphs {
+        normalize_paragraph(paragraph);
+    }
+}
+
+fn normalize_paragraph(paragraph: &mut tdoc::Paragraph) {
+    normalize_spans(&mut paragraph.content);
+    for child in &mut paragraph.children {
+        normalize_paragraph(child);
+    }
+    for entry in &mut paragraph.entries {
+        for child in entry {
+            normalize_paragraph(child);
+        }
+    }
+}
+
+fn normalize_spans(spans: &mut Vec<tdoc::Span>) {
+    for span in spans.iter_mut() {
+        if !span.text.is_empty() {
+            span.text = span.text.replace('\n', " ");
+        }
+        if !span.children.is_empty() {
+            normalize_spans(&mut span.children);
+        }
+    }
+
+    let mut normalized: Vec<tdoc::Span> = Vec::with_capacity(spans.len());
+    for span in spans.drain(..) {
+        if let Some(last) = normalized.last_mut() {
+            if can_merge_spans(last, &span) {
+                last.text.push_str(&span.text);
+                continue;
+            }
+        }
+        normalized.push(span);
+    }
+    *spans = normalized;
+}
+
+fn can_merge_spans(a: &tdoc::Span, b: &tdoc::Span) -> bool {
+    a.style == b.style
+        && a.link_target == b.link_target
+        && a.children.is_empty()
+        && b.children.is_empty()
+}
+
 /// Test that snapshots FTML to Markdown conversion for all test files
 #[test]
 fn test_ftml_to_markdown_snapshots() {
@@ -171,18 +219,21 @@ fn test_ftml_to_markdown_snapshots() {
             );
         }
 
-        let canonical_original = parse(Cursor::new(&original_ftml)).unwrap_or_else(|e| {
+        let mut canonical_original = parse(Cursor::new(&original_ftml)).unwrap_or_else(|e| {
             panic!(
                 "Failed to parse canonical FTML representation for {}: {}",
                 file_name, e
             )
         });
-        let canonical_roundtrip = parse(Cursor::new(&roundtrip_ftml)).unwrap_or_else(|e| {
+        let mut canonical_roundtrip = parse(Cursor::new(&roundtrip_ftml)).unwrap_or_else(|e| {
             panic!(
                 "Failed to parse round-trip FTML representation for {}: {}",
                 file_name, e
             )
         });
+
+        normalize_soft_breaks(&mut canonical_original);
+        normalize_soft_breaks(&mut canonical_roundtrip);
 
         assert_eq!(
             canonical_roundtrip, canonical_original,

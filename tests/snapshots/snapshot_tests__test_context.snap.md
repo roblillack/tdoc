@@ -1,5 +1,11 @@
 ### Text paragraphs
 
-This is a rather long paragraph to show the text\-wrapping supported by the ASCII and Markdown exporters. Applications integrating FTML support should “do the right thing” regarding breaking lines in paragraphs. This could mean that the full available width of the window or screen is used, or that the lines are broken to limit the number of characters per line to a specific number. FTML itself _does not_ encorce any specific rules here, the included Markdown exporter does wrap at 80 characters, though.
+This is a rather long paragraph to show the text\-wrapping supported by the
+ASCII and Markdown exporters. Applications integrating FTML support should “do
+the right thing” regarding breaking lines in paragraphs. This could mean that
+the full available width of the window or screen is used, or that the lines are
+broken to limit the number of characters per line to a specific number. FTML
+itself _does not_ encorce any specific rules here, the included Markdown
+exporter does wrap at 80 characters, though.
 
 ### Quoted paragraphs
