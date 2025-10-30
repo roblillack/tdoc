@@ -129,7 +129,7 @@ fn create_reader(
                         .and_then(|ext| ext.to_str());
                     let format = override_format
                         .or_else(|| detect_input_format(extension))
-                        .unwrap_or(InputFormat::Ftml);
+                        .unwrap_or(InputFormat::Html);
                     return Ok(InputSource {
                         format,
                         reader: Box::new(response),
