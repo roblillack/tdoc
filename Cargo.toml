@@ -1,15 +1,15 @@
 [package]
-name = "ftml"
+name = "tdoc"
 version = "0.1.0"
 edition = "2021"
-description = "FTML - Formatted Text Markup Language"
-authors = ["Rob Lillack <rob@lillack.dev>"]
+description = "Library and assorted CLI tools for working with FTML (Formatted Text Markup Language) documents"
+authors = ["Rob Lillack <rob@lillack.net>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/roblillack/ftml"
+repository = "https://github.com/roblillack/tdoc"
 
 [lib]
-name = "ftml"
+name = "tdoc"
 path = "src/lib.rs"
 
 [[bin]]

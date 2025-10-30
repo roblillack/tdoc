@@ -1,6 +1,6 @@
-use ftml::test_helpers::*;
-use ftml::{parse, write, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use std::io::Cursor;
+use tdoc::test_helpers::*;
+use tdoc::{parse, write, Document, InlineStyle, Paragraph, ParagraphType, Span};
 
 #[test]
 fn test_parsing_simple_paragraphs() {

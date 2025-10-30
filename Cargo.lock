@@ -337,21 +337,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ftml"
-version = "0.1.0"
-dependencies = [
- "assert_matches",
- "atty",
- "clap",
- "crossterm",
- "insta",
- "regex",
- "reqwest",
- "thiserror",
- "url",
-]
-
-[[package]]
 name = "futures-channel"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1268,6 +1253,21 @@ checksum = "a75fb188eb626b924683e3b95e3a48e63551fcfb51949de2f06a9d91dbee93c9"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "tdoc"
+version = "0.1.0"
+dependencies = [
+ "assert_matches",
+ "atty",
+ "clap",
+ "crossterm",
+ "insta",
+ "regex",
+ "reqwest",
+ "thiserror",
+ "url",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 use clap::{Arg, Command};
-use ftml::{parse, write};
 use std::fs::File;
 use std::io::{self, BufReader};
+use tdoc::{parse, write};
 
 fn main() {
     let matches = Command::new("fmtftml")

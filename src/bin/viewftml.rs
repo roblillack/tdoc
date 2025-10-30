@@ -1,13 +1,13 @@
 use clap::{Arg, Command};
 use crossterm::terminal;
-use ftml::formatter::{Formatter, FormattingStyle};
-use ftml::{html, parse};
 use reqwest::blocking::Client;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::path::Path;
 use std::process::{Command as Process, Stdio};
 use std::time::Duration;
+use tdoc::formatter::{Formatter, FormattingStyle};
+use tdoc::{html, parse, write};
 use url::Url;
 
 fn main() {
@@ -67,7 +67,7 @@ fn main() {
     };
 
     if save_ftml {
-        match ftml::write(&mut io::stdout(), &document) {
+        match write(&mut io::stdout(), &document) {
             Ok(()) => {}
             Err(e) => {
                 eprintln!("Unable to write FTML document: {}", e);
