@@ -1,5 +1,462 @@
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
-use std::io::Write;
+use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag};
+use std::io::{Read, Write};
+
+pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
+    let mut input = String::new();
+    reader.read_to_string(&mut input)?;
+
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TASKLISTS);
+
+    let parser = Parser::new_ext(&input, options);
+    let mut builder = MarkdownBuilder::new();
+
+    for event in parser {
+        builder.handle_event(event);
+    }
+
+    Ok(builder.finish())
+}
+
+struct MarkdownBuilder {
+    stack: Vec<BlockContext>,
+}
+
+impl MarkdownBuilder {
+    fn new() -> Self {
+        Self {
+            stack: vec![BlockContext::Document {
+                paragraphs: Vec::new(),
+            }],
+        }
+    }
+
+    fn finish(mut self) -> Document {
+        self.close_open_paragraphs();
+        if self.stack.len() != 1 {
+            // Best effort: collapse any remaining containers
+            while self.stack.len() > 1 {
+                match self.stack.pop() {
+                    Some(BlockContext::Paragraph(ctx)) => {
+                        let paragraph = ctx.finish();
+                        self.add_paragraph_to_parent(paragraph);
+                    }
+                    Some(BlockContext::List { ordered, entries }) => {
+                        let mut paragraph = if ordered {
+                            Paragraph::new_ordered_list()
+                        } else {
+                            Paragraph::new_unordered_list()
+                        };
+                        paragraph.entries = entries;
+                        self.add_paragraph_to_parent(paragraph);
+                    }
+                    Some(BlockContext::ListItem { paragraphs }) => {
+                        if let Some(BlockContext::List { entries, .. }) =
+                            self.stack.last_mut()
+                        {
+                            entries.push(paragraphs);
+                        }
+                    }
+                    Some(BlockContext::Quote { children }) => {
+                        let paragraph = Paragraph::new_quote().with_children(children);
+                        self.add_paragraph_to_parent(paragraph);
+                    }
+                    Some(BlockContext::Document { paragraphs }) => {
+                        return Document { paragraphs };
+                    }
+                    None => break,
+                }
+            }
+        }
+
+        match self.stack.pop() {
+            Some(BlockContext::Document { paragraphs }) => Document { paragraphs },
+            _ => Document::new(),
+        }
+    }
+
+    fn handle_event(&mut self, event: Event<'_>) {
+        match event {
+            Event::Start(tag) => self.handle_start_tag(tag),
+            Event::End(tag) => self.handle_end_tag(tag),
+            Event::Text(text) => self.push_text(text.as_ref()),
+            Event::Html(html) => self.handle_html(html.as_ref()),
+            Event::Code(text) => self.push_code(text.as_ref()),
+            Event::FootnoteReference(reference) => {
+                let marker = format!("[^{}]", reference);
+                self.push_text(&marker);
+            }
+            Event::SoftBreak => self.push_soft_break(),
+            Event::HardBreak => self.push_hard_break(),
+            Event::Rule => self.push_thematic_break(),
+            Event::TaskListMarker(checked) => self.push_task_marker(checked),
+        }
+    }
+
+    fn handle_start_tag(&mut self, tag: Tag<'_>) {
+        match tag {
+            Tag::Paragraph => {
+                self.start_paragraph(ParagraphType::Text);
+            }
+            Tag::Heading(level, _, _) => {
+                let paragraph_type = match level {
+                    HeadingLevel::H1 => ParagraphType::Header1,
+                    HeadingLevel::H2 => ParagraphType::Header2,
+                    HeadingLevel::H3 => ParagraphType::Header3,
+                    _ => ParagraphType::Text,
+                };
+                self.start_paragraph(paragraph_type);
+            }
+            Tag::BlockQuote => {
+                self.stack
+                    .push(BlockContext::Quote { children: Vec::new() });
+            }
+            Tag::List(start) => {
+                let ordered = start.is_some();
+                self.stack.push(BlockContext::List {
+                    ordered,
+                    entries: Vec::new(),
+                });
+            }
+            Tag::Item => {
+                self.stack
+                    .push(BlockContext::ListItem { paragraphs: Vec::new() });
+            }
+            Tag::Emphasis => {
+                self.ensure_paragraph()
+                    .start_inline(Span::new_styled(InlineStyle::Italic));
+            }
+            Tag::Strong => {
+                self.ensure_paragraph()
+                    .start_inline(Span::new_styled(InlineStyle::Bold));
+            }
+            Tag::Strikethrough => {
+                self.ensure_paragraph()
+                    .start_inline(Span::new_styled(InlineStyle::Strike));
+            }
+            Tag::Link(_link_type, dest, _) => {
+                let span =
+                    Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
+                self.ensure_paragraph().start_inline(span);
+            }
+            Tag::Image(_link_type, dest, _) => {
+                let span =
+                    Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
+                self.ensure_paragraph().start_inline(span);
+            }
+            Tag::CodeBlock(_) => {
+                let paragraph = self.start_paragraph(ParagraphType::Text);
+                paragraph.start_inline(Span::new_styled(InlineStyle::Code));
+            }
+            Tag::FootnoteDefinition(name) => {
+                let paragraph = self.start_paragraph(ParagraphType::Text);
+                paragraph.push_text(&format!("[^{}]: ", name));
+            }
+            Tag::Table(_) | Tag::TableHead | Tag::TableRow | Tag::TableCell => {
+                // Tables are flattened into text paragraphs.
+            }
+        }
+    }
+
+    fn handle_end_tag(&mut self, tag: Tag<'_>) {
+        match tag {
+            Tag::Paragraph | Tag::Heading(_, _, _) => {
+                self.finish_paragraph();
+            }
+            Tag::BlockQuote => {
+                self.close_open_paragraphs();
+                if let Some(BlockContext::Quote { children }) = self.stack.pop() {
+                    let paragraph = Paragraph::new_quote().with_children(children);
+                    self.add_paragraph_to_parent(paragraph);
+                }
+            }
+            Tag::List(_) => {
+                self.close_open_paragraphs();
+                if let Some(BlockContext::List { ordered, entries }) = self.stack.pop() {
+                    let mut paragraph = if ordered {
+                        Paragraph::new_ordered_list()
+                    } else {
+                        Paragraph::new_unordered_list()
+                    };
+                    paragraph.entries = entries;
+                    self.add_paragraph_to_parent(paragraph);
+                }
+            }
+            Tag::Item => {
+                self.close_open_paragraphs();
+                if let Some(BlockContext::ListItem { paragraphs }) = self.stack.pop() {
+                    if let Some(BlockContext::List { entries, .. }) = self.stack.last_mut() {
+                        entries.push(paragraphs);
+                    }
+                }
+            }
+            Tag::Emphasis => {
+                self.current_paragraph_inline_end(InlineStyle::Italic);
+            }
+            Tag::Strong => {
+                self.current_paragraph_inline_end(InlineStyle::Bold);
+            }
+            Tag::Strikethrough => {
+                self.current_paragraph_inline_end(InlineStyle::Strike);
+            }
+            Tag::Link(_, _, _) | Tag::Image(_, _, _) => {
+                self.current_paragraph_inline_end(InlineStyle::Link);
+            }
+            Tag::CodeBlock(_) => {
+                self.current_paragraph_inline_end(InlineStyle::Code);
+                self.finish_paragraph();
+            }
+            Tag::FootnoteDefinition(_) => {
+                self.finish_paragraph();
+            }
+            Tag::Table(_) | Tag::TableHead | Tag::TableRow | Tag::TableCell => {
+                self.close_open_paragraphs();
+            }
+        }
+    }
+
+    fn handle_html(&mut self, html: &str) {
+        let trimmed = html.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+
+        let lowercase = trimmed.to_ascii_lowercase();
+
+        if is_open_tag(&lowercase, "mark") {
+            self.ensure_paragraph()
+                .start_inline(Span::new_styled(InlineStyle::Highlight));
+            return;
+        }
+
+        if is_close_tag(&lowercase, "mark") {
+            self.current_paragraph_inline_end(InlineStyle::Highlight);
+            return;
+        }
+
+        if is_open_tag(&lowercase, "u") {
+            self.ensure_paragraph()
+                .start_inline(Span::new_styled(InlineStyle::Underline));
+            return;
+        }
+
+        if is_close_tag(&lowercase, "u") {
+            self.current_paragraph_inline_end(InlineStyle::Underline);
+            return;
+        }
+
+        if is_open_tag(&lowercase, "del") {
+            self.ensure_paragraph()
+                .start_inline(Span::new_styled(InlineStyle::Strike));
+            return;
+        }
+
+        if is_close_tag(&lowercase, "del") {
+            self.current_paragraph_inline_end(InlineStyle::Strike);
+            return;
+        }
+
+        self.push_text(html);
+    }
+
+    fn current_paragraph_inline_end(&mut self, style: InlineStyle) {
+        if let Some(BlockContext::Paragraph(context)) = self.stack.last_mut() {
+            context.end_inline(style);
+        }
+    }
+
+    fn push_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let paragraph = self.ensure_paragraph();
+        paragraph.push_text(text);
+    }
+
+    fn push_code(&mut self, text: &str) {
+        let paragraph = self.ensure_paragraph();
+        paragraph.push_code(text);
+    }
+
+    fn push_soft_break(&mut self) {
+        let paragraph = self.ensure_paragraph();
+        paragraph.push_text("\n");
+    }
+
+    fn push_hard_break(&mut self) {
+        let paragraph = self.ensure_paragraph();
+        paragraph.push_text("\n");
+    }
+
+    fn push_task_marker(&mut self, checked: bool) {
+        let marker = if checked { "[x] " } else { "[ ] " };
+        let paragraph = self.ensure_paragraph();
+        paragraph.push_text(marker);
+    }
+
+    fn push_thematic_break(&mut self) {
+        self.close_open_paragraphs();
+        let mut paragraph = Paragraph::new_text();
+        paragraph.content.push(Span::new_text("---"));
+        self.add_paragraph_to_parent(paragraph);
+    }
+
+    fn start_paragraph(&mut self, paragraph_type: ParagraphType) -> &mut ParagraphContext {
+        self.stack
+            .push(BlockContext::Paragraph(ParagraphContext::new(paragraph_type)));
+        match self.stack.last_mut() {
+            Some(BlockContext::Paragraph(context)) => context,
+            _ => unreachable!(),
+        }
+    }
+
+    fn ensure_paragraph(&mut self) -> &mut ParagraphContext {
+        let needs_new = !matches!(self.stack.last(), Some(BlockContext::Paragraph(_)));
+        if needs_new {
+            self.start_paragraph(ParagraphType::Text);
+        }
+
+        match self.stack.last_mut() {
+            Some(BlockContext::Paragraph(context)) => context,
+            _ => unreachable!("Paragraph context should exist after initialization"),
+        }
+    }
+
+    fn finish_paragraph(&mut self) {
+        if let Some(BlockContext::Paragraph(context)) = self.stack.pop() {
+            let paragraph = context.finish();
+            self.add_paragraph_to_parent(paragraph);
+        }
+    }
+
+    fn close_open_paragraphs(&mut self) {
+        while matches!(self.stack.last(), Some(BlockContext::Paragraph(_))) {
+            self.finish_paragraph();
+        }
+    }
+
+    fn add_paragraph_to_parent(&mut self, paragraph: Paragraph) {
+        if let Some(parent) = self.stack.last_mut() {
+            match parent {
+                BlockContext::Document { paragraphs } => paragraphs.push(paragraph),
+                BlockContext::Quote { children } => children.push(paragraph),
+                BlockContext::ListItem { paragraphs: items } => items.push(paragraph),
+                BlockContext::List { entries, .. } => {
+                    entries.push(vec![paragraph]);
+                }
+                BlockContext::Paragraph(context) => {
+                    context.push_nested_paragraph(paragraph);
+                }
+            }
+        }
+    }
+}
+
+enum BlockContext {
+    Document { paragraphs: Vec<Paragraph> },
+    Quote { children: Vec<Paragraph> },
+    List { ordered: bool, entries: Vec<Vec<Paragraph>> },
+    ListItem { paragraphs: Vec<Paragraph> },
+    Paragraph(ParagraphContext),
+}
+
+fn is_open_tag(tag: &str, name: &str) -> bool {
+    let prefix = format!("<{}", name);
+    tag.starts_with(&prefix) && !tag.starts_with("</") && tag.contains('>')
+}
+
+fn is_close_tag(tag: &str, name: &str) -> bool {
+    let prefix = format!("</{}", name);
+    tag.starts_with(&prefix) && tag.contains('>')
+}
+
+struct ParagraphContext {
+    paragraph_type: ParagraphType,
+    spans: Vec<Span>,
+    inline_stack: Vec<Span>,
+}
+
+impl ParagraphContext {
+    fn new(paragraph_type: ParagraphType) -> Self {
+        Self {
+            paragraph_type,
+            spans: Vec::new(),
+            inline_stack: Vec::new(),
+        }
+    }
+
+    fn push_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let span = Span::new_text(text);
+        self.push_span(span);
+    }
+
+    fn push_code(&mut self, text: &str) {
+        let mut span = Span::new_styled(InlineStyle::Code);
+        span.text = text.to_string();
+        self.push_span(span);
+    }
+
+    fn push_nested_paragraph(&mut self, paragraph: Paragraph) {
+        for span in paragraph.content {
+            self.push_span(span);
+        }
+    }
+
+    fn start_inline(&mut self, span: Span) {
+        self.inline_stack.push(span);
+    }
+
+    fn end_inline(&mut self, style: InlineStyle) {
+        if let Some(span) = self.inline_stack.pop() {
+            if span.style != style && !(span.style == InlineStyle::Link && style == InlineStyle::Link) {
+                // Style mismatch; keep span as-is
+            }
+            self.push_span(span);
+        }
+    }
+
+    fn push_span(&mut self, span: Span) {
+        if let Some(parent) = self.inline_stack.last_mut() {
+            Self::append_span(&mut parent.children, span);
+        } else {
+            Self::append_span(&mut self.spans, span);
+        }
+    }
+
+    fn append_span(target: &mut Vec<Span>, span: Span) {
+        if let Some(last) = target.last_mut() {
+            if Self::can_merge(last, &span) {
+                last.text.push_str(&span.text);
+                return;
+            }
+        }
+        target.push(span);
+    }
+
+    fn can_merge(a: &Span, b: &Span) -> bool {
+        a.style == InlineStyle::None
+            && b.style == InlineStyle::None
+            && a.link_target.is_none()
+            && b.link_target.is_none()
+            && a.children.is_empty()
+            && b.children.is_empty()
+    }
+
+    fn finish(mut self) -> Paragraph {
+        while let Some(span) = self.inline_stack.pop() {
+            self.push_span(span);
+        }
+
+        let mut paragraph = Paragraph::new(self.paragraph_type);
+        paragraph.content = self.spans;
+        paragraph
+    }
+}
 
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
     write_paragraphs(writer, &document.paragraphs, "", "")
@@ -135,6 +592,70 @@ fn write_span_content<W: Write>(writer: &mut W, span: &Span) -> std::io::Result<
 mod tests {
     use super::*;
     use crate::test_helpers::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_parse_simple_paragraph() {
+        let input = "Hello **world**!";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![p_(vec![span("Hello "), b__("world"), span("!")])]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_header() {
+        let input = "# Heading level 1";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![h1_("Heading level 1")]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_unordered_list() {
+        let input = "- First\n- Second";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![ul_(vec![
+            li_(vec![p__("First")]),
+            li_(vec![p__("Second")]),
+        ])]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_mark_highlight() {
+        let input = "A <mark>highlighted</mark> word";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![p_(vec![
+            span("A "),
+            mark__("highlighted"),
+            span(" word"),
+        ])]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_underline() {
+        let input = "A <u>styled</u> word";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![p_(vec![
+            span("A "),
+            u__("styled"),
+            span(" word"),
+        ])]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_del_strike() {
+        let input = "A <del>struck</del> word";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![p_(vec![
+            span("A "),
+            s__("struck"),
+            span(" word"),
+        ])]);
+        assert_eq!(parsed, expected);
+    }
 
     #[test]
     fn test_simple_paragraph() {

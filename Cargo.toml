@@ -32,6 +32,7 @@ reqwest = { version = "0.11", features = ["blocking"] }
 url = "2.4"
 crossterm = "0.27"
 atty = "0.2"
+pulldown-cmark = "0.9"
 
 [dev-dependencies]
 assert_matches = "1.5"
