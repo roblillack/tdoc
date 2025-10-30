@@ -34,6 +34,7 @@ tdoc provides a comprehensive toolkit for working with FTML documents in Rust:
   - **Markdown**: Export FTML documents to Markdown for compatibility with documentation systems
   - **HTML**: Import HTML documents into FTML (basic support), with plans for full HTML export
 - **Document Manipulation**: Build and modify FTML documents programmatically with a clean, type-safe API
+- **Inline FTML macro**: Compose FTML document trees inline with the `ftml!` macro for ergonomic test fixtures and examples
 - **Command-line Tools**: Ready-to-use CLI utilities for viewing, converting, and formatting FTML documents
 
 ## Document Structure
@@ -114,6 +115,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Write to stdout
     write(&mut stdout(), &doc)?;
 
+    Ok(())
+}
+```
+
+### Building with the `ftml!` macro
+
+```rust
+use tdoc::{ftml, write};
+
+fn main() -> tdoc::Result<()> {
+    // Compose a document inline, similar to RSX or JSX
+    let doc = ftml! {
+        h1 { "Hello World!" }
+        ul {
+            li {
+                p { "This is a text paragraph inside a list item" }
+                quote { p { "And this is a quoted paragraph in the same item" } }
+            }
+        }
+        p { "Inline styles work " b { "just as well" } "." }
+    };
+
+    write(&mut std::io::stdout(), &doc)?;
     Ok(())
 }
 ```
