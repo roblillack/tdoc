@@ -125,7 +125,6 @@ impl Writer {
         let single_line = self.render_single_line(content, tag, level);
 
         if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
-            self.write_indent(writer, level)?;
             write!(writer, "{}", single_line)?;
             return Ok(());
         }
