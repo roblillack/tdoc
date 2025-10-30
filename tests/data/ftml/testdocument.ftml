@@ -9,7 +9,7 @@
 
   <li>
     <p>
-      Showcase the FTML standard formatting enforced by <code>fmtftml</code>.
+      Showcase the FTML standard formatting enforced by <code>tdoc</code>.
     </p>
   </li>
 </ul>

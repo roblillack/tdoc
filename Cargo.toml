@@ -13,16 +13,8 @@ name = "tdoc"
 path = "src/lib.rs"
 
 [[bin]]
-name = "viewftml"
-path = "src/bin/viewftml.rs"
-
-[[bin]]
-name = "ftml2md"
-path = "src/bin/ftml2md.rs"
-
-[[bin]]
-name = "fmtftml"
-path = "src/bin/fmtftml.rs"
+name = "tdoc"
+path = "src/bin/tdoc.rs"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
