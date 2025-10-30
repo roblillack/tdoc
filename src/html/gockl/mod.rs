@@ -437,9 +437,7 @@ impl<'a> AttributeTokenizer<'a> {
             return String::new();
         }
 
-        if let Some(pos) =
-            find_subslice(self.bytes, self.position + 1, next.as_bytes())
-        {
+        if let Some(pos) = find_subslice(self.bytes, self.position + 1, next.as_bytes()) {
             let start = self.position;
             self.position = pos;
             return slice_to_string(self.bytes, start, pos);
@@ -778,7 +776,7 @@ mod tests {
         let svg = StartElementToken::new(
             r#"<svg xmlns="http://www.w3.org/2000/svg" version=1.1 width='100%' height='a + b' xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1920 1080" bla=blub bla>"#,
         );
-        let expected = vec![
+        let expected = [
             Attribute {
                 name: "xmlns".into(),
                 content: "http://www.w3.org/2000/svg".into(),
