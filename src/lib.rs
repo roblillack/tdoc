@@ -1,3 +1,5 @@
+mod macros;
+
 pub mod document;
 pub mod formatter;
 pub mod html;

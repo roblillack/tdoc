@@ -1,43 +1,39 @@
 use std::io::Cursor;
-use tdoc::test_helpers::*;
-use tdoc::{parse, write, Document, InlineStyle, Paragraph, ParagraphType};
+use tdoc::{ftml, parse, write, Document, InlineStyle, ParagraphType};
 
 #[test]
 fn test_parsing_simple_paragraphs() {
-    let tests = vec![
-        ("<p>This is a test.</p>", doc(vec![p__("This is a test.")])),
-        ("<p>one</p><p>two</p>", doc(vec![p__("one"), p__("two")])),
+    let tests: Vec<(&str, Document)> = vec![
+        ("<p>This is a test.</p>", ftml! { p { "This is a test." } }),
+        ("<p>one</p><p>two</p>", ftml! { p { "one" } p { "two" } }),
         (
             "<blockquote><p>one</p></blockquote><p>two</p>",
-            doc(vec![quote_(vec![p__("one")]), p__("two")]),
+            ftml! { quote { p { "one" } } p { "two" } },
         ),
         (
             "<p><b>Bold</b> text.</p>",
-            doc(vec![p_(vec![b__("Bold"), span(" text.")])]),
+            ftml! { p { b { "Bold" } " text." } },
         ),
         (
             "<p><b>Bold<br />text.</b></p>",
-            doc(vec![p_(vec![b_(vec![span("Bold\n"), span("text.")])])]),
+            ftml! { p { b { "Bold\n" "text." } } },
         ),
         (
             "<p>Test <b>bold</b></p>",
-            doc(vec![p_(vec![span("Test "), b__("bold")])]),
+            ftml! { p { "Test " b { "bold" } } },
         ),
-        ("<h1> Hello World! </h1>", doc(vec![h1_("Hello World!")])),
+        ("<h1> Hello World! </h1>", ftml! { h1 { "Hello World!" } }),
         (
             "<p>A<br/> B</p>",
-            doc(vec![p_(vec![span("A"), span("\n"), span("B")])]),
+            ftml! { p { "A" "\n" "B" } },
         ),
         (
             "<ul><li><p>a</p></li><li><p>b</p></li></ul>",
-            doc(vec![ul_(vec![li_(vec![p__("a")]), li_(vec![p__("b")])])]),
+            ftml! { ul { li { p { "a" } } li { p { "b" } } } },
         ),
         (
             "<ul><li><p>a</p></li><li><p>b</p><p>c</p></li></ul>",
-            doc(vec![ul_(vec![
-                li_(vec![p__("a")]),
-                li_(vec![p__("b"), p__("c")]),
-            ])]),
+            ftml! { ul { li { p { "a" } } li { p { "b" } p { "c" } } } },
         ),
     ];
 
@@ -49,29 +45,25 @@ fn test_parsing_simple_paragraphs() {
 
 #[test]
 fn test_parsing_and_writing_styles() {
-    let simple_tests = vec![
-        ("This is a test.", vec![span("This is a test.")]),
-        ("&emsp14;This is a test.", vec![span(" This is a test.")]),
-        ("This is a test.&emsp14;", vec![span("This is a test. ")]),
-        ("A&emsp14;&emsp14;&emsp14;B", vec![span("A   B")]),
+    let simple_tests: Vec<(&str, Document)> = vec![
+        ("This is a test.", ftml! { p { "This is a test." } }),
+        ("&emsp14;This is a test.", ftml! { p { " This is a test." } }),
+        ("This is a test.&emsp14;", ftml! { p { "This is a test. " } }),
+        ("A&emsp14;&emsp14;&emsp14;B", ftml! { p { "A   B" } }),
     ];
 
-    let indented_tests = vec![
+    let indented_tests: Vec<(&str, Document)> = vec![
         (
             "This is a <b>test</b>.",
-            vec![span("This is a "), b__("test"), span(".")],
+            ftml! { p { "This is a " b { "test" } "." } },
         ),
         (
             "This is a <b> test </b>.",
-            vec![span("This is a "), b__(" test "), span(".")],
+            ftml! { p { "This is a " b { " test " } "." } },
         ),
         (
             "This is a <b><i>second</i> test</b>.",
-            vec![
-                span("This is a "),
-                b_(vec![i__("second"), span(" test")]),
-                span("."),
-            ],
+            ftml! { p { "This is a " b { i { "second" } " test" } "." } },
         ),
     ];
 
@@ -85,65 +77,61 @@ fn test_parsing_and_writing_styles() {
         assert_eq!(output, expected_output, "Writing failed for: {}", input);
     }
 
-    for (input, spans) in simple_tests {
+    for (input, expected_doc) in simple_tests {
         let expected_output = format!("<p>{}</p>\n", input);
-        let expected_doc = doc(vec![Paragraph::new_text().with_content(spans)]);
         check_parse_and_write(input, &expected_doc, &expected_output);
     }
 
-    for (input, spans) in indented_tests {
+    for (input, expected_doc) in indented_tests {
         let expected_output = format!("<p>{}</p>\n", input);
-        let expected_doc = doc(vec![Paragraph::new_text().with_content(spans)]);
         check_parse_and_write(input, &expected_doc, &expected_output);
     }
 }
 
 #[test]
 fn test_parsing_inline_styles() {
-    let tests = vec![
+    let tests: Vec<(&str, Document)> = vec![
         (
             "This is a <b>test</b>.",
-            vec![span("This is a "), b__("test"), span(".")],
+            ftml! { p { "This is a " b { "test" } "." } },
         ),
         (
             "This is a <b> test </b>.",
-            vec![span("This is a "), b__(" test "), span(".")],
+            ftml! { p { "This is a " b { " test " } "." } },
         ),
         (
             "This is a <b><i>second</i> test</b>.",
-            vec![
-                span("This is a "),
-                b_(vec![i__("second"), span(" test")]),
-                span("."),
-            ],
+            ftml! { p { "This is a " b { i { "second" } " test" } "." } },
         ),
     ];
 
     for (input, expected) in tests {
         let full_input = format!("<p>{}</p>", input);
         let doc = parse(Cursor::new(full_input)).unwrap();
-        assert_eq!(doc.paragraphs[0].content, expected, "Failed for: {}", input);
+        assert_eq!(doc, expected, "Failed for: {}", input);
     }
 }
 
 #[test]
 fn test_write_spaces() {
-    let tests = vec![
+    let tests: Vec<(&str, Document)> = vec![
         (
             "<p>&emsp14;This is a test.</p>\n",
-            vec![span(" This is a test.")],
+            ftml! { p { " This is a test." } },
         ),
         (
             "<p>This is a test.&emsp14;</p>\n",
-            vec![span("This is a test. ")],
+            ftml! { p { "This is a test. " } },
         ),
-        ("<p>A&emsp14;&emsp14;&emsp14;B</p>\n", vec![span("A   B")]),
+        (
+            "<p>A&emsp14;&emsp14;&emsp14;B</p>\n",
+            ftml! { p { "A   B" } },
+        ),
     ];
 
-    for (expected_output, spans) in tests {
-        let doc = doc(vec![p_(spans)]);
+    for (expected_output, expected_doc) in tests {
         let mut buf = Vec::new();
-        write(&mut buf, &doc).unwrap();
+        write(&mut buf, &expected_doc).unwrap();
         let output = String::from_utf8(buf).unwrap();
         assert_eq!(output, expected_output);
     }
@@ -195,10 +183,12 @@ fn test_nested_list() {
 </li>
 </ul>"#;
 
-    let expected = doc(vec![ul_(vec![
-        li_(vec![ul_(vec![li_(vec![p__("a")])])]),
-        li_(vec![p__("b"), p__("c")]),
-    ])]);
+    let expected = ftml! {
+        ul {
+            li { ul { li { p { "a" } } } }
+            li { p { "b" } p { "c" } }
+        }
+    };
 
     let result = parse(Cursor::new(input)).unwrap();
     assert_eq!(result, expected);
@@ -251,16 +241,18 @@ fn test_parsing_hard_newlines() {
   </p>"#;
 
     let parsed_doc = parse(Cursor::new(input)).unwrap();
-    let expected = doc(vec![p_(vec![
-        span("This is a paragraph that contains a very long line of "),
-        b_(vec![
-            span("highlighted text to force the formatter to break\n"),
-            span("the\n"),
-            span("line\n"),
-            span("in the middle."),
-        ]),
-        span(" But afterwards, of course, things should continue normally."),
-    ])]);
+    let expected = ftml! {
+        p {
+            "This is a paragraph that contains a very long line of "
+            b {
+                "highlighted text to force the formatter to break\n"
+                "the\n"
+                "line\n"
+                "in the middle."
+            }
+            " But afterwards, of course, things should continue normally."
+        }
+    };
 
     assert_eq!(parsed_doc, expected);
 }
@@ -317,7 +309,11 @@ fn test_list_item_parsing() {
 </ul>"#;
 
     let parsed_doc = parse(Cursor::new(input)).unwrap();
-    let expected = doc(vec![ul_(vec![li_(vec![p__("Test item")])])]);
+    let expected = ftml! {
+        ul {
+            li { p { "Test item" } }
+        }
+    };
 
     assert_eq!(parsed_doc, expected);
 }
@@ -341,14 +337,18 @@ fn test_complex_list_structure() {
 </ul>"#;
 
     let parsed_doc = parse(Cursor::new(input)).unwrap();
-    let expected = doc(vec![ul_(vec![
-        li_(vec![p__("First item")]),
-        li_(vec![
-            p__("Second item with multiple paragraphs"),
-            p__("This is the second paragraph of the same list item"),
-        ]),
-        li_(vec![quote_(vec![p__("A list item containing a quote")])]),
-    ])]);
+    let expected = ftml! {
+        ul {
+            li { p { "First item" } }
+            li {
+                p { "Second item with multiple paragraphs" }
+                p { "This is the second paragraph of the same list item" }
+            }
+            li {
+                quote { p { "A list item containing a quote" } }
+            }
+        }
+    };
 
     assert_eq!(parsed_doc, expected);
 }
