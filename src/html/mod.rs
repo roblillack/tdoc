@@ -41,11 +41,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse(mut self) -> Result<Document, HtmlError> {
-        loop {
-            match self.tokenizer.next_token() {
-                Ok(token) => self.process_token(token)?,
-                Err(TokenizerError::Eof) => break,
-            }
+        while let Ok(token) = self.tokenizer.next_token() {
+            self.process_token(token)?;
         }
 
         let paragraphs = self
@@ -150,7 +147,7 @@ impl<'a> Parser<'a> {
             empty
                 && end_tag
                     .as_deref()
-                    .map_or(false, is_transparent_container_element)
+                    .is_some_and(is_transparent_container_element)
         } else {
             false
         };
@@ -610,8 +607,7 @@ fn has_meaningful_content(spans: &[Span]) -> bool {
         return true;
     }
 
-    spans
-        .get(0)
+    spans.first()
         .map(|span| !span.children.is_empty() || !span.text.trim().is_empty())
         .unwrap_or(false)
 }

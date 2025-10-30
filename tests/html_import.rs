@@ -1,11 +1,9 @@
 use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 use std::{fs, vec};
 
-use insta::Settings;
 use tdoc::formatter::Formatter;
-use tdoc::{html, write};
+use tdoc::html;
 
 fn collect_html_fixtures() -> Vec<PathBuf> {
     let data_dir = PathBuf::from("tests/data/html");
@@ -17,7 +15,7 @@ fn collect_html_fixtures() -> Vec<PathBuf> {
             if path
                 .extension()
                 .and_then(|ext| ext.to_str())
-                .map_or(false, |ext| ext.eq_ignore_ascii_case("html"))
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
             {
                 fixtures.push(path);
             }
