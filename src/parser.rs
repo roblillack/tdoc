@@ -166,7 +166,6 @@ impl Tokenizer {
         }
         // If we didn't actually pass over any whitespace, keep position as-is
         if self.pos == start_pos {
-            return;
         }
     }
 
@@ -205,7 +204,6 @@ impl Tokenizer {
 
         if tag_content.starts_with('/') {
             let tag_name = tag_content[1..]
-                .trim()
                 .split_whitespace()
                 .next()
                 .unwrap_or("")
@@ -214,7 +212,6 @@ impl Tokenizer {
         } else if tag_content.ends_with('/') || tag_content == "br" {
             let tag_name = tag_content
                 .trim_end_matches('/')
-                .trim()
                 .split_whitespace()
                 .next()
                 .unwrap_or("")
@@ -222,7 +219,6 @@ impl Tokenizer {
             Some(Token::SelfClosingTag(tag_name))
         } else {
             let tag_name = tag_content
-                .trim()
                 .split_whitespace()
                 .next()
                 .unwrap_or("")
@@ -506,8 +502,7 @@ impl Parser {
                                 if !paragraph_type.is_leaf() {
                                     let mut paragraph_with_children = paragraph;
                                     paragraph_with_children
-                                        .children
-                                        .extend(paragraphs.drain(..));
+                                        .children.append(&mut paragraphs);
                                     paragraphs.push(paragraph_with_children);
                                 } else {
                                     paragraphs.push(paragraph);
@@ -806,7 +801,7 @@ impl Parser {
             .replace("&nbsp;", " ")
     }
 
-    fn trim_whitespace(&self, mut spans: Vec<Span>) -> Vec<Span> {
+    fn trim_whitespace(&self, spans: Vec<Span>) -> Vec<Span> {
         self.trim_whitespace_with_entities(spans, false, false)
     }
 

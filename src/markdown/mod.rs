@@ -119,7 +119,7 @@ fn write_span_content<W: Write>(writer: &mut W, span: &Span) -> std::io::Result<
             if !text_without_newline.is_empty() {
                 write!(writer, "{}", text_without_newline)?;
             }
-            write!(writer, "\\\n")?; // Markdown line break
+            writeln!(writer, "\\")?; // Markdown line break
         } else {
             write!(writer, "{}", span.text)?;
         }
