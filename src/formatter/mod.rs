@@ -77,16 +77,11 @@ impl FormattingStyle {
 pub struct Formatter<W: Write> {
     pub style: FormattingStyle,
     writer: W,
-    current_line_width: usize,
 }
 
 impl<W: Write> Formatter<W> {
     pub fn new(writer: W, style: FormattingStyle) -> Self {
-        Self {
-            writer,
-            style,
-            current_line_width: 0,
-        }
+        Self { writer, style }
     }
 
     pub fn new_ascii(writer: W) -> Self {
@@ -140,10 +135,7 @@ impl<W: Write> Formatter<W> {
                 .map(|ty| self.blank_lines_after(ty))
                 .unwrap_or(0);
             let blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
-            self.write_blank_lines_with_prefix(
-                blank_line_prefix,
-                previous_after.max(blank_lines),
-            )?;
+            self.write_blank_lines_with_prefix(blank_line_prefix, previous_after.max(blank_lines))?;
             let paragraph_prefix = if idx < first_line_prefixes.len() {
                 first_line_prefixes[idx]
             } else {
@@ -212,9 +204,7 @@ impl<W: Write> Formatter<W> {
                         format!("{}{}", continuation_prefix, self.style.quote_prefix);
 
                     // Maintain owned storage for custom prefixes so borrowed slices stay valid.
-                    let mut owned_prefixes = Vec::with_capacity(2);
-                    owned_prefixes.push(quote_prefix);
-                    owned_prefixes.push(quote_continuation.clone());
+                    let owned_prefixes = [quote_prefix, quote_continuation.clone()];
 
                     let default_first_prefix = owned_prefixes[0].as_str();
                     let continuation = owned_prefixes[1].as_str();
@@ -252,8 +242,7 @@ impl<W: Write> Formatter<W> {
                         let current_width = base_prefix.chars().count();
                         let mut continuation = base_prefix.to_string();
                         if desired_width > current_width {
-                            continuation
-                                .push_str(&" ".repeat(desired_width - current_width));
+                            continuation.push_str(&" ".repeat(desired_width - current_width));
                         }
                         continuation
                     };
@@ -286,8 +275,7 @@ impl<W: Write> Formatter<W> {
                         let current_width = base_prefix.chars().count();
                         let mut continuation = base_prefix.to_string();
                         if desired_width > current_width {
-                            continuation
-                                .push_str(&" ".repeat(desired_width - current_width));
+                            continuation.push_str(&" ".repeat(desired_width - current_width));
                         }
                         continuation
                     };
@@ -305,11 +293,7 @@ impl<W: Write> Formatter<W> {
         Ok(())
     }
 
-    fn write_blank_lines_with_prefix(
-        &mut self,
-        prefix: &str,
-        count: usize,
-    ) -> std::io::Result<()> {
+    fn write_blank_lines_with_prefix(&mut self, prefix: &str, count: usize) -> std::io::Result<()> {
         for _ in 0..count {
             if prefix.is_empty() {
                 writeln!(self.writer)?;
@@ -674,11 +658,7 @@ impl<W: Write> Formatter<W> {
         Ok(())
     }
 
-    fn update_active_styles_from_text(
-        &self,
-        text: &str,
-        active_styles: &mut Vec<InlineStyle>,
-    ) {
+    fn update_active_styles_from_text(&self, text: &str, active_styles: &mut Vec<InlineStyle>) {
         let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
         for capture in ansi_regex.find_iter(text) {
             let sequence = capture.as_str();
@@ -693,29 +673,23 @@ impl<W: Write> Formatter<W> {
     }
 
     fn find_style_start(&self, sequence: &str) -> Option<InlineStyle> {
-        self.style
-            .text_styles
-            .iter()
-            .find_map(|(style, tags)| {
-                if tags.begin == sequence {
-                    Some(*style)
-                } else {
-                    None
-                }
-            })
+        self.style.text_styles.iter().find_map(|(style, tags)| {
+            if tags.begin == sequence {
+                Some(*style)
+            } else {
+                None
+            }
+        })
     }
 
     fn find_style_end(&self, sequence: &str) -> Option<InlineStyle> {
-        self.style
-            .text_styles
-            .iter()
-            .find_map(|(style, tags)| {
-                if tags.end == sequence {
-                    Some(*style)
-                } else {
-                    None
-                }
-            })
+        self.style.text_styles.iter().find_map(|(style, tags)| {
+            if tags.end == sequence {
+                Some(*style)
+            } else {
+                None
+            }
+        })
     }
 
     fn visible_width(&self, text: &str) -> usize {
@@ -959,7 +933,10 @@ mod tests {
         let mut output = Vec::new();
         let mut formatter = Formatter::new_ascii(&mut output);
 
-        let doc = doc(vec![quote_(vec![p__("Paragraph one."), p__("Paragraph two.")])]);
+        let doc = doc(vec![quote_(vec![
+            p__("Paragraph one."),
+            p__("Paragraph two."),
+        ])]);
 
         formatter.write_document(&doc).unwrap();
         let result = String::from_utf8(output).unwrap();

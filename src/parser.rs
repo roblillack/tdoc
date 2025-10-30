@@ -77,15 +77,12 @@ impl Tokenizer {
             return None;
         }
 
-        // Save position before parsing token
-        let token_start_pos = self.pos;
-        let token = if self.input.get(self.pos..self.pos + 1) == Some("<") {
+        // Parse token
+        if self.input.get(self.pos..self.pos + 1) == Some("<") {
             self.parse_tag()
         } else {
             self.parse_text()
-        };
-
-        token
+        }
     }
 
     fn next_with_pos(&mut self) -> Option<(Token, usize)> {
@@ -116,31 +113,6 @@ impl Tokenizer {
         self.putback_token = Some((token, start_pos, self.pos));
     }
 
-    fn peek(&mut self) -> Option<Token> {
-        if let Some((ref token, _start_pos, _end_pos)) = self.putback_token {
-            return Some(token.clone());
-        }
-
-        // Create a temporary tokenizer to peek without affecting state
-        let saved_pos = self.pos;
-        self.skip_whitespace_between_tags();
-
-        if self.pos >= self.input.len() {
-            self.pos = saved_pos;
-            return None;
-        }
-
-        let token = if self.input.get(self.pos..self.pos + 1) == Some("<") {
-            self.parse_tag()
-        } else {
-            self.parse_text()
-        };
-
-        // Reset position
-        self.pos = saved_pos;
-        token
-    }
-
     fn skip_whitespace_between_tags(&mut self) {
         // Skip ASCII/Unicode whitespace that appears between '>' and the next '<'
         // without touching whitespace that is part of text content.
@@ -165,12 +137,10 @@ impl Tokenizer {
             }
         }
         // If we didn't actually pass over any whitespace, keep position as-is
-        if self.pos == start_pos {
-        }
+        if self.pos == start_pos {}
     }
 
     fn parse_tag(&mut self) -> Option<Token> {
-        let start_pos = self.pos;
         self.pos += 1; // skip '<'
 
         let mut end_pos = self.pos;
@@ -202,12 +172,8 @@ impl Tokenizer {
         let tag_content = &self.input[self.pos..end_pos];
         self.pos = end_pos + 1; // skip '>'
 
-        if tag_content.starts_with('/') {
-            let tag_name = tag_content[1..]
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .to_string();
+        if let Some(stripped) = tag_content.strip_prefix('/') {
+            let tag_name = stripped.split_whitespace().next().unwrap_or("").to_string();
             Some(Token::EndTag(tag_name))
         } else if tag_content.ends_with('/') || tag_content == "br" {
             let tag_name = tag_content
@@ -396,7 +362,7 @@ impl Parser {
         paragraph_type: ParagraphType,
         document: &mut Document,
         breadcrumbs: &mut Vec<Paragraph>,
-        list_item_level: &mut i32,
+        _list_item_level: &mut i32,
         tokenizer: &mut Tokenizer,
     ) -> Result<(), ParseError> {
         let mut paragraph = Paragraph::new(paragraph_type);
@@ -458,7 +424,7 @@ impl Parser {
         &self,
         paragraph: &Paragraph,
         document: &mut Document,
-        breadcrumbs: &mut Vec<Paragraph>,
+        breadcrumbs: &mut [Paragraph],
     ) -> Result<(), ParseError> {
         if let Some(parent) = breadcrumbs.last_mut() {
             // If the parent is a list, add to the current list entry
@@ -501,8 +467,7 @@ impl Parser {
                                 let paragraph = breadcrumbs.pop().unwrap();
                                 if !paragraph_type.is_leaf() {
                                     let mut paragraph_with_children = paragraph;
-                                    paragraph_with_children
-                                        .children.append(&mut paragraphs);
+                                    paragraph_with_children.children.append(&mut paragraphs);
                                     paragraphs.push(paragraph_with_children);
                                 } else {
                                     paragraphs.push(paragraph);
@@ -799,10 +764,6 @@ impl Parser {
             .replace("&quot;", "\"")
             .replace("&apos;", "'")
             .replace("&nbsp;", " ")
-    }
-
-    fn trim_whitespace(&self, spans: Vec<Span>) -> Vec<Span> {
-        self.trim_whitespace_with_entities(spans, false, false)
     }
 
     fn trim_whitespace_with_entities(

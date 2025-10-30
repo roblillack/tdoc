@@ -1,6 +1,6 @@
 use std::io::Cursor;
 use tdoc::test_helpers::*;
-use tdoc::{parse, write, Document, InlineStyle, Paragraph, ParagraphType, Span};
+use tdoc::{parse, write, Document, InlineStyle, Paragraph, ParagraphType};
 
 #[test]
 fn test_parsing_simple_paragraphs() {

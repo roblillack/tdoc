@@ -11,8 +11,8 @@ pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
 }
 
 struct HtmlParser {
-    inline_style_map: HashMap<String, InlineStyle>,
-    block_element_map: HashMap<String, ParagraphType>,
+    _inline_style_map: HashMap<String, InlineStyle>,
+    _block_element_map: HashMap<String, ParagraphType>,
 }
 
 impl HtmlParser {
@@ -41,8 +41,8 @@ impl HtmlParser {
         block_element_map.insert("ol".to_string(), ParagraphType::OrderedList);
 
         Self {
-            inline_style_map,
-            block_element_map,
+            _inline_style_map: inline_style_map,
+            _block_element_map: block_element_map,
         }
     }
 

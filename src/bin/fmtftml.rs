@@ -79,13 +79,12 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::process::Command;
 
     #[test]
     fn test_cli_help() {
         let output = Command::new("cargo")
-            .args(&["run", "--bin", "fmtftml", "--", "--help"])
+            .args(["run", "--bin", "fmtftml", "--", "--help"])
             .output()
             .expect("Failed to execute command");
 

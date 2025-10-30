@@ -199,24 +199,19 @@ fn run_pager() -> Result<(std::process::Child, std::process::ChildStdin), std::i
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
 
     #[test]
     fn test_create_reader_file() {
         // This test would need a test file to work properly
         // For now, just test that the function exists
-        assert!(true);
     }
 
     #[test]
     fn test_url_parsing() {
         let result = create_reader("https://example.com");
-        match result {
-            Ok((expect_html, _)) => assert!(expect_html),
-            Err(_) => {
-                // Network might not be available in test environment
-                assert!(true);
-            }
+        if let Ok((expect_html, _)) = result {
+            assert!(expect_html);
         }
+        // If error, network might not be available in test environment - test passes
     }
 }
