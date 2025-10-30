@@ -75,14 +75,14 @@ jobs:
             runner: ubuntu-latest
             arch: x86_64
             target: x86_64-unknown-linux-gnu
-            artifact_name: viewftml-linux-x86_64
+            artifact_name: tdoc-linux-x86_64
 
           # Linux ARM64
           - name: Linux
             runner: ubuntu-24.04-arm
             arch: aarch64
             target: aarch64-unknown-linux-gnu
-            artifact_name: viewftml-linux-aarch64
+            artifact_name: tdoc-linux-aarch64
 
           # macOS x64 (Intel)
           - name: macOS
@@ -90,7 +90,7 @@ jobs:
             arch: x86_64
             target: x86_64-apple-darwin
             deps: echo "No additional dependencies needed for macOS"
-            artifact_name: viewftml-macos-x86_64
+            artifact_name: tdoc-macos-x86_64
 
           # macOS ARM64 (Apple Silicon)
           - name: macOS
@@ -98,7 +98,7 @@ jobs:
             arch: aarch64
             target: aarch64-apple-darwin
             deps: echo "No additional dependencies needed for macOS"
-            artifact_name: viewftml-macos-aarch64
+            artifact_name: tdoc-macos-aarch64
 
           # Windows x64
           - name: Windows
@@ -106,7 +106,7 @@ jobs:
             arch: x86_64
             target: x86_64-pc-windows-msvc
             deps: echo "No additional dependencies needed for Windows"
-            artifact_name: viewftml-windows-x86_64.exe
+            artifact_name: tdoc-windows-x86_64.exe
 
           # Windows ARM64
           - name: Windows
@@ -114,7 +114,7 @@ jobs:
             arch: aarch64
             target: aarch64-pc-windows-msvc
             deps: echo "No additional dependencies needed for Windows"
-            artifact_name: viewftml-windows-aarch64.exe
+            artifact_name: tdoc-windows-aarch64.exe
 
     steps:
       - name: Checkout code
@@ -149,19 +149,19 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.platform.target }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.platform.target }} --bin viewftml
+        run: cargo build --release --target ${{ matrix.platform.target }} --bin tdoc
 
       - name: Prepare artifact (Unix)
         if: runner.os != 'Windows'
         run: |
           mkdir -p artifacts
-          cp target/${{ matrix.platform.target }}/release/viewftml artifacts/${{ matrix.platform.artifact_name }}
+          cp target/${{ matrix.platform.target }}/release/tdoc artifacts/${{ matrix.platform.artifact_name }}
 
       - name: Prepare artifact (Windows)
         if: runner.os == 'Windows'
         run: |
           mkdir artifacts
-          cp target/${{ matrix.platform.target }}/release/viewftml.exe artifacts/${{ matrix.platform.artifact_name }}
+          cp target/${{ matrix.platform.target }}/release/tdoc.exe artifacts/${{ matrix.platform.artifact_name }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
