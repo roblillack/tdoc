@@ -2,23 +2,52 @@ use std::cmp::min;
 
 const SPACE_CHARS: &str = " \t\r\n";
 
+fn slice_to_string(bytes: &[u8], start: usize, end: usize) -> String {
+    String::from_utf8(bytes[start..end].to_vec()).expect("input is valid UTF-8")
+}
+
+fn find_subslice(haystack: &[u8], start: usize, needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() {
+        return Some(start);
+    }
+
+    haystack
+        .get(start..)?
+        .windows(needle.len())
+        .position(|window| window == needle)
+        .map(|offset| start + offset)
+}
+
+fn find_byte(haystack: &[u8], start: usize, value: u8) -> Option<usize> {
+    haystack
+        .get(start..)?
+        .iter()
+        .position(|&b| b == value)
+        .map(|offset| start + offset)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tokenizer<'a> {
     input: &'a str,
+    bytes: &'a [u8],
     position: usize,
 }
 
 impl<'a> Tokenizer<'a> {
     pub fn new(input: &'a str) -> Self {
-        Self { input, position: 0 }
+        Self {
+            input,
+            bytes: input.as_bytes(),
+            position: 0,
+        }
     }
 
     fn shift(&mut self, end: &str) -> String {
-        if let Some(rel_pos) = self.input[self.position..].find(end) {
+        if let Some(pattern_pos) = find_subslice(self.bytes, self.position, end.as_bytes()) {
+            let end_pos = pattern_pos + end.len();
             let start = self.position;
-            let end_pos = start + rel_pos + end.len();
             self.position = end_pos;
-            return self.input[start..end_pos].to_string();
+            return slice_to_string(self.bytes, start, end_pos);
         }
 
         self.shift_until('<')
@@ -37,11 +66,11 @@ impl<'a> Tokenizer<'a> {
 
         let mut state = State::TagName;
         let start = self.position;
-        let len = self.input.len();
+        let len = self.bytes.len();
         let mut i = self.position + 1;
 
         while i < len {
-            let curr = self.input.as_bytes()[i];
+            let curr = self.bytes[i];
             match state {
                 State::DoubleQuote => {
                     if curr == b'"' {
@@ -72,13 +101,13 @@ impl<'a> Tokenizer<'a> {
                     }
                 }
                 b'<' => {
-                    let result = self.input[start..i].to_string();
+                    let result = slice_to_string(self.bytes, start, i);
                     self.position = i;
                     return result;
                 }
                 b'>' => {
                     let end_idx = min(i + 1, len);
-                    let result = self.input[start..end_idx].to_string();
+                    let result = slice_to_string(self.bytes, start, end_idx);
                     self.position = end_idx;
                     return result;
                 }
@@ -103,36 +132,38 @@ impl<'a> Tokenizer<'a> {
         }
 
         self.position = len;
-        self.input[start..].to_string()
+        slice_to_string(self.bytes, start, len)
     }
 
     fn shift_until(&mut self, next: char) -> String {
-        if self.position < self.input.len() && self.position < self.input.len() {
-            if let Some(rel_pos) = self.input[self.position + 1..].find(next) {
+        let len = self.bytes.len();
+        if self.position < len {
+            let search_start = (self.position + 1).min(len);
+            if let Some(pos) = find_byte(self.bytes, search_start, next as u8) {
                 let start = self.position;
-                let end_idx = start + rel_pos + 1;
-                self.position = end_idx;
-                return self.input[start..end_idx].to_string();
+                self.position = pos;
+                return slice_to_string(self.bytes, start, pos);
             }
         }
 
         let start = self.position;
-        self.position = self.input.len();
-        self.input[start..].to_string()
+        self.position = len;
+        slice_to_string(self.bytes, start, len)
     }
 
     fn has(&self, next: &str) -> bool {
-        let end = self.position + next.len();
-        end <= self.input.len() && &self.input[self.position..end] == next
+        let start = self.position;
+        let end = start + next.len();
+        end <= self.bytes.len() && &self.bytes[start..end] == next.as_bytes()
     }
 
     pub fn next_token(&mut self) -> Result<Token, TokenizerError> {
-        let len = self.input.len();
+        let len = self.bytes.len();
         if self.position >= len {
             return Err(TokenizerError::Eof);
         }
 
-        let bytes = self.input.as_bytes();
+        let bytes = self.bytes;
 
         if self.position.saturating_add(3) < len
             && bytes[self.position] == b'<'
@@ -388,73 +419,78 @@ fn get_attributes(raw_input: &str) -> Vec<Attribute> {
 
 struct AttributeTokenizer<'a> {
     input: &'a str,
+    bytes: &'a [u8],
     position: usize,
 }
 
 impl<'a> AttributeTokenizer<'a> {
     fn new(input: &'a str) -> Self {
-        Self { input, position: 0 }
+        Self {
+            input,
+            bytes: input.as_bytes(),
+            position: 0,
+        }
     }
 
     fn shift_until(&mut self, next: &str) -> String {
-        if self.position >= self.input.len() {
+        if self.position >= self.bytes.len() {
             return String::new();
         }
 
-        if self.position < self.input.len() {
-            if let Some(rel_pos) = self.input[self.position + 1..].find(next) {
-                let start = self.position;
-                let end_idx = start + rel_pos + next.len();
-                self.position = end_idx;
-                return self.input[start..end_idx].to_string();
-            }
+        if let Some(pos) =
+            find_subslice(self.bytes, self.position + 1, next.as_bytes())
+        {
+            let start = self.position;
+            self.position = pos;
+            return slice_to_string(self.bytes, start, pos);
         }
 
         let start = self.position;
-        self.position = self.input.len();
-        self.input[start..].to_string()
+        self.position = self.bytes.len();
+        slice_to_string(self.bytes, start, self.bytes.len())
     }
 
     fn shift_until_space(&mut self) -> String {
-        if self.position >= self.input.len() {
+        if self.position >= self.bytes.len() {
             return String::new();
         }
 
-        if self.position + 1 >= self.input.len() {
+        if self.position + 1 >= self.bytes.len() {
             let start = self.position;
-            self.position = self.input.len();
-            return self.input[start..].to_string();
+            self.position = self.bytes.len();
+            return slice_to_string(self.bytes, start, self.bytes.len());
         }
 
-        if let Some(rel_pos) =
-            self.input[self.position + 1..].find(|c: char| SPACE_CHARS.contains(c))
+        if let Some(pos) = self.bytes[self.position + 1..]
+            .iter()
+            .position(|&b| SPACE_CHARS.as_bytes().contains(&b))
         {
             let start = self.position;
-            let end_idx = start + rel_pos + 1;
+            let end_idx = start + pos + 1;
             self.position = end_idx;
-            return self.input[start..end_idx].to_string();
+            return slice_to_string(self.bytes, start, end_idx);
         }
 
         let start = self.position;
-        self.position = self.input.len();
-        self.input[start..].to_string()
+        self.position = self.bytes.len();
+        slice_to_string(self.bytes, start, self.bytes.len())
     }
 
     fn eat_space(&mut self) -> String {
-        if self.position >= self.input.len() {
+        if self.position >= self.bytes.len() {
             return String::new();
         }
 
         let start = self.position;
-        while self.position < self.input.len() {
-            let ch = self.input.as_bytes()[self.position] as char;
-            if !SPACE_CHARS.contains(ch) {
+        while self.position < self.bytes.len() {
+            let ch = self.bytes[self.position];
+            if !SPACE_CHARS.as_bytes().contains(&ch) {
                 break;
             }
             self.position += 1;
         }
 
-        self.input[start..self.position].to_string()
+        slice_to_string(self.bytes, start, self.position)
     }
 
     fn shift_value(&mut self) -> String {

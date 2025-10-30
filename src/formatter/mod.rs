@@ -412,6 +412,7 @@ impl<W: Write> Formatter<W> {
         continuation_prefix: &str,
     ) -> std::io::Result<()> {
         if spans.is_empty() {
+            writeln!(self.writer)?;
             return Ok(());
         }
 
