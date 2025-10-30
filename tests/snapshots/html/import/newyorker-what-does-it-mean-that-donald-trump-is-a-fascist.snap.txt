@@ -1,7 +1,3 @@
----
-source: tests/html_import.rs
-expression: rendered_norm
----
 Skip to main content
 
 Search
@@ -9,7 +5,6 @@ Search
 Open Navigation Menu
 
 Dispatches
-
 
 
 
@@ -187,7 +182,7 @@ was incorrect. But, a hundred years later, those internal-combustion
 engines and other archaic technologies actually have changed the climate
 to the point of causing droughts and storms, as we saw during this
 electoral season. When such disasters occur, today’s fascists react as
-Trump and J. D. Vance did: they blame the victims and the immigrants,
+Trump and J. D. Vance did: they blame the victims and the immigrants,
 and invent conspiracy theories. If the old fascism killed for the sake
 of a dream of uniting with nature, the new fascism will kill by a
 politics of catastrophe, a deliberate acceleration of global warming,
@@ -222,9 +217,9 @@ solitary heroes to the conviction that other groups must be punished.
 Fascism is now in the algorithms, the neural pathways, the social
 interactions. How did we fail to see all this? Part of it was our belief
 that history is over, that the great rivals to liberalism were dead or
-exhausted. Part of it was American exceptionalism: “it can’t happen here
-” and so on. But most of it was simple self-absorption: we wanted to see
-Trump in terms of his absences, so that our way of seeing the world
+exhausted. Part of it was American exceptionalism: “it can’t happen
+here” and so on. But most of it was simple self-absorption: we wanted to
+see Trump in terms of his absences, so that our way of seeing the world
 would go unchallenged. So we failed to see his fascist presence. And,
 because we ignored the fascism, we were unable to make the easy
 predictions of what he would do next. Or, worse, we learned to thrill at
@@ -261,7 +256,7 @@ Yet some, and probably more, of the blame rests with our actions and
 analysis. Again and again, our major institutions, from the media to the
 judiciary, have amplified Trump’s presence; again and again, we have
 failed to name the consequences. Fascism can be defeated, but not when
-we are on its side. ♦
+we are on its side. ♦
 
 Published in the print edition of the November 18, 2024, issue, with the
 headline “American Fascist.”
@@ -415,5 +410,10 @@ By Jill Lepore
 portion of sales from products that are purchased through our site as
 part of our Affiliate Partnerships with retailers. The material on this
 site may not be reproduced, distributed, transmitted, cached or
-otherwise used, except with the prior written permission of Condé Nast. 
+otherwise used, except with the prior written permission of Condé Nast.
 Ad Choices
+
+
+
+
+

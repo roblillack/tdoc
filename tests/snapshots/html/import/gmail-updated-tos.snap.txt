@@ -1,7 +1,3 @@
----
-source: tests/html_import.rs
-expression: rendered_norm
----
 max@example.example
 
 Wir aktualisieren am 22. Mai 2024 unsere Nutzungsbedingungen und möchten
@@ -77,7 +73,7 @@ Was ändert sich?
 Hier finden Sie die neuen Google-Nutzungsbedingungen. Die Änderungen
 haben wir im Folgenden für Sie zusammengefasst:
 
- • Bedingungen für generative KI. Wir verschieben unsere bisherigen 
+ • Bedingungen für generative KI. Wir verschieben unsere bisherigen
    Zusatzbedingungen für generative KI in unsere allgemeinen
    Nutzungsbedingungen und fügen weitere Erläuterungen in Zusammenhang
    mit künstlicher Intelligenz hinzu. So erheben wir beispielsweise
@@ -121,12 +117,12 @@ haben wir im Folgenden für Sie zusammengefasst:
 
 Wenn Sie mit den neuen Nutzungsbedingungen nicht einverstanden sind,
 müssen Sie Ihre Inhalte entfernen und dürfen die Dienste nicht länger
-nutzen. Sie können Ihr Nutzungsverhältnis mit uns jederzeit kündigen, 
+nutzen. Sie können Ihr Nutzungsverhältnis mit uns jederzeit kündigen,
 indem Sie Ihr Google-Konto löschen.
 
 Vielen Dank, dass Sie Google-Dienste nutzen.
 
-© 2024 Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4,
+ © 2024 Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4,
 Ireland.
 
 Mit dieser E-Mail informieren wir Sie über wichtige Änderungen an den

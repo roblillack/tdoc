@@ -1,8 +1,4 @@
----
-source: tests/html_import.rs
-expression: rendered_norm
----
-Max Mustermann hat 1 Ordner freigegeben
+Max Mustermann hat 1 Ordner freigegeben
 
 Max Mustermann (max@example.example) hat Sie zum Ansehen des folgenden
 freigegebenen Ordners eingeladen:

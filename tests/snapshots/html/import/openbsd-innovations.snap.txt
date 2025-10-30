@@ -1,7 +1,8 @@
 
 
- OpenBSD Innovations
-====================
+
+OpenBSD Innovations
+===================
 
 
 This is a list of software and ideas developed or maintained by the
@@ -23,17 +24,17 @@ Concepts
 
  • Privilege separation: First implemented by Niels Provos and Markus
    Friedl in OpenSSH in March 2002, released with OpenBSD 3.2. The
-   concept is now used in many OpenBSD programs, for example bgpd(8), 
-   dhclient(8), dhcpd(8), dvmrpd(8), eigrpd(8), file(1), httpd(8), 
-   iked(8), ldapd(8), ldpd(8), mountd(8), npppd(8), ntpd(8), ospfd(8), 
-   ospf6d(8), pflogd(8), radiusd(8), relayd(8), ripd(8), script(1), 
-   smtpd(8), syslogd(8), tcpdump(8), tmux(1), xconsole(1), xdm(1), 
+   concept is now used in many OpenBSD programs, for example bgpd(8),
+   dhclient(8), dhcpd(8), dvmrpd(8), eigrpd(8), file(1), httpd(8),
+   iked(8), ldapd(8), ldpd(8), mountd(8), npppd(8), ntpd(8), ospfd(8),
+   ospf6d(8), pflogd(8), radiusd(8), relayd(8), ripd(8), script(1),
+   smtpd(8), syslogd(8), tcpdump(8), tmux(1), xconsole(1), xdm(1),
    Xserver(1), ypldap(8), pkg_add(1), etc.
 
  • Privilege revocation: Related to the work on privilege separation,
    some programs were refactored to drop privileges while holding onto a
    tricky resource such as a raw socket, reserved port, or
-   modification-locked bpf(4) descriptor, for example ping(8), 
+   modification-locked bpf(4) descriptor, for example ping(8),
    traceroute(8), etc.
 
  • Stack protector: Developed since 2001 as "propolice" by Hiroaki Etoh.
@@ -110,8 +111,8 @@ Concepts
  • Use of fork+exec in privilege separated programs. The strategy is to
    give each process a fresh & unique address space for ASLR, stack
    protector -- as protection against address space discovery attacks.
-   Implemented first by Damien Miller (sshd(8) 2004), Claudio Jeker (
-   bgpd(8), 2015), Eric Faurot (smtpd(8), 2016), Rafael Zalamena
+   Implemented first by Damien Miller (sshd(8) 2004), Claudio Jeker
+   (bgpd(8), 2015), Eric Faurot (smtpd(8), 2016), Rafael Zalamena
    (various, 2016), and others.
 
  • trapsleds: Reduction of incidental NOP instructions/sequences in the
@@ -140,7 +141,7 @@ Concepts
    April 12, 2018.
 
  • RETGUARD is a replacement for the stack-protector which uses a
-   per-function random cookie (located in the read-only ELF 
+   per-function random cookie (located in the read-only ELF
    .openbsd.randomdata section) to consistency-check the return address
    on the stack. Implemented for amd64 and arm64 by Todd Mortimer in
    OpenBSD 6.4, for mips64 in OpenBSD 6.7, and powerpc/powerpc64 in
@@ -176,7 +177,7 @@ Concepts
  • Some architectures now have non-readable code ("xonly"), both from
    the perspective of userland reading its own memory, or the kernel
    trying to read memory in a system call. Many sloppy practices in
-   userland code had to be repaired to allow this. The linker option 
+   userland code had to be repaired to allow this. The linker option
    --execute-only is enabled by default. In order of development: arm64,
    riscv64, hppa, amd64, powerpc64, powerpc (G5 only), octeon. sparc64
    (sun4u only, unfinished). Mark Kettenis, Theo de Raadt, Visa Hankala,
@@ -207,7 +208,7 @@ Concepts
    enforcement.
 
  • The kernel and ld.so register the precise entry location of every
-   system call used by a program, as described in the new ELF section 
+   system call used by a program, as described in the new ELF section
    .openbsd.syscalls inside ld.so and libc.so. ld.so uses the new
    syscall pinsyscalls(2) to tell the kernel the precise entry location
    of system calls in libc.so. Since all syscall entries are now known
@@ -302,7 +303,7 @@ Programs and subsystems
  • aucat(1): Started by Kenneth Stailey. Imported January 2, 1997 and
    first released with OpenBSD 2.1. Now maintained by Alexandre Ratchov.
 
- • OpenSSH including ssh(1), scp(1), sftp(1), ssh-add(1), ssh-agent(1), 
+ • OpenSSH including ssh(1), scp(1), sftp(1), ssh-add(1), ssh-agent(1),
    ssh-keygen(1), sshd(8), sftp-server(8): Started by Aaron Campbell,
    Bob Beck, Dug Song, Markus Friedl, Niels Provos, and Theo de Raadt as
    a fork of SSH 1.2.12 by Tatu Ylonen. Imported September 26, 1999 and
@@ -435,7 +436,7 @@ Programs and subsystems
    2009 and first released with OpenBSD 4.6. Now maintained by Claudio
    Jeker.
 
- • mandoc including mandoc(1), man(1), apropos(1), makewhatis(8), 
+ • mandoc including mandoc(1), man(1), apropos(1), makewhatis(8),
    man.cgi(8): Started by Kristaps Dzonsons in November 2008. Imported
    April 6, 2009, first released with OpenBSD 4.8. Now maintained by
    Ingo Schwarze.
