@@ -599,6 +599,26 @@ impl<W: Write> Formatter<W> {
             return Ok(());
         }
 
+        if Self::is_mailto_with_matching_description(span, target) {
+            if self.style.enable_osc8_hyperlinks {
+                parts.push(self.osc8_start(target));
+            }
+
+            if !span.text.is_empty() {
+                self.push_text_fragment(parts, &span.text);
+            }
+
+            for child in &span.children {
+                self.collect_formatted_text(child, parts)?;
+            }
+
+            if self.style.enable_osc8_hyperlinks {
+                parts.push(self.osc8_end());
+            }
+
+            return Ok(());
+        }
+
         let index = self.register_numbered_link(target);
 
         if self.style.enable_osc8_hyperlinks {
@@ -619,6 +639,31 @@ impl<W: Write> Formatter<W> {
 
         parts.push(self.inline_link_index(index));
         Ok(())
+    }
+
+    fn is_mailto_with_matching_description(span: &Span, target: &str) -> bool {
+        let Some(address) = target.strip_prefix("mailto:") else {
+            return false;
+        };
+
+        let mut description = String::new();
+        Self::collect_visible_text(span, &mut description);
+
+        if description.is_empty() {
+            return false;
+        }
+
+        description.trim() == address.trim()
+    }
+
+    fn collect_visible_text(span: &Span, buffer: &mut String) {
+        if !span.text.is_empty() {
+            buffer.push_str(&span.text);
+        }
+
+        for child in &span.children {
+            Self::collect_visible_text(child, buffer);
+        }
     }
 
     fn push_text_fragment(&self, parts: &mut Vec<String>, text: &str) {
@@ -1120,6 +1165,59 @@ mod tests {
         assert!(result.contains("Docs[1]"));
         assert!(result.contains("[1] https://example.com/docs"));
         assert!(!result.contains("https://example.com/plain["));
+    }
+
+    #[test]
+    fn test_ascii_mailto_links_skip_footnotes() {
+        let doc = doc(vec![p_(vec![
+            span("Contact "),
+            link_text__("mailto:support@example.com", "support@example.com"),
+            span(" or visit "),
+            link_text__("https://example.com/docs", "Docs"),
+            span("."),
+        ])]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("support@example.com"));
+        assert!(!result.contains("support@example.com¹"));
+        assert!(!result.contains("mailto:"));
+        assert!(result.contains("Docs¹"));
+        assert!(result.contains("¹ https://example.com/docs"));
+    }
+
+    #[test]
+    fn test_ansi_mailto_links_skip_indices() {
+        let doc = doc(vec![p_(vec![
+            span("Contact "),
+            link_text__("mailto:support@example.com", "support@example.com"),
+            span(" or visit "),
+            link_text__("https://example.com/docs", "Docs"),
+            span("."),
+        ])]);
+
+        let mut output = Vec::new();
+        Formatter::new_ansi(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let mailto_sequence =
+            "\x1b]8;;mailto:support@example.com\x1b\\support@example.com\x1b]8;;\x1b\\";
+        assert!(
+            result.contains(mailto_sequence),
+            "expected OSC 8 wrapped mailto link"
+        );
+        assert!(!result.contains("support@example.com\x1b]8;;\x1b\\¹"));
+        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains(
+            "¹ \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+        ));
+        assert!(result.ends_with("\x1b[0m"));
     }
 
     #[test]
