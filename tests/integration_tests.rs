@@ -279,6 +279,72 @@ fn test_markdown_checklist_roundtrip() {
 }
 
 #[test]
+fn test_markdown_nested_unordered_lists() {
+    let input = "- top level\n  - second level\n";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    let expected = ftml! {
+        ul {
+            li {
+                p { "top level" }
+                ul {
+                    li { p { "second level" } }
+                }
+            }
+        }
+    };
+
+    assert_eq!(parsed, expected);
+}
+
+#[test]
+fn test_markdown_nested_mixed_lists() {
+    let input = "1. ordered item\n   - unordered child\n     - [x] nested task\n";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    let expected = ftml! {
+        ol {
+            li {
+                p { "ordered item" }
+                ul {
+                    li {
+                        p { "unordered child" }
+                        checklist {
+                            done { "nested task" }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    assert_eq!(parsed, expected);
+}
+
+#[test]
+fn test_markdown_nested_lists_in_blockquote() {
+    let input = "> - quoted bullet\n>   1. quoted number\n>      - [ ] quoted task\n";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    let expected = ftml! {
+        quote {
+            ul {
+                li {
+                    p { "quoted bullet" }
+                    ol {
+                        li {
+                            p { "quoted number" }
+                            checklist {
+                                todo { "quoted task" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    assert_eq!(parsed, expected);
+}
+
+#[test]
 fn test_formatter_checklist_output() {
     let doc = ftml! {
         checklist {

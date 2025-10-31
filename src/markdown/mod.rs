@@ -135,11 +135,13 @@ impl MarkdownBuilder {
                 self.start_paragraph(paragraph_type);
             }
             Tag::BlockQuote => {
+                self.close_open_paragraphs();
                 self.stack.push(BlockContext::Quote {
                     children: Vec::new(),
                 });
             }
             Tag::List(start) => {
+                self.close_open_paragraphs();
                 let ordered = start.is_some();
                 self.stack.push(BlockContext::List {
                     ordered,
