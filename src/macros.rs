@@ -62,6 +62,9 @@ macro_rules! __ftml_build_block {
     (ol { $($inner:tt)* }) => {{
         $crate::Paragraph::new_ordered_list().with_entries(__ftml_list_entries!($($inner)*))
     }};
+    (checklist { $($inner:tt)* }) => {{
+        $crate::Paragraph::new_checklist().with_entries(__ftml_checklist_entries!($($inner)*))
+    }};
     ($other:ident { $($inner:tt)* }) => {{
         compile_error!(concat!("Unknown FTML element: ", stringify!($other)));
     }};
@@ -226,6 +229,55 @@ macro_rules! __ftml_list_entries {
             ::std::vec::Vec::new();
         __ftml_list_entries_inner!(__entries, $($tt)*);
         __entries
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __ftml_checklist_entries {
+    () => {
+        ::std::vec::Vec::<::std::vec::Vec<$crate::Paragraph>>::new()
+    };
+    ($($tt:tt)*) => {{
+        let mut __entries: ::std::vec::Vec<::std::vec::Vec<$crate::Paragraph>> =
+            ::std::vec::Vec::new();
+        __ftml_checklist_entries_inner!(__entries, $($tt)*);
+        __entries
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __ftml_checklist_entries_inner {
+    ($vec:ident,) => {};
+    ($vec:ident) => {};
+    ($vec:ident, , $($rest:tt)*) => {
+        __ftml_checklist_entries_inner!($vec, $($rest)*);
+    };
+    ($vec:ident, todo { $($inner:tt)* } $($rest:tt)*) => {{
+        let __item = $crate::Paragraph::new_checklist_item(false)
+            .with_content(__ftml_inline_nodes!($($inner)*));
+        $vec.push(::std::vec![__item]);
+        __ftml_checklist_entries_inner!($vec, $($rest)*);
+    }};
+    ($vec:ident, done { $($inner:tt)* } $($rest:tt)*) => {{
+        let __item = $crate::Paragraph::new_checklist_item(true)
+            .with_content(__ftml_inline_nodes!($($inner)*));
+        $vec.push(::std::vec![__item]);
+        __ftml_checklist_entries_inner!($vec, $($rest)*);
+    }};
+    ($vec:ident, $other:ident { $($inner:tt)* } $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Expected `todo` or `done` inside checklist, found `",
+            stringify!($other),
+            "`"
+        ));
+    }};
+    ($vec:ident, $unexpected:tt $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Unexpected token inside checklist: ",
+            stringify!($unexpected)
+        ));
     }};
 }
 

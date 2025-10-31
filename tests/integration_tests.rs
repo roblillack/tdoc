@@ -1,7 +1,9 @@
 use std::io::Cursor;
+use tdoc::formatter::Formatter;
 use tdoc::{
     formatter::Formatter, ftml, markdown, parse, write, Document, InlineStyle, ParagraphType,
 };
+use tdoc::{ftml, markdown, parse, write, Document, InlineStyle, ParagraphType};
 
 #[test]
 fn test_parsing_simple_paragraphs() {
@@ -219,6 +221,80 @@ fn test_paragraph_with_styles_roundtrip() {
     write(&mut buf, &doc).unwrap();
     let output = String::from_utf8(buf).unwrap();
     assert_eq!(output, format!("{}\n", input));
+}
+
+#[test]
+fn test_html_checklist_roundtrip() {
+    let input = r#"<ul>
+  <li><input type="checkbox" checked /> This one is done</li>
+  <li><input type="checkbox" /> This one is not done</li>
+  <li>
+    <input type="checkbox" /> This one is not done and also contains a very
+    large amount of text that will wrap onto multiple lines in the terminal
+    output.
+  </li>
+</ul>"#;
+
+    let expected_doc = ftml! {
+        checklist {
+            done { "This one is done" }
+            todo { "This one is not done" }
+            todo { "This one is not done and also contains a very large amount of text that will wrap onto multiple lines in the terminal output." }
+        }
+    };
+
+    let parsed = parse(Cursor::new(input)).unwrap();
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    let expected_output = r#"<ul>
+  <li><input type="checkbox" checked /> This one is done</li>
+  <li><input type="checkbox" /> This one is not done</li>
+  <li>
+    <input type="checkbox" /> This one is not done and also contains a very large amount of text that
+    will wrap onto multiple lines in the terminal output.
+  </li>
+</ul>
+"#;
+    assert_eq!(output, expected_output);
+}
+
+#[test]
+fn test_markdown_checklist_roundtrip() {
+    let input = "- [x] First item\n- [ ] Second item\n";
+    let expected_doc = ftml! {
+        checklist {
+            done { "First item" }
+            todo { "Second item" }
+        }
+    };
+
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    markdown::write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    assert_eq!(output, input);
+}
+
+#[test]
+fn test_formatter_checklist_output() {
+    let doc = ftml! {
+        checklist {
+            done { "This one is done" }
+            todo { "This one is not done" }
+            todo { "This one is not done and also contains a very large amount of text that will wrap onto multiple lines in the terminal output." }
+        }
+    };
+
+    let mut buf = Vec::new();
+    Formatter::new_ascii(&mut buf).write_document(&doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    let expected = "[✓] This one is done\n[ ] This one is not done\n[ ] This one is not done and also contains a very large amount of text\n    that will wrap onto multiple lines in the terminal output.\n";
+    assert_eq!(output, expected);
 }
 
 #[test]

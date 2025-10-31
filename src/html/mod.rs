@@ -94,6 +94,7 @@ impl<'a> Parser<'a> {
                     };
                     if parent_type != ParagraphType::UnorderedList
                         && parent_type != ParagraphType::OrderedList
+                        && parent_type != ParagraphType::Checklist
                     {
                         return Err(HtmlError::UnexpectedListItem);
                     }
@@ -348,6 +349,18 @@ impl<'a> Parser<'a> {
                         continue;
                     }
 
+                    if name == "input" {
+                        let is_checkbox = empty
+                            .attribute("type")
+                            .map(|value| value.eq_ignore_ascii_case("checkbox"))
+                            .unwrap_or(false);
+                        if is_checkbox {
+                            let checked = empty.attribute("checked").is_some();
+                            self.mark_current_list_item_checkbox(checked);
+                        }
+                        continue;
+                    }
+
                     if is_line_break_element(&name) {
                         spans.add_line_break();
                     }
@@ -483,7 +496,9 @@ impl<'a> Parser<'a> {
             };
 
             match parent_type {
-                ParagraphType::OrderedList | ParagraphType::UnorderedList => {
+                ParagraphType::OrderedList
+                | ParagraphType::UnorderedList
+                | ParagraphType::Checklist => {
                     let mut parent_mut = parent.borrow_mut();
                     parent_mut.ensure_current_list_item();
                     parent_mut
@@ -511,7 +526,7 @@ impl<'a> Parser<'a> {
         };
 
         let current_type = current.borrow().paragraph_type;
-        if current_type != expected {
+        if !current_type.matches_closing_tag(expected) {
             return Err(HtmlError::ParagraphCloseMismatch {
                 expected,
                 found: current_type,
@@ -531,7 +546,9 @@ impl<'a> Parser<'a> {
             let parent_type = parent.borrow().paragraph_type;
 
             match parent_type {
-                ParagraphType::OrderedList | ParagraphType::UnorderedList => {
+                ParagraphType::OrderedList
+                | ParagraphType::UnorderedList
+                | ParagraphType::Checklist => {
                     let mut parent_mut = parent.borrow_mut();
                     if let Some(entry) = parent_mut.entries.last_mut() {
                         if let Some(last) = entry.last() {
@@ -554,6 +571,27 @@ impl<'a> Parser<'a> {
             if Rc::ptr_eq(last, node) {
                 self.document.pop();
             }
+        }
+    }
+
+    fn mark_current_list_item_checkbox(&mut self, checked: bool) {
+        if let Some(list_node) = self
+            .breadcrumbs
+            .iter()
+            .rev()
+            .find(|node| {
+                matches!(
+                    node.borrow().paragraph_type,
+                    ParagraphType::UnorderedList
+                        | ParagraphType::OrderedList
+                        | ParagraphType::Checklist
+                )
+            })
+            .cloned()
+        {
+            list_node
+                .borrow_mut()
+                .mark_current_list_item_checkbox(checked);
         }
     }
 
@@ -620,6 +658,7 @@ struct ParagraphBuilder {
     children: Vec<ParagraphNode>,
     content: Vec<Span>,
     entries: Vec<Vec<ParagraphNode>>,
+    checklist_states: Vec<Option<bool>>,
 }
 
 impl ParagraphBuilder {
@@ -629,16 +668,27 @@ impl ParagraphBuilder {
             children: Vec::new(),
             content: Vec::new(),
             entries: Vec::new(),
+            checklist_states: Vec::new(),
         }
     }
 
     fn start_new_list_item(&mut self) {
         self.entries.push(Vec::new());
+        self.checklist_states.push(None);
     }
 
     fn ensure_current_list_item(&mut self) {
         if self.entries.is_empty() {
             self.entries.push(Vec::new());
+            self.checklist_states.push(None);
+        }
+    }
+
+    fn mark_current_list_item_checkbox(&mut self, checked: bool) {
+        self.paragraph_type = ParagraphType::Checklist;
+        self.ensure_current_list_item();
+        if let Some(state) = self.checklist_states.last_mut() {
+            *state = Some(checked);
         }
     }
 
@@ -651,7 +701,8 @@ impl ParagraphBuilder {
             .iter()
             .map(ParagraphBuilder::to_paragraph)
             .collect();
-        paragraph.entries = borrowed
+
+        let entries: Vec<Vec<Paragraph>> = borrowed
             .entries
             .iter()
             .map(|entry| {
@@ -661,6 +712,46 @@ impl ParagraphBuilder {
                     .collect::<Vec<_>>()
             })
             .collect();
+
+        let is_checklist = borrowed.paragraph_type == ParagraphType::Checklist
+            || (!borrowed.checklist_states.is_empty()
+                && borrowed
+                    .checklist_states
+                    .iter()
+                    .all(|state| state.is_some()));
+
+        if is_checklist {
+            paragraph = Paragraph::new_checklist();
+            let mut converted_entries = Vec::new();
+            for (idx, entry) in entries.into_iter().enumerate() {
+                if let Some(Some(checked)) = borrowed.checklist_states.get(idx) {
+                    let mut item = Paragraph::new_checklist_item(*checked);
+                    let mut content = Vec::new();
+                    for (idx, child) in entry.into_iter().enumerate() {
+                        if child.content.is_empty() {
+                            continue;
+                        }
+
+                        if idx > 0 && !content.is_empty() {
+                            content.push(Span::new_text("\n"));
+                        }
+
+                        content.extend(child.content.into_iter());
+                    }
+
+                    trim_trailing_inline_whitespace(&mut content);
+
+                    item.content = content;
+                    converted_entries.push(vec![item]);
+                } else {
+                    converted_entries.push(entry);
+                }
+            }
+            paragraph.entries = converted_entries;
+        } else {
+            paragraph.entries = entries;
+        }
+
         paragraph
     }
 }
@@ -873,6 +964,26 @@ fn is_line_break_element(tag: &str) -> bool {
 
 fn is_transparent_container_element(tag: &str) -> bool {
     matches!(tag, "div")
+}
+
+fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
+    while let Some(last) = spans.last_mut() {
+        if last.style != InlineStyle::None || !last.children.is_empty() || last.link_target.is_some() {
+            break;
+        }
+
+        let trimmed = last.text.trim_end();
+        if trimmed.len() == last.text.len() {
+            break;
+        }
+
+        if trimmed.is_empty() {
+            spans.pop();
+        } else {
+            last.text = trimmed.to_string();
+            break;
+        }
+    }
 }
 
 #[cfg(test)]

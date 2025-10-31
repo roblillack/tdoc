@@ -20,8 +20,12 @@ pub enum ParagraphType {
     OrderedList,
     /// An unordered (bulleted) list (`<ul>`) paragraph.
     UnorderedList,
+    /// A checklist (`<ul>` with checkbox items).
+    Checklist,
     /// A block quote (`<blockquote>`).
     Quote,
+    /// A single checklist item (`<li>` with a checkbox input).
+    ChecklistItem,
 }
 
 impl fmt::Display for ParagraphType {
@@ -34,7 +38,9 @@ impl fmt::Display for ParagraphType {
             ParagraphType::CodeBlock => "Code Block",
             ParagraphType::OrderedList => "Ordered List",
             ParagraphType::UnorderedList => "Unordered List",
+            ParagraphType::Checklist => "Checklist",
             ParagraphType::Quote => "Quote",
+            ParagraphType::ChecklistItem => "Checklist Item",
         };
         write!(f, "{}", s)
     }
@@ -49,6 +55,7 @@ impl ParagraphType {
                 | ParagraphType::Header1
                 | ParagraphType::Header2
                 | ParagraphType::Header3
+                | ParagraphType::ChecklistItem
                 | ParagraphType::CodeBlock
         )
     }
@@ -63,7 +70,9 @@ impl ParagraphType {
             ParagraphType::CodeBlock => "pre",
             ParagraphType::OrderedList => "ol",
             ParagraphType::UnorderedList => "ul",
+            ParagraphType::Checklist => "ul",
             ParagraphType::Quote => "blockquote",
+            ParagraphType::ChecklistItem => "li",
         }
     }
 
@@ -78,7 +87,21 @@ impl ParagraphType {
             "ol" => Some(ParagraphType::OrderedList),
             "ul" => Some(ParagraphType::UnorderedList),
             "blockquote" => Some(ParagraphType::Quote),
+            "li" => Some(ParagraphType::ChecklistItem),
             _ => None,
+        }
+    }
+
+    /// Returns `true` if the current paragraph type can be closed by the
+    /// provided closing type (derived from the tag name).
+    pub fn matches_closing_tag(self, closing: ParagraphType) -> bool {
+        if self == closing {
+            return true;
+        }
+
+        match (self, closing) {
+            (ParagraphType::Checklist, ParagraphType::UnorderedList) => true,
+            _ => false,
         }
     }
 }
@@ -110,6 +133,7 @@ pub struct Paragraph {
     pub children: Vec<Paragraph>,
     pub content: Vec<Span>,
     pub entries: Vec<Vec<Paragraph>>, // For lists
+    pub checklist_item_checked: Option<bool>,
 }
 
 impl Paragraph {
@@ -120,6 +144,7 @@ impl Paragraph {
             children: Vec::new(),
             content: Vec::new(),
             entries: Vec::new(),
+            checklist_item_checked: None,
         }
     }
 
@@ -158,6 +183,18 @@ impl Paragraph {
         Self::new(ParagraphType::UnorderedList)
     }
 
+    /// Convenience constructor for [`ParagraphType::Checklist`].
+    pub fn new_checklist() -> Self {
+        Self::new(ParagraphType::Checklist)
+    }
+
+    /// Convenience constructor for [`ParagraphType::ChecklistItem`].
+    pub fn new_checklist_item(checked: bool) -> Self {
+        let mut paragraph = Self::new(ParagraphType::ChecklistItem);
+        paragraph.checklist_item_checked = Some(checked);
+        paragraph
+    }
+
     /// Convenience constructor for [`ParagraphType::Quote`].
     pub fn new_quote() -> Self {
         Self::new(ParagraphType::Quote)
@@ -178,6 +215,12 @@ impl Paragraph {
     /// Replaces the paragraph's list entries.
     pub fn with_entries(mut self, entries: Vec<Vec<Paragraph>>) -> Self {
         self.entries = entries;
+        self
+    }
+
+    /// Sets the checklist completion state for checklist items.
+    pub fn with_checklist_state(mut self, checked: Option<bool>) -> Self {
+        self.checklist_item_checked = checked;
         self
     }
 
