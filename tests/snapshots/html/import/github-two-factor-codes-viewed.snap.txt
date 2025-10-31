@@ -18,13 +18,13 @@ For more information on securing your account, visit the following:
  • Best practices for securing accounts
 
 To see this and other security events for your account, visit your
-account security audit log.[1]
+account security audit log.¹
 
 If you run into problems, please contact support by visiting the GitHub
-support page.[2]
+support page.²
 
 Thanks,
 The GitHub Team
 
-[1] https://github.com/settings/security-log
-[2] https://github.com/contact
+¹ https://github.com/settings/security-log
+² https://github.com/contact

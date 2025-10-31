@@ -1,20 +1,20 @@
 Max Mustermann hat 1 Ordner freigegeben
 
-Max Mustermann (max@example.example[1]) hat Sie zum Ansehen des
-folgenden freigegebenen Ordners eingeladen:
+Max Mustermann (max@example.example¹) hat Sie zum Ansehen des folgenden
+freigegebenen Ordners eingeladen:
 
 Folder Name
 
 Öffnen
 
 Wenn Sie keine Dateien von dieser Person erhalten möchten, blockieren
-Sie den Absender[2] in Drive
+Sie den Absender² in Drive
 
 Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA
-Sie erhalten diese E-Mail, weil max@example.example[3] eine Datei oder
-einen Ordner in Google Drive für Sie freigegeben hat.[4]
+Sie erhalten diese E-Mail, weil max@example.example³ eine Datei oder
+einen Ordner in Google Drive für Sie freigegeben hat.⁴
 
-[1] mailto:max@example.example
-[2] https://example.example/example
-[3] mailto:max@example.example
-[4] https://example.example/example
+¹ mailto:max@example.example
+² https://example.example/example
+³ mailto:max@example.example
+⁴ https://example.example/example

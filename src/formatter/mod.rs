@@ -24,6 +24,18 @@ impl StyleTags {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LinkIndexFormat {
+    SuperscriptArabic,
+    Bracketed,
+}
+
+impl Default for LinkIndexFormat {
+    fn default() -> Self {
+        Self::SuperscriptArabic
+    }
+}
+
 #[derive(Clone)]
 /// High-level configuration that influences how the [`Formatter`] renders output.
 pub struct FormattingStyle {
@@ -34,6 +46,7 @@ pub struct FormattingStyle {
     pub wrap_width: usize,
     pub left_padding: usize,
     pub enable_osc8_hyperlinks: bool,
+    pub link_index_format: LinkIndexFormat,
 }
 
 impl Default for FormattingStyle {
@@ -46,6 +59,7 @@ impl Default for FormattingStyle {
             wrap_width: DEFAULT_WRAP_WIDTH,
             left_padding: 0,
             enable_osc8_hyperlinks: false,
+            link_index_format: LinkIndexFormat::default(),
         }
     }
 }
@@ -79,6 +93,7 @@ impl FormattingStyle {
             wrap_width: DEFAULT_WRAP_WIDTH,
             left_padding: 0,
             enable_osc8_hyperlinks: true,
+            link_index_format: LinkIndexFormat::default(),
         }
     }
 }
@@ -225,8 +240,16 @@ impl<W: Write> Formatter<W> {
 
         let links = std::mem::take(&mut self.pending_links);
 
+        let max_label_width = links
+            .last()
+            .map(|link| {
+                let formatted = self.format_link_index(link.index);
+                formatted.chars().count()
+            })
+            .unwrap_or(1);
+
         for link in &links {
-            let label = format!("[{}] ", link.index);
+            let label = self.link_label(link.index, max_label_width);
             let first_prefix = format!("{}{}", prefix, label);
             let continuation_prefix = format!("{}{}", prefix, " ".repeat(label.chars().count()));
             let footnote_text = if self.style.enable_osc8_hyperlinks {
@@ -594,7 +617,7 @@ impl<W: Write> Formatter<W> {
             parts.push(self.osc8_end());
         }
 
-        parts.push(format!("[{}]", index));
+        parts.push(self.inline_link_index(index));
         Ok(())
     }
 
@@ -641,6 +664,42 @@ impl<W: Write> Formatter<W> {
         } else {
             text.to_string()
         }
+    }
+
+    fn link_label(&self, index: usize, max_width: usize) -> String {
+        let mut label = self.format_link_index(index);
+        while label.chars().count() < max_width {
+            label.insert(0, ' ');
+        }
+        label.push(' ');
+        label
+    }
+
+    fn inline_link_index(&self, index: usize) -> String {
+        match self.style.link_index_format {
+            LinkIndexFormat::SuperscriptArabic => self.superscript_number(index),
+            LinkIndexFormat::Bracketed => format!("[{}]", index),
+        }
+    }
+
+    fn format_link_index(&self, index: usize) -> String {
+        match self.style.link_index_format {
+            LinkIndexFormat::SuperscriptArabic => self.superscript_number(index),
+            LinkIndexFormat::Bracketed => format!("[{}]", index),
+        }
+    }
+
+    fn superscript_number(&self, index: usize) -> String {
+        const SUPERSCRIPTS: [char; 10] = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+        index
+            .to_string()
+            .chars()
+            .map(|ch| {
+                ch.to_digit(10)
+                    .and_then(|digit| SUPERSCRIPTS.get(digit as usize).copied())
+                    .unwrap_or(ch)
+            })
+            .collect()
     }
 
     fn write_wrapped_text(
@@ -985,15 +1044,15 @@ mod tests {
             .unwrap();
         let result = String::from_utf8(output).unwrap();
 
-        assert!(result.contains("Docs[1]"));
-        assert!(result.contains("[1] https://example.com/docs"));
+        assert!(result.contains("Docs¹"));
+        assert!(result.contains("¹ https://example.com/docs"));
         assert!(result.contains("https://example.com/plain"));
-        assert!(!result.contains("https://example.com/plain["));
+        assert!(!result.contains("https://example.com/plain¹"));
 
-        let footnote_pos = result.find("[1] https://example.com/docs").unwrap();
+        let footnote_pos = result.find("¹ https://example.com/docs").unwrap();
         let heading_pos = result.find("Next section").unwrap();
         assert!(footnote_pos < heading_pos);
-        let footnote_entry = "[1] https://example.com/docs";
+        let footnote_entry = "¹ https://example.com/docs";
         let footer_start = result.find(footnote_entry).unwrap();
         let after_entry = footer_start + footnote_entry.len();
         assert!(
@@ -1023,15 +1082,123 @@ mod tests {
 
         assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
         let docs_pos = result.find("Docs").unwrap();
-        let index_pos = result.find("[1]").unwrap();
+        let index_marker = "\x1b]8;;\x1b\\¹";
+        let index_pos = result
+            .find(index_marker)
+            .expect("superscript index marker missing");
         assert!(docs_pos < index_pos);
         assert!(result.contains(
             "\x1b]8;;https://example.com/plain\x1b\\https://example.com/plain\x1b]8;;\x1b\\"
         ));
         assert!(result.contains(
-            "[1] \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+            "¹ \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
         ));
         assert!(result.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn test_ascii_links_with_bracketed_indices() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ascii();
+        style.link_index_format = LinkIndexFormat::Bracketed;
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("Docs[1]"));
+        assert!(result.contains("[1] https://example.com/docs"));
+        assert!(!result.contains("https://example.com/plain["));
+    }
+
+    #[test]
+    fn test_ansi_links_with_bracketed_indices() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ansi();
+        style.link_index_format = LinkIndexFormat::Bracketed;
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains("\x1b]8;;\x1b\\[1]"));
+        assert!(result.contains(
+            "[1] \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+        ));
+    }
+
+    #[test]
+    fn test_superscript_link_list_alignment() {
+        let mut spans = Vec::new();
+        for i in 1..=10 {
+            if i > 1 {
+                spans.push(span(", "));
+            }
+            let target = format!("https://example.com/{}", i);
+            let text = format!("Doc{}", i);
+            spans.push(link_text__(&target, &text));
+        }
+
+        let doc = doc(vec![p_(spans)]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\n ¹ https://example.com/1"));
+        assert!(!result.contains("\n¹ https://example.com/1"));
+        assert!(result.contains("\n¹⁰ https://example.com/10"));
+    }
+
+    #[test]
+    fn test_bracketed_link_list_alignment() {
+        let mut spans = Vec::new();
+        for i in 1..=10 {
+            if i > 1 {
+                spans.push(span(", "));
+            }
+            let target = format!("https://example.com/{}", i);
+            let text = format!("Doc{}", i);
+            spans.push(link_text__(&target, &text));
+        }
+        let doc = doc(vec![p_(spans)]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ascii();
+        style.link_index_format = LinkIndexFormat::Bracketed;
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\n [1] https://example.com/1"));
+        assert!(!result.contains("\n[1] https://example.com/1"));
+        assert!(result.contains("\n[10] https://example.com/10"));
     }
 
     #[test]

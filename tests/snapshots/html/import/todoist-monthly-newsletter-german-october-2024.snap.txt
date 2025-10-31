@@ -38,9 +38,9 @@ einzurichten (definitiv einfacher als Kitty in ihre Transportbox für den
 Tierarzttermin zu locken).
 
  • Wenn du es noch nicht getan hast, gehe zuerst zu den
-   Kalender-Einstellungen[1], um Todoist mit deinem Google
-   Kalender-Konto zu verbinden. Klicke auf Google Kalender verbinden und
-   folge den Anweisungen.
+   Kalender-Einstellungen¹, um Todoist mit deinem Google Kalender-Konto
+   zu verbinden. Klicke auf Google Kalender verbinden und folge den
+   Anweisungen.
 
  • Sobald du mit Google Kalender verbunden bist, schalte unten in den
    Kalender-Einstellungen den Kippschalter um, um die Option Aufgaben
@@ -61,8 +61,8 @@ Kalender umplanen, was unnötiges Hin-und-Her zwischen verschiedenen Apps
 erspart.
 
 In unserem Help Center-Artikel findest du weitere Details zur
-Synchronisierung von Todoist mit Google Kalender[2]. Alternativ kannst
-du auch das Video von Francesca ansehen[3], in dem sie es ausführlich
+Synchronisierung von Todoist mit Google Kalender². Alternativ kannst du
+auch das Video von Francesca ansehen³, in dem sie es ausführlich
 erklärt.
 
 Erlebe, wie deine Aufgaben zu Triumphen werden
@@ -83,25 +83,25 @@ Todoist anzuzeigen, damit du deine Erfolge im Laufe der Zeit mühelos
 verfolgen kannst.
 
 In der Zwischenzeit, lass uns wissen, was du von dem neuen Feature zur
-Aufgaben-Synchronisierung hältst[4]. Wir freuen uns auf dein Feedback,
+Aufgaben-Synchronisierung hältst⁴. Wir freuen uns auf dein Feedback,
 während wir das Kalendererlebnis in Todoist weiter verbessern.
 
 Bis nächsten Monat! 👋
 
 Mit produktiven Grüßen
 
-Inspiration Hub[5] | Apps herunterladen[6] | Help Center[7]
+Inspiration Hub⁵ | Apps herunterladen⁶ | Help Center⁷
 
-Abbestellen[8]
+Abbestellen⁸
 
 © Doist Inc. 2100 Geng Road, Suite 210 Palo Alto, CA 94303 Vereinigte
 Staaten
 
-[1] https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-[2] https://todoist.com/help/articles/use-calendar-with-todoist-rCqwLCt3G?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly#h_01HXS15SKBRVD8VW0M5TZNZCYX
-[3] https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-[4] https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-[5] https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-[6] https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-[7] https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-[8] https://todoist.com/unsubscribe
+¹ https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+² https://todoist.com/help/articles/use-calendar-with-todoist-rCqwLCt3G?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly#h_01HXS15SKBRVD8VW0M5TZNZCYX
+³ https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁴ https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁵ https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁶ https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁷ https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁸ https://todoist.com/unsubscribe

@@ -19,13 +19,13 @@ To help you get started, please check the Vizzlo Help Center:
 https://vizzlo.com/help
 
 If there's anything else we can help you with, just send a quick message
-to help@vizzlo.com[1]
+to help@vizzlo.com¹
 
 Best,
 The Vizzlo Team.
 
-Vizzlo[2].
+Vizzlo².
 Made with ❤ in Leipzig & the world.
 
-[1] mailto:help@vizzlo.com
-[2] https://vizzlo.com/
+¹ mailto:help@vizzlo.com
+² https://vizzlo.com/

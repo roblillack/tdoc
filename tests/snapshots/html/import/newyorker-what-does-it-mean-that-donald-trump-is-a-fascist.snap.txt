@@ -16,7 +16,7 @@ Trump takes the tools of dictators and adapts them for the Internet. We
 should expect him to try to cling to power until death, and create a
 cult of January 6th martyrs.
 
-By Timothy Snyder[1]
+By Timothy Snyder¹
 
 November 8, 2024
 
@@ -47,7 +47,7 @@ this is our shortcoming more than his. Trump has always been a presence,
 not an absence: the presence of fascism. What does this mean?
 
 When the Soviets called their enemies “fascists,” they turned the word
-into a meaningless insult. Putinist Russia[2] has preserved the habit: a
+into a meaningless insult. Putinist Russia² has preserved the habit: a
 “fascist” is anyone who opposes the wishes of a Russian dictator. So
 Ukrainians defending their country from Russian invaders are “fascists.”
 This is a trick that Trump has copied. He, like Vladimir Putin, refers
@@ -124,13 +124,13 @@ Trump’s presence has always been a co-creation: his and ours. From the
 moment when he first came down the Trump Tower escalator in 2015, he was
 treated as a source of spectacle. Because he was good for television, he
 was accepted as a legitimate candidate. In the print media, he grew
-through the doctrine of both-sides-ism[3]: no matter how awful his
-deeds, his opponent had to be presented as equally bad. This empowered
-him to be both wicked and normal. During every campaign’s final months,
-polling had a similar effect[4]. By displacing policy differences and
-reducing politics to two faces or two colors, polls reinforce the notion
-that Trump belonged where he was, and that politics was just a matter of
-us or them.
+through the doctrine of both-sides-ism³: no matter how awful his deeds,
+his opponent had to be presented as equally bad. This empowered him to
+be both wicked and normal. During every campaign’s final months, polling
+had a similar effect⁴. By displacing policy differences and reducing
+politics to two faces or two colors, polls reinforce the notion that
+Trump belonged where he was, and that politics was just a matter of us
+or them.
 
 “Only real New Yorkers take the sewer system.”
 
@@ -145,12 +145,12 @@ Shop
 What amplifies Trump’s presence more than any other medium is the
 Internet. He is a natural with its quirky rhythms. And its algorithms
 make the rest of us open to exactly his sort of talky fascism. On social
-media[5], we are drawn away from people of complexity and toward blunt
+media⁵, we are drawn away from people of complexity and toward blunt
 stereotypes. We ourselves are categorized, and are then fed content that
 brings out, in Václav Havel’s term, our “most probable states.” The
 Internet does not just spread specific conspiracy theories; it primes
-our minds[6] for them. This was already true before Elon Musk reshaped
-Twitter[7] in Trump’s image.
+our minds⁶ for them. This was already true before Elon Musk reshaped
+Twitter⁷ in Trump’s image.
 
 Our engagement with the machine illuminates a difference between the
 fascists of the twenty-twenties and the fascists of the
@@ -218,7 +218,7 @@ Fascism is now in the algorithms, the neural pathways, the social
 interactions. How did we fail to see all this? Part of it was our belief
 that history is over, that the great rivals to liberalism were dead or
 exhausted. Part of it was American exceptionalism: “it can’t happen
-here[8]” and so on. But most of it was simple self-absorption: we wanted
+here⁸” and so on. But most of it was simple self-absorption: we wanted
 to see Trump in terms of his absences, so that our way of seeing the
 world would go unchallenged. So we failed to see his fascist presence.
 And, because we ignored the fascism, we were unable to make the easy
@@ -226,8 +226,8 @@ predictions of what he would do next. Or, worse, we learned to thrill at
 our own mistakes, because he always did something more outrageous than
 we expected.
 
-It was predictable that Trump would deny[9] the results of the 2020
-election. It was predictable that his Big Lie would change[10] American
+It was predictable that Trump would deny⁹ the results of the 2020
+election. It was predictable that his Big Lie would change¹⁰ American
 politics. It is predictable, today, that he will give free rein to the
 oligarchs who, he knows, will continue to generate the social and
 digital bases of a politics of us and them. It is predictable that, in
@@ -238,7 +238,7 @@ accomplices of us. It is predictable that he will create a cult out of
 the martyrs of January 6th. It is predictable that he will coöperate
 with similarly minded rulers abroad.
 
-When the historian Robert Paxton was asked[11] about Trump and fascism a
+When the historian Robert Paxton was asked¹¹ about Trump and fascism a
 few weeks ago, he made an important point. Of course, Trump is a
 fascist, Paxton concluded. It was fine to compare him to Mussolini and
 Hitler, but there was a larger point. It took some luck for those two to
@@ -248,10 +248,10 @@ have had.”
 
 Fascism is a phenomenon, not a person. Just as Trump was always a
 presence, so is the movement he has created. It is not just a matter of
-the actual fascists in his movement, who are scarcely hiding[12], nor of
-his own friendly references to Hitler or his use of Hitlerian
-language[13] (“vermin,” “enemy within”). He bears responsibility for
-what comes next, as do his allies and supporters.
+the actual fascists in his movement, who are scarcely hiding¹², nor of
+his own friendly references to Hitler or his use of Hitlerian language¹³
+(“vermin,” “enemy within”). He bears responsibility for what comes next,
+as do his allies and supporters.
 
 Yet some, and probably more, of the blame rests with our actions and
 analysis. Again and again, our major institutions, from the media to the
@@ -259,50 +259,50 @@ judiciary, have amplified Trump’s presence; again and again, we have
 failed to name the consequences. Fascism can be defeated, but not when
 we are on its side. ♦
 
-Published in the print edition of the November 18, 2024[14], issue, with
+Published in the print edition of the November 18, 2024¹⁴, issue, with
 the headline “American Fascist.”
 
-[1] /contributors/timothy-snyder
-[2] https://www.amazon.com/Road-Unfreedom-Russia-Europe-America/dp/0525574468
-[3] https://snyder.substack.com/p/both-sides
-[4] https://www.theguardian.com/commentisfree/2024/oct/27/polling-has-turned-the-us-election-into-a-game-we-need-to-take-a-reality-check
-[5] https://www.newyorker.com/magazine/2024/11/11/the-artificial-state
-[6] https://www.salon.com/2024/11/08/americas-political-discordance-the-want-progressivism/
-[7] https://www.theatlantic.com/technology/archive/2023/05/elon-musk-ron-desantis-2024-twitter/674149/
-[8] https://www.nybooks.com/online/2020/06/22/american-fascism-it-has-happened-here
-[9] https://www.commonwealmagazine.org/not-normal-election
-[10] https://www.nytimes.com/2021/01/09/magazine/trump-coup.html
-[11] https://www.nytimes.com/2024/10/23/magazine/robert-paxton-facism.html
-[12] https://www.theguardian.com/us-news/2024/nov/05/trump-staffer-fired-from-republican-party-for-being-a-white-supremacist
-[13] https://www.theatlantic.com/politics/archive/2024/10/trump-authoritarian-rhetoric-hitler-mussolini/680296/
-[14] /magazine/2024/11/18
+ ¹ /contributors/timothy-snyder
+ ² https://www.amazon.com/Road-Unfreedom-Russia-Europe-America/dp/0525574468
+ ³ https://snyder.substack.com/p/both-sides
+ ⁴ https://www.theguardian.com/commentisfree/2024/oct/27/polling-has-turned-the-us-election-into-a-game-we-need-to-take-a-reality-check
+ ⁵ https://www.newyorker.com/magazine/2024/11/11/the-artificial-state
+ ⁶ https://www.salon.com/2024/11/08/americas-political-discordance-the-want-progressivism/
+ ⁷ https://www.theatlantic.com/technology/archive/2023/05/elon-musk-ron-desantis-2024-twitter/674149/
+ ⁸ https://www.nybooks.com/online/2020/06/22/american-fascism-it-has-happened-here
+ ⁹ https://www.commonwealmagazine.org/not-normal-election
+¹⁰ https://www.nytimes.com/2021/01/09/magazine/trump-coup.html
+¹¹ https://www.nytimes.com/2024/10/23/magazine/robert-paxton-facism.html
+¹² https://www.theguardian.com/us-news/2024/nov/05/trump-staffer-fired-from-republican-party-for-being-a-white-supremacist
+¹³ https://www.theatlantic.com/politics/archive/2024/10/trump-authoritarian-rhetoric-hitler-mussolini/680296/
+¹⁴ /magazine/2024/11/18
 
 
 New Yorker Favorites
 ====================
 
 
- • Can reading make you happier[1]?
+ • Can reading make you happier¹?
 
- • Why walking helps us think[2].
+ • Why walking helps us think².
 
- • The Vogue model who became a war photographer[3].
+ • The Vogue model who became a war photographer³.
 
- • The perils of Pearl and Olga[4].
+ • The perils of Pearl and Olga⁴.
 
- • Sentenced to life for an accident miles away[5].
+ • Sentenced to life for an accident miles away⁵.
 
- • The resurgent appeal of Stevie Nicks[6].
+ • The resurgent appeal of Stevie Nicks⁶.
 
- • Fiction by Lore Segal: “Ladies’ Lunch[7]”
+ • Fiction by Lore Segal: “Ladies’ Lunch⁷”
 
-Sign up[8] for our daily newsletter to receive the best stories from The
+Sign up⁸ for our daily newsletter to receive the best stories from The
 New Yorker.
 
 Timothy Snyder is a professor of history at Yale. His books include “On
-Freedom[9].”
+Freedom⁹.”
 
-More:Election 2024[10]
+More:Election 2024¹⁰
 
 Read More
 
@@ -426,21 +426,21 @@ portion of sales from products that are purchased through our site as
 part of our Affiliate Partnerships with retailers. The material on this
 site may not be reproduced, distributed, transmitted, cached or
 otherwise used, except with the prior written permission of Condé Nast.
-Ad Choices[11]
+Ad Choices¹¹
 
 
 
 
 
 
-[1] /culture/cultural-comment/can-reading-make-you-happier
-[2] /tech/annals-of-technology/walking-helps-us-think
-[3] /magazine/2008/01/21/lee-miller-war-photographer-model
-[4] /magazine/1953/08/08/the-perils-of-pearl-and-olga
-[5] /magazine/2023/12/18/felony-murder-laws
-[6] /magazine/2016/11/28/the-resurgent-appeal-of-stevie-nicks
-[7] /magazine/2017/02/27/ladies-lunch-lore-segal
-[8] https://www.newyorker.com/newsletter/daily
-[9] https://www.amazon.com/Freedom-Timothy-Snyder/dp/0593728726/
-[10] /tag/election-2024
-[11] http://www.aboutads.info
+ ¹ /culture/cultural-comment/can-reading-make-you-happier
+ ² /tech/annals-of-technology/walking-helps-us-think
+ ³ /magazine/2008/01/21/lee-miller-war-photographer-model
+ ⁴ /magazine/1953/08/08/the-perils-of-pearl-and-olga
+ ⁵ /magazine/2023/12/18/felony-murder-laws
+ ⁶ /magazine/2016/11/28/the-resurgent-appeal-of-stevie-nicks
+ ⁷ /magazine/2017/02/27/ladies-lunch-lore-segal
+ ⁸ https://www.newyorker.com/newsletter/daily
+ ⁹ https://www.amazon.com/Freedom-Timothy-Snyder/dp/0593728726/
+¹⁰ /tag/election-2024
+¹¹ http://www.aboutads.info
