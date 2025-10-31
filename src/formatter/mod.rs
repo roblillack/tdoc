@@ -290,6 +290,21 @@ impl<W: Write> Formatter<W> {
             ParagraphType::Text => {
                 self.write_text_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
+            ParagraphType::ChecklistItem => {
+                let marker = if paragraph.checklist_item_checked.unwrap_or(false) {
+                    "[✓] "
+                } else {
+                    "[ ] "
+                };
+                let first_prefix = format!("{}{}", prefix, marker);
+                let continuation = format!(
+                    "{}{}",
+                    continuation_prefix,
+                    " ".repeat(marker.chars().count())
+                );
+                self.write_checklist_text(paragraph, &first_prefix, &continuation)?;
+                writeln!(self.writer)?;
+            }
             ParagraphType::CodeBlock => {
                 self.write_code_block_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
@@ -399,6 +414,31 @@ impl<W: Write> Formatter<W> {
                         &bullet_continuation,
                         &bullet_continuation,
                     )?;
+                }
+            }
+            ParagraphType::Checklist => {
+                for entry in &paragraph.entries {
+                    let marker_item = entry
+                        .iter()
+                        .find(|p| p.paragraph_type == ParagraphType::ChecklistItem)
+                        .or_else(|| entry.first());
+
+                    if let Some(item) = marker_item {
+                        let marker = if item.checklist_item_checked.unwrap_or(false) {
+                            "[✓] "
+                        } else {
+                            "[ ] "
+                        };
+                        let base_prefix = continuation_prefix;
+                        let first_prefix = format!("{}{}", base_prefix, marker);
+                        let continuation = format!(
+                            "{}{}",
+                            continuation_prefix,
+                            " ".repeat(marker.chars().count())
+                        );
+                        self.write_checklist_text(item, &first_prefix, &continuation)?;
+                        writeln!(self.writer)?;
+                    }
                 }
             }
         }
@@ -624,6 +664,26 @@ impl<W: Write> Formatter<W> {
         // Now write with proper wrapping
         self.write_wrapped_text(&text_parts, prefix, continuation_prefix)?;
         writeln!(self.writer)?;
+
+        Ok(())
+    }
+
+    fn write_checklist_text(
+        &mut self,
+        item: &Paragraph,
+        first_prefix: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        let mut text_parts = Vec::new();
+        for span in &item.content {
+            self.collect_formatted_text(span, &mut text_parts)?;
+        }
+
+        if text_parts.is_empty() {
+            write!(self.writer, "{}", first_prefix)?;
+        } else {
+            self.write_wrapped_text(&text_parts, first_prefix, continuation_prefix)?;
+        }
 
         Ok(())
     }

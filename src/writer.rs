@@ -92,6 +92,10 @@ impl Writer {
         paragraph: &Paragraph,
         level: usize,
     ) -> io::Result<()> {
+        if paragraph.paragraph_type == ParagraphType::ChecklistItem {
+            return self.write_checklist_item(writer, paragraph, level);
+        }
+
         let tag = paragraph.paragraph_type.html_tag();
 
         if paragraph.paragraph_type.is_leaf() {
@@ -104,7 +108,16 @@ impl Writer {
             self.write_indent(writer, level)?;
             writeln!(writer, "<{}>", tag)?;
 
-            if paragraph.paragraph_type == ParagraphType::UnorderedList
+            if paragraph.paragraph_type == ParagraphType::Checklist {
+                for entry in &paragraph.entries {
+                    if let Some(item) = entry.first() {
+                        self.write_checklist_item(writer, item, level + 1)?;
+                    } else {
+                        self.write_indent(writer, level + 1)?;
+                        writeln!(writer, "<li></li>")?;
+                    }
+                }
+            } else if paragraph.paragraph_type == ParagraphType::UnorderedList
                 || paragraph.paragraph_type == ParagraphType::OrderedList
             {
                 let mut first = true;
@@ -189,6 +202,67 @@ impl Writer {
 
         self.write_indent(writer, level)?;
         writeln!(writer, "</{}>", tag)
+    }
+
+    fn write_checklist_item<W: Write>(
+        &self,
+        writer: &mut W,
+        item: &Paragraph,
+        level: usize,
+    ) -> io::Result<()> {
+        let single_line = self.render_checklist_item_single_line(item, level);
+
+        if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
+            write!(writer, "{}", single_line)?;
+            return Ok(());
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<li>")?;
+
+        self.write_indent(writer, level + 1)?;
+        write!(writer, "<input type=\"checkbox\"")?;
+        if item.checklist_item_checked.unwrap_or(false) {
+            write!(writer, " checked")?;
+        }
+        write!(writer, " />")?;
+
+        if !item.content.is_empty() {
+            write!(writer, " ")?;
+            self.write_spans(writer, &item.content, level + 1, true, true)?;
+        }
+
+        writeln!(writer)?;
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</li>")
+    }
+
+    fn render_checklist_item_single_line(&self, item: &Paragraph, level: usize) -> String {
+        let mut result = String::new();
+
+        for _ in 0..level {
+            result.push_str(&self.indentation);
+        }
+
+        result.push_str("<li><input type=\"checkbox\"");
+        if item.checklist_item_checked.unwrap_or(false) {
+            result.push_str(" checked");
+        }
+        result.push_str(" />");
+
+        if !item.content.is_empty() {
+            result.push(' ');
+            for (idx, span) in item.content.iter().enumerate() {
+                result.push_str(&self.render_span_simple(
+                    span,
+                    idx == 0,
+                    idx == item.content.len() - 1,
+                ));
+            }
+        }
+
+        result.push_str("</li>\n");
+        result
     }
 
     fn render_single_line(&self, content: &[Span], tag: &str, level: usize) -> String {

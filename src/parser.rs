@@ -392,9 +392,17 @@ impl Parser {
                     if let Some(parent) = breadcrumbs.last_mut() {
                         if parent.paragraph_type == ParagraphType::UnorderedList
                             || parent.paragraph_type == ParagraphType::OrderedList
+                            || parent.paragraph_type == ParagraphType::Checklist
                         {
-                            let (list_content, remaining_token) =
-                                self.read_list_content(tokenizer)?;
+                            let parent_is_checklist =
+                                parent.paragraph_type == ParagraphType::Checklist;
+                            let (list_content, remaining_token, is_checklist_item) =
+                                self.read_list_content(tokenizer, parent_is_checklist)?;
+
+                            if is_checklist_item {
+                                parent.paragraph_type = ParagraphType::Checklist;
+                            }
+
                             parent.add_list_item(list_content);
 
                             // If there's a remaining token (parent structure ending), handle it
@@ -495,9 +503,10 @@ impl Parser {
         document: &mut Document,
     ) -> Result<(), ParseError> {
         if let Some(current) = breadcrumbs.last() {
-            if current.paragraph_type != paragraph_type {
+            let current_type = current.paragraph_type;
+            if !current_type.matches_closing_tag(paragraph_type) {
                 return Err(ParseError::MismatchedClosingTag {
-                    actual: current.paragraph_type,
+                    actual: current_type,
                     expected: paragraph_type,
                 });
             }
@@ -511,6 +520,7 @@ impl Parser {
         if let Some(parent) = breadcrumbs.last_mut() {
             if parent.paragraph_type == ParagraphType::UnorderedList
                 || parent.paragraph_type == ParagraphType::OrderedList
+                || parent.paragraph_type == ParagraphType::Checklist
             {
                 if let Some(last_entry) = parent.entries.last_mut() {
                     last_entry.push(paragraph);
@@ -538,6 +548,7 @@ impl Parser {
             // If the parent is a list, add to the current list entry
             if parent.paragraph_type == ParagraphType::UnorderedList
                 || parent.paragraph_type == ParagraphType::OrderedList
+                || parent.paragraph_type == ParagraphType::Checklist
             {
                 if let Some(last_entry) = parent.entries.last_mut() {
                     last_entry.push(paragraph.clone());
@@ -557,21 +568,23 @@ impl Parser {
     fn read_list_content(
         &self,
         tokenizer: &mut Tokenizer,
-    ) -> Result<(Vec<Paragraph>, Option<Token>), ParseError> {
+        parent_is_checklist: bool,
+    ) -> Result<(Vec<Paragraph>, Option<Token>, bool), ParseError> {
         let mut paragraphs = Vec::new();
         let mut breadcrumbs: Vec<Paragraph> = Vec::new();
+        let mut inline_spans: Vec<Span> = Vec::new();
+        let mut checklist_state: Option<bool> = None;
 
         while let Some(token) = tokenizer.next() {
             match token {
                 Token::EndTag(tag_name) if tag_name == "li" => {
+                    Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
                     break;
                 }
                 Token::EndTag(ref tag_name) => {
-                    // Check if this matches a breadcrumb (current structure ending)
                     if let Some(&paragraph_type) = self.wrapper_elements.get(tag_name) {
                         if let Some(paragraph) = breadcrumbs.last() {
-                            if paragraph.paragraph_type == paragraph_type {
-                                // This is our current structure ending - pop it and continue
+                            if paragraph.paragraph_type.matches_closing_tag(paragraph_type) {
                                 let paragraph = breadcrumbs.pop().unwrap();
                                 if !paragraph_type.is_leaf() {
                                     let mut paragraph_with_children = paragraph;
@@ -583,9 +596,20 @@ impl Parser {
                                 continue;
                             }
                         }
-                        // This is a parent structure ending - return it for parent to handle
+
+                        Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
                         paragraphs.extend(breadcrumbs);
-                        return Ok((paragraphs, Some(token)));
+                        let is_checklist_item = checklist_state.is_some();
+                        let result_paragraphs = if let Some(checked) = checklist_state {
+                            Self::convert_to_checklist_item(paragraphs, checked)
+                        } else {
+                            paragraphs
+                        };
+                        return Ok((
+                            result_paragraphs,
+                            Some(Token::EndTag(tag_name.clone())),
+                            is_checklist_item,
+                        ));
                     } else {
                         return Err(ParseError::UnexpectedClosingTag(tag_name.clone()));
                     }
@@ -593,18 +617,28 @@ impl Parser {
                 Token::StartTag(tag) => {
                     let tag_name = tag.name.clone();
                     if tag_name == "li" {
+                        Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
                         if let Some(parent) = breadcrumbs.last_mut() {
                             if parent.paragraph_type == ParagraphType::UnorderedList
                                 || parent.paragraph_type == ParagraphType::OrderedList
+                                || parent.paragraph_type == ParagraphType::Checklist
                             {
-                                let (list_content, remaining_token) =
-                                    self.read_list_content(tokenizer)?;
+                                let (list_content, remaining_token, item_is_checklist) =
+                                    self.read_list_content(tokenizer, parent.paragraph_type == ParagraphType::Checklist)?;
+                                if item_is_checklist {
+                                    parent.paragraph_type = ParagraphType::Checklist;
+                                }
                                 parent.add_list_item(list_content);
 
-                                // If there's a remaining token (parent structure ending), bubble it up
                                 if let Some(token) = remaining_token {
                                     paragraphs.extend(breadcrumbs);
-                                    return Ok((paragraphs, Some(token)));
+                                    let is_checklist_item = checklist_state.is_some();
+                                    let result_paragraphs = if let Some(checked) = checklist_state {
+                                        Self::convert_to_checklist_item(paragraphs, checked)
+                                    } else {
+                                        paragraphs
+                                    };
+                                    return Ok((result_paragraphs, Some(token), is_checklist_item));
                                 }
                             } else {
                                 return Err(ParseError::UnexpectedListItem(Some(
@@ -615,6 +649,7 @@ impl Parser {
                             return Err(ParseError::UnexpectedListItem(None));
                         }
                     } else if let Some(&paragraph_type) = self.wrapper_elements.get(&tag_name) {
+                        Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
                         let mut paragraph = Paragraph::new(paragraph_type);
 
                         if paragraph_type.is_leaf() {
@@ -629,18 +664,85 @@ impl Parser {
                         return Err(ParseError::NonInlineToken(tag_name));
                     }
                 }
-                Token::Text(text) => {
-                    let trimmed = text.trim();
-                    if !trimmed.is_empty() {
-                        return Err(ParseError::UnexpectedTextContent(trimmed.to_string()));
+                Token::SelfClosingTag(tag) => {
+                    let tag_name = tag.name.to_ascii_lowercase();
+                    if tag_name == "input" {
+                        let is_checkbox = tag
+                            .attributes
+                            .get("type")
+                            .map(|value| value.eq_ignore_ascii_case("checkbox"))
+                            .unwrap_or(false);
+                        if is_checkbox {
+                            let checked = tag.attributes.contains_key("checked");
+                            checklist_state = Some(checked);
+                        }
                     }
                 }
-                _ => {}
+                Token::Text(text) => {
+                    let trimmed = text.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+
+                    if checklist_state.is_some() || parent_is_checklist {
+                        let collapsed = self.collapse_whitespace(
+                            &text,
+                            inline_spans.is_empty(),
+                            false,
+                        );
+                        let decoded = self.decode_entities(&collapsed);
+                        if !decoded.is_empty() {
+                            inline_spans.push(Span::new_text(decoded));
+                        }
+                        continue;
+                    }
+
+                    return Err(ParseError::UnexpectedTextContent(trimmed.to_string()));
+                }
             }
         }
 
+        Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
         paragraphs.extend(breadcrumbs);
-        Ok((paragraphs, None))
+
+        let is_checklist_item = checklist_state.is_some();
+        if let Some(checked) = checklist_state {
+            paragraphs = Self::convert_to_checklist_item(paragraphs, checked);
+        }
+
+        Ok((paragraphs, None, is_checklist_item))
+    }
+
+    fn flush_inline_spans(spans: &mut Vec<Span>, paragraphs: &mut Vec<Paragraph>) {
+        if spans.is_empty() {
+            return;
+        }
+
+        let mut paragraph = Paragraph::new_text();
+        paragraph.content.append(spans);
+        paragraphs.push(paragraph);
+    }
+
+    fn convert_to_checklist_item(paragraphs: Vec<Paragraph>, checked: bool) -> Vec<Paragraph> {
+        let mut item = Paragraph::new_checklist_item(checked);
+        let mut content = Vec::new();
+
+        for (idx, mut paragraph) in paragraphs.into_iter().enumerate() {
+            if paragraph.content.is_empty() {
+                continue;
+            }
+
+            if idx > 0 && !content.is_empty() {
+                content.push(Span::new_text("\n"));
+            }
+
+            content.append(&mut paragraph.content);
+        }
+
+        trim_trailing_inline_whitespace(&mut content);
+
+        item.content = content;
+        vec![item]
     }
 
     fn read_code_block_content(
@@ -987,6 +1089,26 @@ impl Parser {
         }
 
         spans
+    }
+}
+
+fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
+    while let Some(last) = spans.last_mut() {
+        if last.style != InlineStyle::None || !last.children.is_empty() || last.link_target.is_some() {
+            break;
+        }
+
+        let trimmed = last.text.trim_end();
+        if trimmed.len() == last.text.len() {
+            break;
+        }
+
+        if trimmed.is_empty() {
+            spans.pop();
+        } else {
+            last.text = trimmed.to_string();
+            break;
+        }
     }
 }
 
