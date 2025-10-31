@@ -1,9 +1,7 @@
 use std::io::Cursor;
-use tdoc::formatter::Formatter;
 use tdoc::{
     formatter::Formatter, ftml, markdown, parse, write, Document, InlineStyle, ParagraphType,
 };
-use tdoc::{ftml, markdown, parse, write, Document, InlineStyle, ParagraphType};
 
 #[test]
 fn test_parsing_simple_paragraphs() {
