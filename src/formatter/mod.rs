@@ -1,3 +1,5 @@
+//! Render documents to formatted plain text suitable for terminals or logs.
+
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
 use std::collections::HashMap;
 use std::io::Write;
@@ -7,6 +9,7 @@ const DEFAULT_QUOTE_PREFIX: &str = "| ";
 const DEFAULT_UNORDERED_LIST_ITEM_PREFIX: &str = " • ";
 
 #[derive(Clone)]
+/// Opening and closing escape sequences for a particular inline style.
 pub struct StyleTags {
     pub begin: String,
     pub end: String,
@@ -22,6 +25,7 @@ impl StyleTags {
 }
 
 #[derive(Clone)]
+/// High-level configuration that influences how the [`Formatter`] renders output.
 pub struct FormattingStyle {
     pub reset_styles: String,
     pub text_styles: HashMap<InlineStyle, StyleTags>,
@@ -45,10 +49,12 @@ impl Default for FormattingStyle {
 }
 
 impl FormattingStyle {
+    /// Creates a plain ASCII style without color or terminal escape sequences.
     pub fn ascii() -> Self {
         Self::default()
     }
 
+    /// Creates a style that emits ANSI escape codes for bold, italic, and other emphasis.
     pub fn ansi() -> Self {
         let mut text_styles = HashMap::new();
         text_styles.insert(InlineStyle::Bold, StyleTags::new("\x1b[1m", "\x1b[22m"));
@@ -74,24 +80,44 @@ impl FormattingStyle {
     }
 }
 
+/// Pretty-prints [`Document`] trees using the supplied [`FormattingStyle`].
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{Document, Paragraph, Span};
+/// use tdoc::formatter::Formatter;
+///
+/// let doc = Document::new().with_paragraphs(vec![
+///     Paragraph::new_text().with_content(vec![Span::new_text("Hello")])
+/// ]);
+///
+/// let mut output = Vec::new();
+/// Formatter::new_ascii(&mut output).write_document(&doc).unwrap();
+/// assert_eq!(String::from_utf8(output).unwrap(), "Hello\n");
+/// ```
 pub struct Formatter<W: Write> {
     pub style: FormattingStyle,
     writer: W,
 }
 
 impl<W: Write> Formatter<W> {
+    /// Creates a formatter over the given writer with the provided style.
     pub fn new(writer: W, style: FormattingStyle) -> Self {
         Self { writer, style }
     }
 
+    /// Creates a formatter that produces plain ASCII output.
     pub fn new_ascii(writer: W) -> Self {
         Self::new(writer, FormattingStyle::ascii())
     }
 
+    /// Creates a formatter that emits ANSI escape sequences for styling.
     pub fn new_ansi(writer: W) -> Self {
         Self::new(writer, FormattingStyle::ansi())
     }
 
+    /// Writes the entire document into the wrapped writer.
     pub fn write_document(&mut self, document: &Document) -> std::io::Result<()> {
         let indent = " ".repeat(self.style.left_padding);
         self.write_paragraphs(&document.paragraphs, &indent, &indent, &indent)?;

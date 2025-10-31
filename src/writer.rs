@@ -1,8 +1,28 @@
+//! Serialize [`Document`](crate::Document) trees back into FTML/HTML.
+
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, Write};
 
+/// Emits FTML/HTML markup from a [`Document`] tree.
+///
+/// `Writer` focuses on producing readable markup that preserves semantic tags
+/// such as lists, block quotes, and inline styles. It defaults to two-space
+/// indentation and an 80 character wrap width.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{Document, Paragraph, Span, writer::Writer};
+///
+/// let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("Hello!")]);
+/// let document = Document::new().with_paragraphs(vec![paragraph]);
+///
+/// let writer = Writer::new();
+/// let html = writer.write_to_string(&document).unwrap();
+/// assert_eq!(html, "<p>Hello!</p>\n");
+/// ```
 pub struct Writer {
     indentation: String,
     max_width: usize,
@@ -22,6 +42,7 @@ impl Default for Writer {
 }
 
 impl Writer {
+    /// Creates a new writer with default indentation, wrapping, and styling.
     pub fn new() -> Self {
         let mut style_tags = HashMap::new();
         style_tags.insert(InlineStyle::Bold, "b".to_string());
@@ -44,12 +65,14 @@ impl Writer {
         }
     }
 
+    /// Renders the document into a `String` buffer.
     pub fn write_to_string(&self, document: &Document) -> io::Result<String> {
         let mut buffer = Vec::new();
         self.write(&mut buffer, document)?;
         Ok(String::from_utf8_lossy(&buffer).to_string())
     }
 
+    /// Writes the document to any [`Write`] implementor.
     pub fn write<W: Write>(&self, writer: &mut W, document: &Document) -> io::Result<()> {
         let mut first = true;
         for paragraph in &document.paragraphs {
@@ -341,6 +364,7 @@ impl Writer {
     }
 }
 
+/// Convenience helper that writes using a fresh [`Writer`] with default settings.
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> io::Result<()> {
     let w = Writer::new();
     w.write(writer, document)

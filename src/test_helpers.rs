@@ -1,3 +1,5 @@
+//! Convenience constructors for assembling documents in tests.
+
 use crate::{Document, InlineStyle, Paragraph, Span};
 
 pub fn p__(s: &str) -> Paragraph {

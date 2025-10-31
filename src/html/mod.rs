@@ -1,3 +1,5 @@
+//! Parse real-world HTML into the internal FTML representation.
+
 pub mod gockl;
 
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
@@ -12,6 +14,18 @@ const LINE_BREAK_ELEMENT_NAME: &str = "br";
 
 type ParagraphNode = Rc<RefCell<ParagraphBuilder>>;
 
+/// Parses a snippet of HTML into a [`Document`](crate::Document).
+///
+/// # Examples
+///
+/// ```
+/// use std::io::Cursor;
+/// use tdoc::html;
+///
+/// let html = Cursor::new("<p>Hello</p>");
+/// let document = html::parse(html).unwrap();
+/// assert_eq!(document.paragraphs.len(), 1);
+/// ```
 pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;

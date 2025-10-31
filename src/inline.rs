@@ -1,14 +1,25 @@
+//! Inline styling primitives used by paragraphs.
+
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Available inline styles that can be applied to [`Span`] nodes.
 pub enum InlineStyle {
+    /// Unstyled text.
     None,
+    /// Bold emphasis.
     Bold,
+    /// Italic emphasis.
     Italic,
+    /// Highlighted text (e.g. `<mark>`).
     Highlight,
+    /// Underlined text.
     Underline,
+    /// Strikethrough text.
     Strike,
+    /// Hyperlink (`<a>`).
     Link,
+    /// Inline code.
     Code,
 }
 
@@ -29,6 +40,25 @@ impl fmt::Display for InlineStyle {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Inline-level node that holds styled or plain text content.
+///
+/// Spans can either contain literal text, nested spans (for composite styling),
+/// or a combination of both. When `style` is [`InlineStyle::Link`], the optional
+/// `link_target` is populated with the URL.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{InlineStyle, Span};
+///
+/// let plain = Span::new_text("plain text");
+/// let link = Span::new_styled(InlineStyle::Link)
+///     .with_children(vec![Span::new_text("The Book")])
+///     .with_link_target("https://example.test");
+///
+/// assert_eq!(plain.text, "plain text");
+/// assert_eq!(link.link_target.as_deref(), Some("https://example.test"));
+/// ```
 pub struct Span {
     pub style: InlineStyle,
     pub text: String,
@@ -37,6 +67,7 @@ pub struct Span {
 }
 
 impl Span {
+    /// Creates an unstyled span that owns the provided text.
     pub fn new_text(text: impl Into<String>) -> Self {
         Self {
             style: InlineStyle::None,
@@ -46,6 +77,7 @@ impl Span {
         }
     }
 
+    /// Creates a span with the given style and no text or children.
     pub fn new_styled(style: InlineStyle) -> Self {
         Self {
             style,
@@ -55,21 +87,25 @@ impl Span {
         }
     }
 
+    /// Replaces the child spans, returning the updated span.
     pub fn with_children(mut self, children: Vec<Span>) -> Self {
         self.children = children;
         self
     }
 
+    /// Replaces the span's text content, returning the updated span.
     pub fn with_text(mut self, text: impl Into<String>) -> Self {
         self.text = text.into();
         self
     }
 
+    /// Sets the link target for [`InlineStyle::Link`] spans.
     pub fn with_link_target(mut self, target: impl Into<String>) -> Self {
         self.link_target = Some(target.into());
         self
     }
 
+    /// Returns `true` if the span's text or last descendant ends with `\n`.
     pub fn ends_with_line_break(&self) -> bool {
         if !self.children.is_empty() {
             if let Some(last) = self.children.last() {
@@ -79,6 +115,7 @@ impl Span {
         !self.text.is_empty() && self.text.ends_with('\n')
     }
 
+    /// Computes the visible width of the span by counting Unicode scalar values.
     pub fn width(&self) -> usize {
         let text_width = self.text.chars().count();
         let children_width: usize = self.children.iter().map(|c| c.width()).sum();

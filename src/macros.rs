@@ -1,3 +1,5 @@
+//! Macros that make it ergonomic to build FTML documents in tests or examples.
+
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! __ftml_collect_blocks {
@@ -169,6 +171,25 @@ macro_rules! __ftml_list_entries_inner {
 }
 
 #[macro_export(local_inner_macros)]
+/// Builds a [`Document`](crate::Document) using an inline FTML DSL.
+///
+/// The macro accepts block-level tags such as `p`, `h1`, `quote`, `ul`, and
+/// `ol`. Inline runs can contain string literals or inline tags like `b`, `i`,
+/// `mark`, or `code`.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{ftml, ParagraphType};
+///
+/// let doc = ftml! {
+///     h1 { "Heading" }
+///     p  { "Hello, ", b { "world" }, "!" }
+/// };
+///
+/// assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Header1);
+/// assert_eq!(doc.paragraphs[1].paragraph_type, ParagraphType::Text);
+/// ```
 macro_rules! ftml {
     ($($tt:tt)*) => {{
         let __paragraphs = __ftml_collect_blocks!($($tt)*);

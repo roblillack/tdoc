@@ -1,3 +1,5 @@
+//! FTML parser that transforms HTML-like markup into [`Document`](crate::Document) trees.
+
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
 use regex::Regex;
 use std::collections::HashMap;
@@ -5,6 +7,7 @@ use std::io::Read;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+/// Errors that can occur while parsing FTML source.
 pub enum ParseError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -217,6 +220,20 @@ impl Tokenizer {
     }
 }
 
+/// Stateful FTML parser that understands a restricted HTML-like tag set.
+///
+/// The parser can be reused across multiple inputs. Use [`Parser::parse_string`]
+/// for in-memory data or [`parse`] for any [`Read`] implementation.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::parser::Parser;
+///
+/// let parser = Parser::new();
+/// let document = parser.parse_string("<p>Hello, world!</p>").unwrap();
+/// assert_eq!(document.paragraphs.len(), 1);
+/// ```
 pub struct Parser {
     wrapper_elements: HashMap<String, ParagraphType>,
     inline_elements: HashMap<String, InlineStyle>,
@@ -230,6 +247,7 @@ impl Default for Parser {
 }
 
 impl Parser {
+    /// Creates a parser configured with the default FTML tag mappings.
     pub fn new() -> Self {
         let mut wrapper_elements = HashMap::new();
         wrapper_elements.insert("p".to_string(), ParagraphType::Text);
@@ -255,6 +273,7 @@ impl Parser {
         }
     }
 
+    /// Parses a string slice into a [`Document`].
     pub fn parse_string(&self, input: &str) -> Result<Document, ParseError> {
         let mut tokenizer = Tokenizer::new(input.to_string());
         let mut document = Document::new();
@@ -814,6 +833,18 @@ impl Parser {
     }
 }
 
+/// Parses FTML content from any [`Read`] implementor.
+///
+/// # Examples
+///
+/// ```
+/// use std::io::Cursor;
+/// use tdoc::parser;
+///
+/// let mut input = Cursor::new("<p>Hello!</p>");
+/// let document = parser::parse(&mut input).unwrap();
+/// assert_eq!(document.paragraphs.len(), 1);
+/// ```
 pub fn parse<R: Read>(mut reader: R) -> Result<Document, ParseError> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;

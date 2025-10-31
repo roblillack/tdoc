@@ -1,26 +1,51 @@
+//! Defines the [`Document`] root node for FTML content.
+
 use crate::Paragraph;
 
 #[derive(Debug, Clone, PartialEq)]
+/// A collection of top-level [`Paragraph`] nodes that make up an FTML document.
+///
+/// The struct is intentionally lightweight: it simply stores the top-level
+/// paragraphs in the order in which they should render.
+///
+/// # Examples
+///
+/// Building a document manually:
+///
+/// ```
+/// use tdoc::{Document, Paragraph, Span};
+///
+/// let mut doc = Document::new();
+/// let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("Hello!")]);
+/// doc.add_paragraph(paragraph);
+///
+/// assert_eq!(doc.paragraphs.len(), 1);
+/// assert!(!doc.is_empty());
+/// ```
 pub struct Document {
     pub paragraphs: Vec<Paragraph>,
 }
 
 impl Document {
+    /// Creates an empty document with no paragraphs.
     pub fn new() -> Self {
         Self {
             paragraphs: Vec::new(),
         }
     }
 
+    /// Replaces the document's paragraphs, returning the updated document.
     pub fn with_paragraphs(mut self, paragraphs: Vec<Paragraph>) -> Self {
         self.paragraphs = paragraphs;
         self
     }
 
+    /// Appends a new paragraph to the end of the document.
     pub fn add_paragraph(&mut self, paragraph: Paragraph) {
         self.paragraphs.push(paragraph);
     }
 
+    /// Returns `true` when the document contains no paragraphs.
     pub fn is_empty(&self) -> bool {
         self.paragraphs.is_empty()
     }

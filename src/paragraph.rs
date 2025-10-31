@@ -1,14 +1,24 @@
+//! Paragraph primitives that make up the [`Document`](crate::Document) tree.
+
 use crate::Span;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The structural role a [`Paragraph`] plays within a document.
 pub enum ParagraphType {
+    /// A plain text paragraph.
     Text,
+    /// A level-1 heading (`<h1>`).
     Header1,
+    /// A level-2 heading (`<h2>`).
     Header2,
+    /// A level-3 heading (`<h3>`).
     Header3,
+    /// An ordered list (`<ol>`) paragraph.
     OrderedList,
+    /// An unordered (bulleted) list (`<ul>`) paragraph.
     UnorderedList,
+    /// A block quote (`<blockquote>`).
     Quote,
 }
 
@@ -28,6 +38,7 @@ impl fmt::Display for ParagraphType {
 }
 
 impl ParagraphType {
+    /// Returns `true` if paragraphs of this type cannot contain child paragraphs.
     pub fn is_leaf(&self) -> bool {
         matches!(
             self,
@@ -38,6 +49,7 @@ impl ParagraphType {
         )
     }
 
+    /// Returns the canonical HTML tag used when serializing this paragraph type.
     pub fn html_tag(&self) -> &'static str {
         match self {
             ParagraphType::Text => "p",
@@ -50,6 +62,7 @@ impl ParagraphType {
         }
     }
 
+    /// Attempts to map an HTML tag back to a [`ParagraphType`].
     pub fn from_html_tag(tag: &str) -> Option<Self> {
         match tag {
             "p" => Some(ParagraphType::Text),
@@ -65,6 +78,27 @@ impl ParagraphType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// A node in the document tree representing text, lists, headings, or quotes.
+///
+/// Paragraphs can contain nested paragraphs (for quotes or nested lists), inline
+/// [`Span`](crate::Span) content, or list entries depending on their
+/// [`ParagraphType`].
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{Paragraph, ParagraphType, Span};
+///
+/// // Simple paragraph with inline content.
+/// let text = Paragraph::new_text().with_content(vec![Span::new_text("Hello FTML!")]);
+/// assert!(text.is_leaf());
+///
+/// // List paragraphs manage their items via entries.
+/// let mut list = Paragraph::new_unordered_list();
+/// list.add_list_item(vec![Paragraph::new_text().with_content(vec![Span::new_text("One")])]);
+/// list.add_list_item(vec![Paragraph::new_text().with_content(vec![Span::new_text("Two")])]);
+/// assert!(!list.is_leaf());
+/// ```
 pub struct Paragraph {
     pub paragraph_type: ParagraphType,
     pub children: Vec<Paragraph>,
@@ -73,6 +107,7 @@ pub struct Paragraph {
 }
 
 impl Paragraph {
+    /// Creates a paragraph with the provided [`ParagraphType`].
     pub fn new(paragraph_type: ParagraphType) -> Self {
         Self {
             paragraph_type,
@@ -82,57 +117,70 @@ impl Paragraph {
         }
     }
 
+    /// Convenience constructor for [`ParagraphType::Text`].
     pub fn new_text() -> Self {
         Self::new(ParagraphType::Text)
     }
 
+    /// Convenience constructor for [`ParagraphType::Header1`].
     pub fn new_header1() -> Self {
         Self::new(ParagraphType::Header1)
     }
 
+    /// Convenience constructor for [`ParagraphType::Header2`].
     pub fn new_header2() -> Self {
         Self::new(ParagraphType::Header2)
     }
 
+    /// Convenience constructor for [`ParagraphType::Header3`].
     pub fn new_header3() -> Self {
         Self::new(ParagraphType::Header3)
     }
 
+    /// Convenience constructor for [`ParagraphType::OrderedList`].
     pub fn new_ordered_list() -> Self {
         Self::new(ParagraphType::OrderedList)
     }
 
+    /// Convenience constructor for [`ParagraphType::UnorderedList`].
     pub fn new_unordered_list() -> Self {
         Self::new(ParagraphType::UnorderedList)
     }
 
+    /// Convenience constructor for [`ParagraphType::Quote`].
     pub fn new_quote() -> Self {
         Self::new(ParagraphType::Quote)
     }
 
+    /// Replaces the inline content of the paragraph.
     pub fn with_content(mut self, content: Vec<Span>) -> Self {
         self.content = content;
         self
     }
 
+    /// Replaces the paragraph's child paragraphs.
     pub fn with_children(mut self, children: Vec<Paragraph>) -> Self {
         self.children = children;
         self
     }
 
+    /// Replaces the paragraph's list entries.
     pub fn with_entries(mut self, entries: Vec<Vec<Paragraph>>) -> Self {
         self.entries = entries;
         self
     }
 
+    /// Returns `true` if this paragraph cannot contain nested paragraphs.
     pub fn is_leaf(&self) -> bool {
         self.paragraph_type.is_leaf()
     }
 
+    /// Appends a child paragraph (used for quotes or nested structures).
     pub fn add_child(&mut self, child: Paragraph) {
         self.children.push(child);
     }
 
+    /// Appends a single list item built from nested paragraphs.
     pub fn add_list_item(&mut self, item: Vec<Paragraph>) {
         self.entries.push(item);
     }

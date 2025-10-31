@@ -1,7 +1,20 @@
+//! Convert between Markdown text and FTML [`Document`](crate::Document) trees.
+
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag};
 use std::io::{Read, Write};
 
+/// Parses Markdown into a [`Document`].
+///
+/// # Examples
+///
+/// ```
+/// use std::io::Cursor;
+/// use tdoc::{markdown, ParagraphType};
+///
+/// let doc = markdown::parse(Cursor::new("# Heading")).unwrap();
+/// assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Header1);
+/// ```
 pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
@@ -473,6 +486,21 @@ impl ParagraphContext {
 
 const LINE_WIDTH: usize = 80;
 
+/// Serializes a [`Document`] structure back to Markdown.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{Document, Paragraph, Span};
+/// use tdoc::markdown;
+///
+/// let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("Hello")]);
+/// let document = Document::new().with_paragraphs(vec![paragraph]);
+///
+/// let mut output = Vec::new();
+/// markdown::write(&mut output, &document).unwrap();
+/// assert_eq!(String::from_utf8(output).unwrap(), "Hello\n");
+/// ```
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
     write_paragraphs(writer, &document.paragraphs, "", "")
 }
