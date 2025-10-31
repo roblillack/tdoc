@@ -24,9 +24,12 @@ impl StyleTags {
     }
 }
 
+/// Controls how inline link references are rendered when links need textual markers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LinkIndexFormat {
+    /// Render inline link markers as superscript-style Arabic numerals.
     SuperscriptArabic,
+    /// Render inline link markers as bracketed numbers such as `[1]`.
     Bracketed,
 }
 
@@ -45,7 +48,9 @@ pub struct FormattingStyle {
     pub unordered_list_item_prefix: String,
     pub wrap_width: usize,
     pub left_padding: usize,
+    /// When set, wrap link text in OSC 8 control sequences so supporting terminals emit clickable hyperlinks.
     pub enable_osc8_hyperlinks: bool,
+    /// Selects the text marker style used for numbering links when hyperlinks require an inline index.
     pub link_index_format: LinkIndexFormat,
 }
 
