@@ -1,6 +1,7 @@
 use tdoc::ftml;
 use tdoc::test_helpers::{
-    b__, code__, doc as doc_, h1_, i__, li_, mark__, ol_, p_, p__, quote_, s__, span, u__, ul_,
+    b__, code__, doc as doc_, h1_, i__, li_, link_, link__, link_text__, mark__, ol_, p_, p__,
+    quote_, s__, span, u__, ul_,
 };
 
 #[test]
@@ -79,6 +80,26 @@ fn supports_inline_styles_and_lists() {
             li_(vec![p__("First")]),
             li_(vec![p__("Second"), ul_(vec![li_(vec![p__("Nested")])])]),
         ]),
+    ]);
+
+    assert_eq!(doc, expected);
+}
+
+#[test]
+fn supports_links() {
+    let doc = ftml! {
+        p { "Visit ", link { "https://example.org" } }
+        p { link { "https://example.org/docs" "Docs" } }
+        p { link { "https://example.org/mixed" "Mixed ", b { "Bold" } } }
+    };
+
+    let expected = doc_(vec![
+        p_(vec![span("Visit "), link__("https://example.org")]),
+        p_(vec![link_text__("https://example.org/docs", "Docs")]),
+        p_(vec![link_(
+            "https://example.org/mixed",
+            vec![span("Mixed "), b__("Bold")],
+        )]),
     ]);
 
     assert_eq!(doc, expected);

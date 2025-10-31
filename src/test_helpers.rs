@@ -81,3 +81,19 @@ pub fn s__(txt: &str) -> Span {
 pub fn code__(txt: &str) -> Span {
     Span::new_styled(InlineStyle::Code).with_children(spans(txt))
 }
+
+pub fn link__(target: &str) -> Span {
+    Span::new_styled(InlineStyle::Link).with_link_target(target)
+}
+
+pub fn link_text__(target: &str, text: &str) -> Span {
+    Span::new_styled(InlineStyle::Link)
+        .with_link_target(target)
+        .with_children(spans(text))
+}
+
+pub fn link_(target: &str, children: Vec<Span>) -> Span {
+    Span::new_styled(InlineStyle::Link)
+        .with_link_target(target)
+        .with_children(children)
+}

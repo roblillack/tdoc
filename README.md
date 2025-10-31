@@ -29,7 +29,7 @@ For the full FTML specification, see the [original repository](https://github.co
 tdoc provides a comprehensive toolkit for working with FTML documents in Rust:
 
 - **Load and Save**: Parse FTML documents from files or streams, and write them back with proper formatting
-- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code` and all supported paragraph types
+- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code`, [clickable links](https://github.com/roblillack/tdoc) and all supported paragraph types
 - **Format Conversion**: Convert between FTML and other formats:
   - **Markdown**: Export FTML documents to Markdown for compatibility with documentation systems
   - **HTML**: Import HTML documents into FTML (basic support), with plans for full HTML export
@@ -58,6 +58,14 @@ Text spans can have optional styles:
 - **Strike** (`<s>`)
 - **Highlight** (`<mark>`)
 - **Code** (`<code>`)
+- **Links** (`<a href="...">`)
+
+### Hyperlink Rendering
+
+- ANSI output wraps link text in OSC 8 escape codes to create clickable hyperlinks in supporting terminals.
+- ASCII output elides escape codes and appends numbered references; superscript numerals are used by default, with bracketed markers available through `FormattingStyle::link_index_format`.
+- Links without visible content collapse to their normalized target so empty anchors remain discoverable.
+- `mailto:` links with matching descriptions reuse their text instead of adding redundant indices.
 
 ### Example Document
 

@@ -24,6 +24,16 @@ impl StyleTags {
     }
 }
 
+/// Controls how inline link references are rendered when links need textual markers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LinkIndexFormat {
+    /// Render inline link markers as superscript-style Arabic numerals.
+    #[default]
+    SuperscriptArabic,
+    /// Render inline link markers as bracketed numbers such as `[1]`.
+    Bracketed,
+}
+
 #[derive(Clone)]
 /// High-level configuration that influences how the [`Formatter`] renders output.
 pub struct FormattingStyle {
@@ -33,6 +43,10 @@ pub struct FormattingStyle {
     pub unordered_list_item_prefix: String,
     pub wrap_width: usize,
     pub left_padding: usize,
+    /// When set, wrap link text in OSC 8 control sequences so supporting terminals emit clickable hyperlinks.
+    pub enable_osc8_hyperlinks: bool,
+    /// Selects the text marker style used for numbering links when hyperlinks require an inline index.
+    pub link_index_format: LinkIndexFormat,
 }
 
 impl Default for FormattingStyle {
@@ -44,6 +58,8 @@ impl Default for FormattingStyle {
             unordered_list_item_prefix: DEFAULT_UNORDERED_LIST_ITEM_PREFIX.to_string(),
             wrap_width: DEFAULT_WRAP_WIDTH,
             left_padding: 0,
+            enable_osc8_hyperlinks: false,
+            link_index_format: LinkIndexFormat::default(),
         }
     }
 }
@@ -76,6 +92,8 @@ impl FormattingStyle {
             unordered_list_item_prefix: DEFAULT_UNORDERED_LIST_ITEM_PREFIX.to_string(),
             wrap_width: DEFAULT_WRAP_WIDTH,
             left_padding: 0,
+            enable_osc8_hyperlinks: true,
+            link_index_format: LinkIndexFormat::default(),
         }
     }
 }
@@ -99,12 +117,27 @@ impl FormattingStyle {
 pub struct Formatter<W: Write> {
     pub style: FormattingStyle,
     writer: W,
+    pending_links: Vec<LinkReference>,
+    link_indices: HashMap<String, usize>,
+    next_link_index: usize,
+}
+
+#[derive(Clone, Debug)]
+struct LinkReference {
+    index: usize,
+    target: String,
 }
 
 impl<W: Write> Formatter<W> {
     /// Creates a formatter over the given writer with the provided style.
     pub fn new(writer: W, style: FormattingStyle) -> Self {
-        Self { writer, style }
+        Self {
+            writer,
+            style,
+            pending_links: Vec::new(),
+            link_indices: HashMap::new(),
+            next_link_index: 1,
+        }
     }
 
     /// Creates a formatter that produces plain ASCII output.
@@ -121,6 +154,7 @@ impl<W: Write> Formatter<W> {
     pub fn write_document(&mut self, document: &Document) -> std::io::Result<()> {
         let indent = " ".repeat(self.style.left_padding);
         self.write_paragraphs(&document.paragraphs, &indent, &indent, &indent)?;
+        let _ = self.flush_pending_links(&indent)?;
 
         // Write reset styles if we have any
         if !self.style.reset_styles.is_empty() {
@@ -157,10 +191,21 @@ impl<W: Write> Formatter<W> {
         let mut previous_type: Option<ParagraphType> = None;
 
         for (idx, paragraph) in paragraphs.iter().enumerate() {
+            let flushed_links = if matches!(
+                paragraph.paragraph_type,
+                ParagraphType::Header1 | ParagraphType::Header2 | ParagraphType::Header3
+            ) {
+                self.flush_pending_links(blank_line_prefix)?
+            } else {
+                false
+            };
             let previous_after = previous_type
                 .map(|ty| self.blank_lines_after(ty))
                 .unwrap_or(0);
-            let blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
+            let mut blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
+            if flushed_links && blank_lines > 0 {
+                blank_lines -= 1;
+            }
             self.write_blank_lines_with_prefix(blank_line_prefix, previous_after.max(blank_lines))?;
             let paragraph_prefix = if idx < first_line_prefixes.len() {
                 first_line_prefixes[idx]
@@ -185,6 +230,44 @@ impl<W: Write> Formatter<W> {
         }
 
         Ok(())
+    }
+
+    fn flush_pending_links(&mut self, prefix: &str) -> std::io::Result<bool> {
+        if self.pending_links.is_empty() {
+            self.link_indices.clear();
+            self.next_link_index = 1;
+            return Ok(false);
+        }
+
+        self.write_blank_lines_with_prefix(prefix, 1)?;
+
+        let links = std::mem::take(&mut self.pending_links);
+        self.link_indices.clear();
+
+        let max_label_width = links
+            .last()
+            .map(|link| {
+                let formatted = self.format_link_index(link.index);
+                formatted.chars().count()
+            })
+            .unwrap_or(1);
+
+        for link in &links {
+            let label = self.link_label(link.index, max_label_width);
+            let first_prefix = format!("{}{}", prefix, label);
+            let continuation_prefix = format!("{}{}", prefix, " ".repeat(label.chars().count()));
+            let footnote_text = if self.style.enable_osc8_hyperlinks {
+                self.osc8_wrap(&link.target, &link.target)
+            } else {
+                link.target.clone()
+            };
+            let parts = vec![footnote_text];
+            self.write_wrapped_text(&parts, &first_prefix, &continuation_prefix)?;
+            writeln!(self.writer)?;
+        }
+
+        self.next_link_index = 1;
+        Ok(true)
     }
 
     fn write_paragraph(
@@ -355,7 +438,7 @@ impl<W: Write> Formatter<W> {
         }
     }
 
-    fn render_heading_text(&self, spans: &[Span]) -> std::io::Result<(String, usize)> {
+    fn render_heading_text(&mut self, spans: &[Span]) -> std::io::Result<(String, usize)> {
         let mut parts = Vec::new();
         for span in spans {
             self.collect_formatted_text(span, &mut parts)?;
@@ -467,25 +550,24 @@ impl<W: Write> Formatter<W> {
         }
     }
 
-    fn collect_formatted_text(&self, span: &Span, parts: &mut Vec<String>) -> std::io::Result<()> {
+    fn collect_formatted_text(
+        &mut self,
+        span: &Span,
+        parts: &mut Vec<String>,
+    ) -> std::io::Result<()> {
+        if span.style == InlineStyle::Link {
+            return self.collect_link_text(span, parts);
+        }
+
         if span.children.is_empty() {
-            // Handle line breaks specially
-            if span.text.contains('\n') {
-                for (i, line) in span.text.split('\n').enumerate() {
-                    if i > 0 {
-                        parts.push("\n".to_string());
-                    }
-                    if !line.is_empty() {
-                        parts.push(line.to_string());
-                    }
-                }
-            } else {
-                parts.push(span.text.clone());
-            }
+            self.push_text_fragment(parts, &span.text);
         } else {
-            // Apply styling to children
             if let Some(style_tags) = self.style.text_styles.get(&span.style) {
                 parts.push(style_tags.begin.clone());
+            }
+
+            if !span.text.is_empty() {
+                self.push_text_fragment(parts, &span.text);
             }
 
             for child in &span.children {
@@ -498,6 +580,180 @@ impl<W: Write> Formatter<W> {
         }
 
         Ok(())
+    }
+
+    fn collect_link_text(&mut self, span: &Span, parts: &mut Vec<String>) -> std::io::Result<()> {
+        let Some(target) = span.link_target.as_ref() else {
+            if !span.text.is_empty() {
+                self.push_text_fragment(parts, &span.text);
+            }
+            for child in &span.children {
+                self.collect_formatted_text(child, parts)?;
+            }
+            return Ok(());
+        };
+
+        if !span.has_content() {
+            let display = if self.style.enable_osc8_hyperlinks {
+                self.osc8_wrap(target, target)
+            } else {
+                target.clone()
+            };
+            self.push_text_fragment(parts, &display);
+            return Ok(());
+        }
+
+        if Self::is_mailto_with_matching_description(span, target) {
+            if self.style.enable_osc8_hyperlinks {
+                parts.push(self.osc8_start(target));
+            }
+
+            if !span.text.is_empty() {
+                self.push_text_fragment(parts, &span.text);
+            }
+
+            for child in &span.children {
+                self.collect_formatted_text(child, parts)?;
+            }
+
+            if self.style.enable_osc8_hyperlinks {
+                parts.push(self.osc8_end());
+            }
+
+            return Ok(());
+        }
+
+        let index = self.register_numbered_link(target);
+
+        if self.style.enable_osc8_hyperlinks {
+            parts.push(self.osc8_start(target));
+        }
+
+        if !span.text.is_empty() {
+            self.push_text_fragment(parts, &span.text);
+        }
+
+        for child in &span.children {
+            self.collect_formatted_text(child, parts)?;
+        }
+
+        if self.style.enable_osc8_hyperlinks {
+            parts.push(self.osc8_end());
+        }
+
+        parts.push(self.inline_link_index(index));
+        Ok(())
+    }
+
+    fn is_mailto_with_matching_description(span: &Span, target: &str) -> bool {
+        let Some(address) = target.strip_prefix("mailto:") else {
+            return false;
+        };
+
+        let mut description = String::new();
+        Self::collect_visible_text(span, &mut description);
+
+        if description.is_empty() {
+            return false;
+        }
+
+        description.trim() == address.trim()
+    }
+
+    fn collect_visible_text(span: &Span, buffer: &mut String) {
+        if !span.text.is_empty() {
+            buffer.push_str(&span.text);
+        }
+
+        for child in &span.children {
+            Self::collect_visible_text(child, buffer);
+        }
+    }
+
+    fn push_text_fragment(&self, parts: &mut Vec<String>, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+
+        if text.contains('\n') {
+            for (i, line) in text.split('\n').enumerate() {
+                if i > 0 {
+                    parts.push("\n".to_string());
+                }
+                if !line.is_empty() {
+                    parts.push(line.to_string());
+                }
+            }
+        } else {
+            parts.push(text.to_string());
+        }
+    }
+
+    fn register_numbered_link(&mut self, target: &str) -> usize {
+        if let Some(&index) = self.link_indices.get(target) {
+            return index;
+        }
+
+        let index = self.next_link_index;
+        self.next_link_index += 1;
+        self.pending_links.push(LinkReference {
+            index,
+            target: target.to_string(),
+        });
+        self.link_indices.insert(target.to_string(), index);
+        index
+    }
+
+    fn osc8_start(&self, target: &str) -> String {
+        format!("\x1b]8;;{}\x1b\\", target)
+    }
+
+    fn osc8_end(&self) -> String {
+        "\x1b]8;;\x1b\\".to_string()
+    }
+
+    fn osc8_wrap(&self, target: &str, text: &str) -> String {
+        if self.style.enable_osc8_hyperlinks {
+            format!("\x1b]8;;{}\x1b\\{}\x1b]8;;\x1b\\", target, text)
+        } else {
+            text.to_string()
+        }
+    }
+
+    fn link_label(&self, index: usize, max_width: usize) -> String {
+        let mut label = self.format_link_index(index);
+        while label.chars().count() < max_width {
+            label.insert(0, ' ');
+        }
+        label.push(' ');
+        label
+    }
+
+    fn inline_link_index(&self, index: usize) -> String {
+        match self.style.link_index_format {
+            LinkIndexFormat::SuperscriptArabic => self.superscript_number(index),
+            LinkIndexFormat::Bracketed => format!("[{}]", index),
+        }
+    }
+
+    fn format_link_index(&self, index: usize) -> String {
+        match self.style.link_index_format {
+            LinkIndexFormat::SuperscriptArabic => self.superscript_number(index),
+            LinkIndexFormat::Bracketed => format!("[{}]", index),
+        }
+    }
+
+    fn superscript_number(&self, index: usize) -> String {
+        const SUPERSCRIPTS: [char; 10] = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+        index
+            .to_string()
+            .chars()
+            .map(|ch| {
+                ch.to_digit(10)
+                    .and_then(|digit| SUPERSCRIPTS.get(digit as usize).copied())
+                    .unwrap_or(ch)
+            })
+            .collect()
     }
 
     fn write_wrapped_text(
@@ -519,6 +775,7 @@ impl<W: Write> Formatter<W> {
         }
 
         let mut active_styles: Vec<InlineStyle> = Vec::new();
+        let mut active_osc_links: Vec<String> = Vec::new();
 
         if has_forced_breaks {
             let lines: Vec<&str> = full_text.split('\n').collect();
@@ -530,14 +787,16 @@ impl<W: Write> Formatter<W> {
                         prefix.chars().count(),
                         continuation_prefix,
                         &mut active_styles,
+                        &mut active_osc_links,
                     )?;
                 } else {
-                    self.write_line_break(continuation_prefix, &active_styles)?;
+                    self.write_line_break(continuation_prefix, &active_styles, &active_osc_links)?;
                     self.write_wrapped_line(
                         line,
                         continuation_prefix.chars().count(),
                         continuation_prefix,
                         &mut active_styles,
+                        &mut active_osc_links,
                     )?;
                 }
             }
@@ -548,6 +807,7 @@ impl<W: Write> Formatter<W> {
                 prefix.chars().count(),
                 continuation_prefix,
                 &mut active_styles,
+                &mut active_osc_links,
             )?;
         }
 
@@ -560,6 +820,7 @@ impl<W: Write> Formatter<W> {
         initial_width: usize,
         continuation_prefix: &str,
         active_styles: &mut Vec<InlineStyle>,
+        active_osc_links: &mut Vec<String>,
     ) -> std::io::Result<()> {
         if text.is_empty() {
             return Ok(());
@@ -630,7 +891,7 @@ impl<W: Write> Formatter<W> {
             {
                 let trimmed_line = current_line.trim_end();
                 write!(self.writer, "{}", trimmed_line)?;
-                self.write_line_break(continuation_prefix, active_styles)?;
+                self.write_line_break(continuation_prefix, active_styles, active_osc_links)?;
                 line_width = continuation_prefix.chars().count();
                 current_line.clear();
                 pending_whitespace.clear();
@@ -645,6 +906,7 @@ impl<W: Write> Formatter<W> {
             current_line.push_str(&token);
             line_width += word_width;
             self.update_active_styles_from_text(&token, active_styles);
+            self.update_active_osc_links_from_text(&token, active_osc_links);
         }
 
         if !current_line.is_empty() {
@@ -659,10 +921,13 @@ impl<W: Write> Formatter<W> {
         &mut self,
         continuation_prefix: &str,
         active_styles: &[InlineStyle],
+        active_osc_links: &[String],
     ) -> std::io::Result<()> {
         self.write_style_resets(active_styles)?;
+        self.write_osc8_resets(active_osc_links)?;
         writeln!(self.writer)?;
         write!(self.writer, "{}", continuation_prefix)?;
+        self.reapply_osc8_links(active_osc_links)?;
         self.reapply_active_styles(active_styles)?;
         Ok(())
     }
@@ -676,10 +941,28 @@ impl<W: Write> Formatter<W> {
         Ok(())
     }
 
+    fn write_osc8_resets(&mut self, active_osc_links: &[String]) -> std::io::Result<()> {
+        if self.style.enable_osc8_hyperlinks {
+            for _ in active_osc_links.iter().rev() {
+                write!(self.writer, "{}", self.osc8_end())?;
+            }
+        }
+        Ok(())
+    }
+
     fn reapply_active_styles(&mut self, active_styles: &[InlineStyle]) -> std::io::Result<()> {
         for style in active_styles {
             if let Some(tags) = self.style.text_styles.get(style) {
                 write!(self.writer, "{}", tags.begin)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn reapply_osc8_links(&mut self, active_osc_links: &[String]) -> std::io::Result<()> {
+        if self.style.enable_osc8_hyperlinks {
+            for target in active_osc_links {
+                write!(self.writer, "{}", self.osc8_start(target))?;
             }
         }
         Ok(())
@@ -695,6 +978,22 @@ impl<W: Write> Formatter<W> {
                 if let Some(idx) = active_styles.iter().rposition(|s| *s == style) {
                     active_styles.remove(idx);
                 }
+            }
+        }
+    }
+
+    fn update_active_osc_links_from_text(&self, text: &str, active_osc_links: &mut Vec<String>) {
+        if !self.style.enable_osc8_hyperlinks {
+            return;
+        }
+
+        let osc_regex = regex::Regex::new(r"\x1b]8;;([^\x1b]*)\x1b\\").unwrap();
+        for capture in osc_regex.captures_iter(text) {
+            let target = capture.get(1).map(|m| m.as_str()).unwrap_or("");
+            if target.is_empty() {
+                let _ = active_osc_links.pop();
+            } else {
+                active_osc_links.push(target.to_string());
             }
         }
     }
@@ -722,7 +1021,9 @@ impl<W: Write> Formatter<W> {
     fn visible_width(&self, text: &str) -> usize {
         // Remove ANSI escape sequences for width calculation
         let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-        let visible_text = ansi_regex.replace_all(text, "");
+        let osc_regex = regex::Regex::new(r"\x1b]8;;[^\x1b]*\x1b\\").unwrap();
+        let without_ansi = ansi_regex.replace_all(text, "");
+        let visible_text = osc_regex.replace_all(&without_ansi, "");
         visible_text.chars().count()
     }
 }
@@ -819,6 +1120,297 @@ mod tests {
             result.contains("\x1b[27m\n| \x1b[7m"),
             "Expected quote prefix to remain unstyled around forced line breaks"
         );
+    }
+
+    #[test]
+    fn test_ascii_links_with_footnotes() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("Docs¹"));
+        assert!(result.contains("¹ https://example.com/docs"));
+        assert!(result.contains("https://example.com/plain"));
+        assert!(!result.contains("https://example.com/plain¹"));
+
+        let footnote_pos = result.find("¹ https://example.com/docs").unwrap();
+        let heading_pos = result.find("Next section").unwrap();
+        assert!(footnote_pos < heading_pos);
+        let footnote_entry = "¹ https://example.com/docs";
+        let footer_start = result.find(footnote_entry).unwrap();
+        let after_entry = footer_start + footnote_entry.len();
+        assert!(
+            result[after_entry..].starts_with('\n'),
+            "expected newline after footnote entry"
+        );
+    }
+
+    #[test]
+    fn test_ansi_links_with_footnotes() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        Formatter::new_ansi(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        let docs_pos = result.find("Docs").unwrap();
+        let index_marker = "\x1b]8;;\x1b\\¹";
+        let index_pos = result
+            .find(index_marker)
+            .expect("superscript index marker missing");
+        assert!(docs_pos < index_pos);
+        assert!(result.contains(
+            "\x1b]8;;https://example.com/plain\x1b\\https://example.com/plain\x1b]8;;\x1b\\"
+        ));
+        assert!(result.contains(
+            "¹ \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+        ));
+        assert!(result.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn test_duplicate_links_share_indices() {
+        let doc = doc(vec![p_(vec![
+            span("See "),
+            link_text__("https://example.com/docs", "Docs"),
+            span(" and later revisit "),
+            link_text__("https://example.com/docs", "Docs again"),
+            span(" for details."),
+        ])]);
+
+        let mut ascii_output = Vec::new();
+        Formatter::new_ascii(&mut ascii_output)
+            .write_document(&doc)
+            .unwrap();
+        let ascii_result = String::from_utf8(ascii_output).unwrap();
+        assert!(ascii_result.contains("Docs¹"));
+        assert!(ascii_result.contains("Docs again¹"));
+        assert_eq!(ascii_result.matches("\n¹ ").count(), 1);
+        assert!(!ascii_result.contains('²'));
+
+        let mut ansi_output = Vec::new();
+        Formatter::new_ansi(&mut ansi_output)
+            .write_document(&doc)
+            .unwrap();
+        let ansi_result = String::from_utf8(ansi_output).unwrap();
+        assert!(ansi_result.contains("Docs\x1b]8;;\x1b\\¹"));
+        assert!(ansi_result.contains("Docs again\x1b]8;;\x1b\\¹"));
+        assert_eq!(ansi_result.matches("\n¹ ").count(), 1);
+        assert!(!ansi_result.contains('²'));
+    }
+
+    #[test]
+    fn test_ascii_links_with_bracketed_indices() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ascii();
+        style.link_index_format = LinkIndexFormat::Bracketed;
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("Docs[1]"));
+        assert!(result.contains("[1] https://example.com/docs"));
+        assert!(!result.contains("https://example.com/plain["));
+    }
+
+    #[test]
+    fn test_ascii_mailto_links_skip_footnotes() {
+        let doc = doc(vec![p_(vec![
+            span("Contact "),
+            link_text__("mailto:support@example.com", "support@example.com"),
+            span(" or visit "),
+            link_text__("https://example.com/docs", "Docs"),
+            span("."),
+        ])]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("support@example.com"));
+        assert!(!result.contains("support@example.com¹"));
+        assert!(!result.contains("mailto:"));
+        assert!(result.contains("Docs¹"));
+        assert!(result.contains("¹ https://example.com/docs"));
+    }
+
+    #[test]
+    fn test_ansi_mailto_links_skip_indices() {
+        let doc = doc(vec![p_(vec![
+            span("Contact "),
+            link_text__("mailto:support@example.com", "support@example.com"),
+            span(" or visit "),
+            link_text__("https://example.com/docs", "Docs"),
+            span("."),
+        ])]);
+
+        let mut output = Vec::new();
+        Formatter::new_ansi(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let mailto_sequence =
+            "\x1b]8;;mailto:support@example.com\x1b\\support@example.com\x1b]8;;\x1b\\";
+        assert!(
+            result.contains(mailto_sequence),
+            "expected OSC 8 wrapped mailto link"
+        );
+        assert!(!result.contains("support@example.com\x1b]8;;\x1b\\¹"));
+        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains(
+            "¹ \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+        ));
+        assert!(result.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn test_ansi_links_with_bracketed_indices() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ansi();
+        style.link_index_format = LinkIndexFormat::Bracketed;
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains("\x1b]8;;\x1b\\[1]"));
+        assert!(result.contains(
+            "[1] \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+        ));
+    }
+
+    #[test]
+    fn test_ansi_wrapped_links_emit_osc8_sequences() {
+        let doc = doc(vec![p_(vec![
+            span("See "),
+            link_text__(
+                "https://example.com",
+                "this link text will wrap across multiple lines for testing",
+            ),
+            span(" please."),
+        ])]);
+
+        let mut style = FormattingStyle::ansi();
+        style.wrap_width = 30;
+
+        let mut output = Vec::new();
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(
+            result.contains("\x1b]8;;https://example.com\x1b\\this"),
+            "expected OSC 8 hyperlink start before link text"
+        );
+        assert!(
+            result.contains("\x1b]8;;\x1b\\\n\x1b]8;;https://example.com\x1b\\"),
+            "expected OSC 8 hyperlink to close before wrap newline and reopen afterwards:\n{}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_superscript_link_list_alignment() {
+        let mut spans = Vec::new();
+        for i in 1..=10 {
+            if i > 1 {
+                spans.push(span(", "));
+            }
+            let target = format!("https://example.com/{}", i);
+            let text = format!("Doc{}", i);
+            spans.push(link_text__(&target, &text));
+        }
+
+        let doc = doc(vec![p_(spans)]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\n ¹ https://example.com/1"));
+        assert!(!result.contains("\n¹ https://example.com/1"));
+        assert!(result.contains("\n¹⁰ https://example.com/10"));
+    }
+
+    #[test]
+    fn test_bracketed_link_list_alignment() {
+        let mut spans = Vec::new();
+        for i in 1..=10 {
+            if i > 1 {
+                spans.push(span(", "));
+            }
+            let target = format!("https://example.com/{}", i);
+            let text = format!("Doc{}", i);
+            spans.push(link_text__(&target, &text));
+        }
+        let doc = doc(vec![p_(spans)]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ascii();
+        style.link_index_format = LinkIndexFormat::Bracketed;
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\n [1] https://example.com/1"));
+        assert!(!result.contains("\n[1] https://example.com/1"));
+        assert!(result.contains("\n[10] https://example.com/10"));
     }
 
     #[test]

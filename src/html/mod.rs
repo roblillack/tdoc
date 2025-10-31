@@ -14,6 +14,11 @@ const LINE_BREAK_ELEMENT_NAME: &str = "br";
 
 type ParagraphNode = Rc<RefCell<ParagraphBuilder>>;
 
+struct SpanOutcome {
+    span: Span,
+    had_visible_text: bool,
+}
+
 /// Parses a snippet of HTML into a [`Document`](crate::Document).
 ///
 /// # Examples
@@ -137,8 +142,7 @@ impl<'a> Parser<'a> {
     ) -> Result<(), HtmlError> {
         let node = self.down(para_type)?;
 
-        let (content, extra_token, closed) =
-            self.read_content(end_tag.as_deref(), start_text)?;
+        let (content, extra_token, closed) = self.read_content(end_tag.as_deref(), start_text)?;
 
         if para_type == ParagraphType::Quote && has_meaningful_content(&content) {
             let text_para = self.down(ParagraphType::Text)?;
@@ -232,8 +236,16 @@ impl<'a> Parser<'a> {
                     }
 
                     let style = inline_style_for(&name).unwrap_or(InlineStyle::None);
-                    let span = self.read_span(style, &name)?;
-                    spans.add(span);
+                    let link_target = if style == InlineStyle::Link {
+                        start.attribute("href")
+                    } else {
+                        None
+                    };
+                    let outcome = self.read_span(style, &name, link_target)?;
+                    if should_skip_link_span(&outcome.span, outcome.had_visible_text) {
+                        continue;
+                    }
+                    spans.add(outcome.span);
                 }
                 Token::EmptyElement(empty) => {
                     let name = lowercase_name(empty.name());
@@ -250,9 +262,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn read_span(&mut self, style: InlineStyle, end_tag: &str) -> Result<Span, HtmlError> {
+    fn read_span(
+        &mut self,
+        style: InlineStyle,
+        end_tag: &str,
+        link_target: Option<String>,
+    ) -> Result<SpanOutcome, HtmlError> {
         let mut children = Vec::new();
         let mut first = false;
+        let link_target = link_target.map(decode_html);
+        let mut had_visible_text = false;
 
         loop {
             let (text, token) = self.read_text()?;
@@ -261,12 +280,19 @@ impl<'a> Parser<'a> {
                 let collapsed = collapse_whitespace(&text, first, false);
                 let decoded = decode_html(collapsed);
                 if !decoded.is_empty() {
+                    if !decoded.trim().is_empty() {
+                        had_visible_text = true;
+                    }
                     children.push(Span::new_text(decoded));
                 }
             }
 
             let Some(token) = token else {
-                return Ok(build_span(style, children));
+                let span = build_span(style, children, link_target.clone());
+                return Ok(SpanOutcome {
+                    span,
+                    had_visible_text,
+                });
             };
 
             if is_line_break(&token) {
@@ -287,17 +313,36 @@ impl<'a> Parser<'a> {
                 Token::StartElement(start) => {
                     let name = lowercase_name(start.name());
                     if is_block_level(&name) {
-                        return Ok(build_span(style, children));
+                        let span = build_span(style, children, link_target.clone());
+                        return Ok(SpanOutcome {
+                            span,
+                            had_visible_text,
+                        });
                     }
 
                     let nested_style = inline_style_for(&name).unwrap_or(InlineStyle::None);
-                    let span = self.read_span(nested_style, &name)?;
-                    children.push(span);
+                    let nested_link = if nested_style == InlineStyle::Link {
+                        start.attribute("href")
+                    } else {
+                        None
+                    };
+                    let outcome = self.read_span(nested_style, &name, nested_link)?;
+                    if should_skip_link_span(&outcome.span, outcome.had_visible_text) {
+                        continue;
+                    }
+                    if outcome.had_visible_text {
+                        had_visible_text = true;
+                    }
+                    children.push(outcome.span);
                 }
                 Token::EndElement(end) => {
                     let name = lowercase_name(end.name());
                     if name == end_tag || is_block_level(&name) {
-                        return Ok(build_span(style, children));
+                        let span = build_span(style, children, link_target.clone());
+                        return Ok(SpanOutcome {
+                            span,
+                            had_visible_text,
+                        });
                     }
                 }
                 _ => {}
@@ -621,15 +666,50 @@ fn has_meaningful_content(spans: &[Span]) -> bool {
         return true;
     }
 
-    spans.first()
+    spans
+        .first()
         .map(|span| !span.children.is_empty() || !span.text.trim().is_empty())
         .unwrap_or(false)
 }
 
-fn build_span(style: InlineStyle, children: Vec<Span>) -> Span {
+fn build_span(style: InlineStyle, children: Vec<Span>, link_target: Option<String>) -> Span {
+    if style == InlineStyle::Link {
+        if let Some(target) = link_target {
+            let trimmed = target.trim();
+            if trimmed.is_empty() || trimmed == "#" {
+                return collapse_link_children(children);
+            }
+
+            let mut span = Span::new_styled(InlineStyle::Link);
+            span.children = children;
+            if trimmed == target {
+                span.link_target = Some(target);
+            } else {
+                span.link_target = Some(trimmed.to_string());
+            }
+            span.strip_redundant_link_description();
+            return span;
+        } else {
+            return collapse_link_children(children);
+        }
+    }
+
     let mut span = Span::new_styled(style);
     span.children = children;
+    span.link_target = link_target;
     span
+}
+
+fn collapse_link_children(mut children: Vec<Span>) -> Span {
+    match children.len() {
+        0 => Span::new_styled(InlineStyle::None),
+        1 => children.pop().unwrap(),
+        _ => Span::new_styled(InlineStyle::None).with_children(children),
+    }
+}
+
+fn should_skip_link_span(span: &Span, had_visible_text: bool) -> bool {
+    span.style == InlineStyle::Link && span.link_target.is_some() && !had_visible_text
 }
 
 fn lowercase_name(name: &str) -> String {
@@ -657,6 +737,7 @@ fn inline_style_for(tag: &str) -> Option<InlineStyle> {
         "s" | "del" | "strike" => Some(InlineStyle::Strike),
         "mark" => Some(InlineStyle::Highlight),
         "code" | "tt" => Some(InlineStyle::Code),
+        "a" => Some(InlineStyle::Link),
         _ => None,
     }
 }
@@ -664,8 +745,7 @@ fn inline_style_for(tag: &str) -> Option<InlineStyle> {
 fn is_block_level(tag: &str) -> bool {
     matches!(
         tag,
-        "p"
-            | "div"
+        "p" | "div"
             | "h1"
             | "h2"
             | "h3"
@@ -697,4 +777,66 @@ fn is_line_break_element(tag: &str) -> bool {
 
 fn is_transparent_container_element(tag: &str) -> bool {
     matches!(tag, "div")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn skips_link_without_description() {
+        let input = "<p><a href=\"https://example.com\"></a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
+        assert!(paragraph.content.is_empty());
+    }
+
+    #[test]
+    fn keeps_link_when_description_matches_target() {
+        let input = "<p><a href=\"https://example.com\">https://example.com</a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
+        assert_eq!(paragraph.content.len(), 1);
+
+        let span = &paragraph.content[0];
+        assert_eq!(span.style, InlineStyle::Link);
+        assert_eq!(span.link_target.as_deref(), Some("https://example.com"));
+        assert!(span.children.is_empty());
+        assert!(span.text.is_empty());
+    }
+
+    #[test]
+    fn ignores_empty_link_targets() {
+        let input = "<p><a href=\"\">Example</a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 1);
+
+        let span = &paragraph.content[0];
+        assert_eq!(span.style, InlineStyle::None);
+        assert!(span.link_target.is_none());
+        assert_eq!(span.text, "Example");
+    }
+
+    #[test]
+    fn ignores_hash_link_targets() {
+        let input = "<p><a href=\"#\">Anchor label</a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 1);
+
+        let span = &paragraph.content[0];
+        assert_eq!(span.style, InlineStyle::None);
+        assert!(span.link_target.is_none());
+        assert_eq!(span.text, "Anchor label");
+    }
 }

@@ -99,10 +99,48 @@ impl Span {
         self
     }
 
+    /// Returns `true` when the span has either direct text or child spans.
+    pub fn has_content(&self) -> bool {
+        !self.text.is_empty() || !self.children.is_empty()
+    }
+
+    /// Returns `true` when the span has neither text nor child spans.
+    pub fn is_content_empty(&self) -> bool {
+        self.text.is_empty() && self.children.is_empty()
+    }
+
     /// Sets the link target for [`InlineStyle::Link`] spans.
     pub fn with_link_target(mut self, target: impl Into<String>) -> Self {
         self.link_target = Some(target.into());
         self
+    }
+
+    /// Removes redundant link descriptions when they match the target URL.
+    pub fn strip_redundant_link_description(&mut self) {
+        if self.style != InlineStyle::Link {
+            return;
+        }
+
+        let Some(target) = self.link_target.as_ref() else {
+            return;
+        };
+
+        let mut description = String::new();
+        self.collect_visible_text(&mut description);
+
+        if description.trim() == target.trim() {
+            self.text.clear();
+            self.children.clear();
+        }
+    }
+
+    fn collect_visible_text(&self, buffer: &mut String) {
+        if !self.text.is_empty() {
+            buffer.push_str(&self.text);
+        }
+        for child in &self.children {
+            child.collect_visible_text(buffer);
+        }
     }
 
     /// Returns `true` if the span's text or last descendant ends with `\n`.
