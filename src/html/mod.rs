@@ -643,13 +643,39 @@ fn has_meaningful_content(spans: &[Span]) -> bool {
 }
 
 fn build_span(style: InlineStyle, children: Vec<Span>, link_target: Option<String>) -> Span {
+    if style == InlineStyle::Link {
+        if let Some(target) = link_target {
+            let trimmed = target.trim();
+            if trimmed.is_empty() || trimmed == "#" {
+                return collapse_link_children(children);
+            }
+
+            let mut span = Span::new_styled(InlineStyle::Link);
+            span.children = children;
+            if trimmed == target {
+                span.link_target = Some(target);
+            } else {
+                span.link_target = Some(trimmed.to_string());
+            }
+            span.strip_redundant_link_description();
+            return span;
+        } else {
+            return collapse_link_children(children);
+        }
+    }
+
     let mut span = Span::new_styled(style);
     span.children = children;
-    if style == InlineStyle::Link {
-        span.link_target = link_target;
-        span.strip_redundant_link_description();
-    }
+    span.link_target = link_target;
     span
+}
+
+fn collapse_link_children(mut children: Vec<Span>) -> Span {
+    match children.len() {
+        0 => Span::new_styled(InlineStyle::None),
+        1 => children.pop().unwrap(),
+        _ => Span::new_styled(InlineStyle::None).with_children(children),
+    }
 }
 
 fn lowercase_name(name: &str) -> String {
@@ -742,5 +768,33 @@ mod tests {
         );
         assert!(link_span.children.is_empty());
         assert!(link_span.text.is_empty());
+    }
+
+    #[test]
+    fn ignores_empty_link_targets() {
+        let input = "<p><a href=\"\">Example</a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 1);
+
+        let span = &paragraph.content[0];
+        assert_eq!(span.style, InlineStyle::None);
+        assert!(span.link_target.is_none());
+        assert_eq!(span.text, "Example");
+    }
+
+    #[test]
+    fn ignores_hash_link_targets() {
+        let input = "<p><a href=\"#\">Anchor label</a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 1);
+
+        let span = &paragraph.content[0];
+        assert_eq!(span.style, InlineStyle::None);
+        assert!(span.link_target.is_none());
+        assert_eq!(span.text, "Anchor label");
     }
 }
