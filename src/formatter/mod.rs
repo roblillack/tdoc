@@ -780,6 +780,7 @@ impl<W: Write> Formatter<W> {
         }
 
         let mut active_styles: Vec<InlineStyle> = Vec::new();
+        let mut active_osc_links: Vec<String> = Vec::new();
 
         if has_forced_breaks {
             let lines: Vec<&str> = full_text.split('\n').collect();
@@ -791,14 +792,20 @@ impl<W: Write> Formatter<W> {
                         prefix.chars().count(),
                         continuation_prefix,
                         &mut active_styles,
+                        &mut active_osc_links,
                     )?;
                 } else {
-                    self.write_line_break(continuation_prefix, &active_styles)?;
+                    self.write_line_break(
+                        continuation_prefix,
+                        &active_styles,
+                        &active_osc_links,
+                    )?;
                     self.write_wrapped_line(
                         line,
                         continuation_prefix.chars().count(),
                         continuation_prefix,
                         &mut active_styles,
+                        &mut active_osc_links,
                     )?;
                 }
             }
@@ -809,6 +816,7 @@ impl<W: Write> Formatter<W> {
                 prefix.chars().count(),
                 continuation_prefix,
                 &mut active_styles,
+                &mut active_osc_links,
             )?;
         }
 
@@ -821,6 +829,7 @@ impl<W: Write> Formatter<W> {
         initial_width: usize,
         continuation_prefix: &str,
         active_styles: &mut Vec<InlineStyle>,
+        active_osc_links: &mut Vec<String>,
     ) -> std::io::Result<()> {
         if text.is_empty() {
             return Ok(());
@@ -891,7 +900,11 @@ impl<W: Write> Formatter<W> {
             {
                 let trimmed_line = current_line.trim_end();
                 write!(self.writer, "{}", trimmed_line)?;
-                self.write_line_break(continuation_prefix, active_styles)?;
+                self.write_line_break(
+                    continuation_prefix,
+                    active_styles,
+                    active_osc_links,
+                )?;
                 line_width = continuation_prefix.chars().count();
                 current_line.clear();
                 pending_whitespace.clear();
@@ -906,6 +919,7 @@ impl<W: Write> Formatter<W> {
             current_line.push_str(&token);
             line_width += word_width;
             self.update_active_styles_from_text(&token, active_styles);
+            self.update_active_osc_links_from_text(&token, active_osc_links);
         }
 
         if !current_line.is_empty() {
@@ -920,10 +934,13 @@ impl<W: Write> Formatter<W> {
         &mut self,
         continuation_prefix: &str,
         active_styles: &[InlineStyle],
+        active_osc_links: &[String],
     ) -> std::io::Result<()> {
         self.write_style_resets(active_styles)?;
+        self.write_osc8_resets(active_osc_links)?;
         writeln!(self.writer)?;
         write!(self.writer, "{}", continuation_prefix)?;
+        self.reapply_osc8_links(active_osc_links)?;
         self.reapply_active_styles(active_styles)?;
         Ok(())
     }
@@ -937,10 +954,28 @@ impl<W: Write> Formatter<W> {
         Ok(())
     }
 
+    fn write_osc8_resets(&mut self, active_osc_links: &[String]) -> std::io::Result<()> {
+        if self.style.enable_osc8_hyperlinks {
+            for _ in active_osc_links.iter().rev() {
+                write!(self.writer, "{}", self.osc8_end())?;
+            }
+        }
+        Ok(())
+    }
+
     fn reapply_active_styles(&mut self, active_styles: &[InlineStyle]) -> std::io::Result<()> {
         for style in active_styles {
             if let Some(tags) = self.style.text_styles.get(style) {
                 write!(self.writer, "{}", tags.begin)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn reapply_osc8_links(&mut self, active_osc_links: &[String]) -> std::io::Result<()> {
+        if self.style.enable_osc8_hyperlinks {
+            for target in active_osc_links {
+                write!(self.writer, "{}", self.osc8_start(target))?;
             }
         }
         Ok(())
@@ -956,6 +991,26 @@ impl<W: Write> Formatter<W> {
                 if let Some(idx) = active_styles.iter().rposition(|s| *s == style) {
                     active_styles.remove(idx);
                 }
+            }
+        }
+    }
+
+    fn update_active_osc_links_from_text(
+        &self,
+        text: &str,
+        active_osc_links: &mut Vec<String>,
+    ) {
+        if !self.style.enable_osc8_hyperlinks {
+            return;
+        }
+
+        let osc_regex = regex::Regex::new(r"\x1b]8;;([^\x1b]*)\x1b\\").unwrap();
+        for capture in osc_regex.captures_iter(text) {
+            let target = capture.get(1).map(|m| m.as_str()).unwrap_or("");
+            if target.is_empty() {
+                let _ = active_osc_links.pop();
+            } else {
+                active_osc_links.push(target.to_string());
             }
         }
     }
@@ -1291,6 +1346,37 @@ mod tests {
         assert!(result.contains(
             "[1] \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
         ));
+    }
+
+    #[test]
+    fn test_ansi_wrapped_links_emit_osc8_sequences() {
+        let doc = doc(vec![p_(vec![
+            span("See "),
+            link_text__(
+                "https://example.com",
+                "this link text will wrap across multiple lines for testing",
+            ),
+            span(" please."),
+        ])]);
+
+        let mut style = FormattingStyle::ansi();
+        style.wrap_width = 30;
+
+        let mut output = Vec::new();
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(
+            result.contains("\x1b]8;;https://example.com\x1b\\this"),
+            "expected OSC 8 hyperlink start before link text"
+        );
+        assert!(
+            result.contains("\x1b]8;;\x1b\\\n\x1b]8;;https://example.com\x1b\\"),
+            "expected OSC 8 hyperlink to close before wrap newline and reopen afterwards:\n{}",
+            result
+        );
     }
 
     #[test]
