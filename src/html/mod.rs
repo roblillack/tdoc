@@ -647,6 +647,7 @@ fn build_span(style: InlineStyle, children: Vec<Span>, link_target: Option<Strin
     span.children = children;
     if style == InlineStyle::Link {
         span.link_target = link_target;
+        span.strip_redundant_link_description();
     }
     span
 }
@@ -716,4 +717,30 @@ fn is_line_break_element(tag: &str) -> bool {
 
 fn is_transparent_container_element(tag: &str) -> bool {
     matches!(tag, "div")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn parses_link_without_description() {
+        let input = "<p><a href=\"https://example.com\">https://example.com</a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
+        assert_eq!(paragraph.content.len(), 1);
+
+        let link_span = &paragraph.content[0];
+        assert_eq!(link_span.style, InlineStyle::Link);
+        assert_eq!(
+            link_span.link_target.as_deref(),
+            Some("https://example.com")
+        );
+        assert!(link_span.children.is_empty());
+        assert!(link_span.text.is_empty());
+    }
 }

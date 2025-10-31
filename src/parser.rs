@@ -786,6 +786,7 @@ impl Parser {
                         buffer.clear();
                     }
                     span.children = children;
+                    span.strip_redundant_link_description();
                     return Ok(span);
                 }
                 Token::SelfClosingTag(tag) => {
@@ -1017,5 +1018,24 @@ mod tests {
         );
         assert_eq!(link_span.children.len(), 1);
         assert_eq!(link_span.children[0].text, "Example");
+    }
+
+    #[test]
+    fn test_link_without_description() {
+        let input = "<p><a href=\"https://example.com\">https://example.com</a></p>";
+        let doc = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(doc.paragraphs.len(), 1);
+        let paragraph = &doc.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 1);
+
+        let link_span = &paragraph.content[0];
+        assert_eq!(link_span.style, InlineStyle::Link);
+        assert_eq!(
+            link_span.link_target.as_deref(),
+            Some("https://example.com")
+        );
+        assert!(link_span.children.is_empty());
+        assert!(link_span.text.is_empty());
     }
 }

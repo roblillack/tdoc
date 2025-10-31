@@ -115,6 +115,34 @@ impl Span {
         self
     }
 
+    /// Removes redundant link descriptions when they match the target URL.
+    pub fn strip_redundant_link_description(&mut self) {
+        if self.style != InlineStyle::Link {
+            return;
+        }
+
+        let Some(target) = self.link_target.as_ref() else {
+            return;
+        };
+
+        let mut description = String::new();
+        self.collect_visible_text(&mut description);
+
+        if description.trim() == target.trim() {
+            self.text.clear();
+            self.children.clear();
+        }
+    }
+
+    fn collect_visible_text(&self, buffer: &mut String) {
+        if !self.text.is_empty() {
+            buffer.push_str(&self.text);
+        }
+        for child in &self.children {
+            child.collect_visible_text(buffer);
+        }
+    }
+
     /// Returns `true` if the span's text or last descendant ends with `\n`.
     pub fn ends_with_line_break(&self) -> bool {
         if !self.children.is_empty() {
