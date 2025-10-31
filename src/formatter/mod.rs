@@ -25,18 +25,13 @@ impl StyleTags {
 }
 
 /// Controls how inline link references are rendered when links need textual markers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum LinkIndexFormat {
     /// Render inline link markers as superscript-style Arabic numerals.
+    #[default]
     SuperscriptArabic,
     /// Render inline link markers as bracketed numbers such as `[1]`.
     Bracketed,
-}
-
-impl Default for LinkIndexFormat {
-    fn default() -> Self {
-        Self::SuperscriptArabic
-    }
 }
 
 #[derive(Clone)]
@@ -795,11 +790,7 @@ impl<W: Write> Formatter<W> {
                         &mut active_osc_links,
                     )?;
                 } else {
-                    self.write_line_break(
-                        continuation_prefix,
-                        &active_styles,
-                        &active_osc_links,
-                    )?;
+                    self.write_line_break(continuation_prefix, &active_styles, &active_osc_links)?;
                     self.write_wrapped_line(
                         line,
                         continuation_prefix.chars().count(),
@@ -900,11 +891,7 @@ impl<W: Write> Formatter<W> {
             {
                 let trimmed_line = current_line.trim_end();
                 write!(self.writer, "{}", trimmed_line)?;
-                self.write_line_break(
-                    continuation_prefix,
-                    active_styles,
-                    active_osc_links,
-                )?;
+                self.write_line_break(continuation_prefix, active_styles, active_osc_links)?;
                 line_width = continuation_prefix.chars().count();
                 current_line.clear();
                 pending_whitespace.clear();
@@ -995,11 +982,7 @@ impl<W: Write> Formatter<W> {
         }
     }
 
-    fn update_active_osc_links_from_text(
-        &self,
-        text: &str,
-        active_osc_links: &mut Vec<String>,
-    ) {
+    fn update_active_osc_links_from_text(&self, text: &str, active_osc_links: &mut Vec<String>) {
         if !self.style.enable_osc8_hyperlinks {
             return;
         }
