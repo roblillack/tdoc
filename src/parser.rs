@@ -181,8 +181,8 @@ impl Tokenizer {
         self.pos = end_pos + 1; // skip '>'
 
         let trimmed = tag_content.trim();
-        if trimmed.starts_with('/') {
-            let name = trimmed[1..].split_whitespace().next().unwrap_or("");
+        if let Some(stripped) = trimmed.strip_prefix('/') {
+            let name = stripped.split_whitespace().next().unwrap_or("");
             return Some(Token::EndTag(name.to_ascii_lowercase()));
         }
 
