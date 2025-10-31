@@ -65,11 +65,8 @@ sind.
 
 Vereinfache deine Teamarbeit
 
-Inspiration Hub   |   Apps herunterladen   |   Help Center ³ ²
-Abbestellen ⁴ ¹ © Doist Inc. 2100 Geng Road, Suite 210 Palo Alto, CA
+Inspiration Hub   |   Apps herunterladen   |   Help Center ¹ ¹
+Abbestellen ¹ ¹ © Doist Inc. 2100 Geng Road, Suite 210 Palo Alto, CA
 94303 Vereinigte Staaten
 
 ¹ https://example.example/TRACKINGLINK/
-² https://example.example/TRACKINGLINK/
-³ https://example.example/TRACKINGLINK/
-⁴ https://example.example/TRACKINGLINK/

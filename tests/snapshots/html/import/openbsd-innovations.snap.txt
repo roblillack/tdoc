@@ -115,7 +115,7 @@ Concepts
    give each process a fresh & unique address space for ASLR, stack
    protector -- as protection against address space discovery attacks.
    Implemented first by Damien Miller (sshd(8)⁴² 2004), Claudio Jeker
-   (bgpd(8)⁴³, 2015), Eric Faurot (smtpd(8)⁴⁴, 2016), Rafael Zalamena
+   (bgpd(8)³, 2015), Eric Faurot (smtpd(8)²³, 2016), Rafael Zalamena
    (various, 2016), and others.
 
  • trapsleds: Reduction of incidental NOP instructions/sequences in the
@@ -131,15 +131,15 @@ Concepts
    address space for each kernel boot, similar to the userland fork+exec
    model described above but for the kernel. Theo de Raadt, June 2017.
 
- • Rearranged i386/amd64 register allocator order in clang(1)⁴⁵ to
+ • Rearranged i386/amd64 register allocator order in clang(1)⁴³ to
    reduce polymorphic RET instructions: Todd Mortimer, November 20,
    2017.
 
  • Reencoding of i386/amd64 instruction sequences to avoid embedded
-   polymorphic RET instructions. Enhancements to clang(1)⁴⁶ Todd
+   polymorphic RET instructions. Enhancements to clang(1)⁴³ Todd
    Mortimer, April 28, 2018 and onwards.
 
- • MAP_STACK addition to mmap(2)⁴⁷ allows opportunistic verification
+ • MAP_STACK addition to mmap(2)⁴⁴ allows opportunistic verification
    that the stack-register points at stack memory, therefore catching
    pivots to non-stack memory (sometimes used in ROP attacks). Theo de
    Raadt, April 12, 2018.
@@ -151,7 +151,7 @@ Concepts
    OpenBSD 6.4, for mips64 in OpenBSD 6.7, and powerpc/powerpc64 in
    OpenBSD 6.9. amd64 system call stubs also protected in OpenBSD 7.3.
 
- • MAP_CONCEAL addition to mmap(2)⁴⁸ disallows memory pages to be
+ • MAP_CONCEAL addition to mmap(2)⁴⁴ disallows memory pages to be
    written to core dumps, preventing accidental exposure of private
    information. Theo de Raadt, Mark Kettenis and Scott Soule Cheloha,
    February 2, 2019.
@@ -162,18 +162,18 @@ Concepts
 
  • System calls may only be performed from selected code regions (main
    program, ld.so, libc.so, and sigtramp). The libc.so region is setup
-   by msyscall(2)⁴⁹. Theo de Raadt, November 28, 2019.
+   by msyscall(2)⁴⁵. Theo de Raadt, November 28, 2019.
    This mechanism was removed because later work on immutable memory +
    pinned system calls was even better.
 
  • Permissions (RWX, MAP_STACK, etc) on address space regions can be
-   made immutable, so that mmap(2)⁵⁰, mprotect(2)⁵¹ or munmap(2)⁵² fail
+   made immutable, so that mmap(2)⁴⁴, mprotect(2)⁴⁶ or munmap(2)⁴⁷ fail
    with EPERM. Most of the program static address space is now
    automatically immutable (main program, ld.so, main stack, load-time
    shared libraries, and dlopen()'d libraries mapped without
    RTLD_NODELETE). Programmers can request non-immutable static data
    using the "openbsd.mutable" section, or manually bring immutability
-   to (page aligned heap objects) using mimmutable(2)⁵³. Theo de Raadt,
+   to (page aligned heap objects) using mimmutable(2)⁴⁸. Theo de Raadt,
    Dec 4, 2022.
 
  • sshd random relinking at boot. Theo de Raadt. Jan 18, 2023.
@@ -201,10 +201,10 @@ Concepts
    together with library relinking. Architectures switched over include
    loongson. Theo de Raadt, Feb 2023.
 
- • ld.so and crt0 register the location of the execve(2)⁵⁴ libc syscall
-   stub with the kernel using pinsyscall(2)⁵⁵, after which the kernel
+ • ld.so and crt0 register the location of the execve(2)⁴⁹ libc syscall
+   stub with the kernel using pinsyscall(2)⁵⁰, after which the kernel
    only accepts an execve call from that specific location. Theo de
-   Raadt, Feb 2023. Made redundant by pinsyscalls(2)⁵⁶ which handles all
+   Raadt, Feb 2023. Made redundant by pinsyscalls(2)⁵¹ which handles all
    system calls.
 
  • Mandatory enforcement of indirect branch targets (BTI on arm64, IBT
@@ -214,10 +214,10 @@ Concepts
  • The kernel and ld.so register the precise entry location of every
    system call used by a program, as described in the new ELF section
    .openbsd.syscalls inside ld.so and libc.so. ld.so uses the new
-   syscall pinsyscalls(2)⁵⁷ to tell the kernel the precise entry
+   syscall pinsyscalls(2)⁵¹ to tell the kernel the precise entry
    location of system calls in libc.so. Since all syscall entries are
    now known to the kernel, the pininsyscall(SYS_execve) interface
-   becomes redundant. msyscall(2)⁵⁸ mechanism also becomes redundant
+   becomes redundant. msyscall(2)⁴⁵ mechanism also becomes redundant
    (and is removed a bit later), because immutable memory + pinsyscalls
    together are cheaper and more effective targeting. Theo de Raadt, Jan
    2024.
@@ -270,22 +270,15 @@ Concepts
 ⁴⁰ https://man.openbsd.org/rc.8
 ⁴¹ https://man.openbsd.org/kbind.2
 ⁴² https://man.openbsd.org/sshd.8
-⁴³ https://man.openbsd.org/bgpd.8
-⁴⁴ https://man.openbsd.org/smtpd.8
-⁴⁵ https://man.openbsd.org/clang.1
-⁴⁶ https://man.openbsd.org/clang.1
-⁴⁷ https://man.openbsd.org/mmap.2
-⁴⁸ https://man.openbsd.org/mmap.2
-⁴⁹ https://man.openbsd.org/msyscall.2
-⁵⁰ https://man.openbsd.org/mmap.2
-⁵¹ https://man.openbsd.org/mprotect.2
-⁵² https://man.openbsd.org/munmap.2
-⁵³ https://man.openbsd.org/mimmutable.2
-⁵⁴ https://man.openbsd.org/execve.2
-⁵⁵ https://man.openbsd.org/pinsyscall.2
-⁵⁶ https://man.openbsd.org/pinsyscalls.2
-⁵⁷ https://man.openbsd.org/pinsyscalls.2
-⁵⁸ https://man.openbsd.org/msyscall.2
+⁴³ https://man.openbsd.org/clang.1
+⁴⁴ https://man.openbsd.org/mmap.2
+⁴⁵ https://man.openbsd.org/msyscall.2
+⁴⁶ https://man.openbsd.org/mprotect.2
+⁴⁷ https://man.openbsd.org/munmap.2
+⁴⁸ https://man.openbsd.org/mimmutable.2
+⁴⁹ https://man.openbsd.org/execve.2
+⁵⁰ https://man.openbsd.org/pinsyscall.2
+⁵¹ https://man.openbsd.org/pinsyscalls.2
 
 Functions
 ---------

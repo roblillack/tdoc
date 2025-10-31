@@ -44,24 +44,24 @@ Was muss ich tun?
     • Unsere neuen Nutzungsbedingungen haben keine Auswirkungen auf die
       Google Workspace-Vereinbarung zwischen Google und Ihrer
       Organisation. Diese neuen Nutzungsbedingungen gelten nur für
-      Nutzer, denen Sie Zugriff auf zusätzliche Google-Dienste⁵ gegeben
+      Nutzer, denen Sie Zugriff auf zusätzliche Google-Dienste⁴ gegeben
       haben. Über die Admin-Konsole können Sie jederzeit festlegen, ob
       Ihre Nutzer auf zusätzliche Google-Dienste zugreifen dürfen und
       auf welche.
 
  • Wenn Sie Google Workspace-Reseller sind und Ihre Kunden ihren Nutzern
-   Zugriff auf zusätzliche Google-Dienste⁶ gegeben haben, gilt
+   Zugriff auf zusätzliche Google-Dienste⁴ gegeben haben, gilt
    Folgendes:
    
     • Unsere neuen Nutzungsbedingungen haben keine Auswirkungen auf die
       Google Workspace-Vereinbarung mit Ihren Kunden. Diese neuen
       Nutzungsbedingungen gelten nur für Nutzer Ihrer Kunden, die
-      Zugriff auf zusätzliche Google-Dienste⁷ erhalten haben. Über die
+      Zugriff auf zusätzliche Google-Dienste⁴ erhalten haben. Über die
       Admin-Konsole können Ihre Kunden jederzeit festlegen, ob ihre
       Nutzer auf zusätzliche Google-Dienste zugreifen dürfen und auf
       welche.
 
- • Für alle anderen Nutzer unserer Dienste⁸ gilt Folgendes:
+ • Für alle anderen Nutzer unserer Dienste¹ gilt Folgendes:
    
     • Bitten lesen Sie diese E‑Mail, um sich über unsere aktualisierten
       Nutzungsbedingungen zu informieren und zu erfahren, welche
@@ -72,11 +72,11 @@ Was muss ich tun?
 
 Was ändert sich?
 
-Hier finden Sie die neuen Google-Nutzungsbedingungen.⁹ Die Änderungen
+Hier finden Sie die neuen Google-Nutzungsbedingungen.² Die Änderungen
 haben wir im Folgenden für Sie zusammengefasst:
 
  • Bedingungen für generative KI. Wir verschieben unsere bisherigen
-   Zusatzbedingungen für generative KI¹⁰ in unsere allgemeinen
+   Zusatzbedingungen für generative KI⁵ in unsere allgemeinen
    Nutzungsbedingungen und fügen weitere Erläuterungen in Zusammenhang
    mit künstlicher Intelligenz hinzu. So erheben wir beispielsweise
    keinen Anspruch auf Eigentumsrechte an Originalinhalten, die mit
@@ -115,12 +115,12 @@ haben wir im Folgenden für Sie zusammengefasst:
    
     • Weitere Informationen finden Sie in dieser Zusammenfassung der
       wichtigsten Änderungen an den Versionen unserer
-      Nutzungsbedingungen für den EWR¹¹.
+      Nutzungsbedingungen für den EWR⁶.
 
 Wenn Sie mit den neuen Nutzungsbedingungen nicht einverstanden sind,
-müssen Sie Ihre Inhalte¹² entfernen und dürfen die Dienste nicht länger
+müssen Sie Ihre Inhalte⁷ entfernen und dürfen die Dienste nicht länger
 nutzen. Sie können Ihr Nutzungsverhältnis mit uns jederzeit kündigen,
-indem Sie Ihr Google-Konto löschen¹³.
+indem Sie Ihr Google-Konto löschen⁸.
 
 Vielen Dank, dass Sie Google-Dienste nutzen.
 
@@ -130,16 +130,11 @@ Ireland.
 Mit dieser E-Mail informieren wir Sie über wichtige Änderungen an den
 Nutzungsbedingungen von Google.
 
- ¹ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fservice-specific%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ² https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fupdate%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ³ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Faccounts%2Fanswer%2F1350409%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ⁴ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ⁵ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ⁶ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ⁷ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ⁸ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fservice-specific%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
- ⁹ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fupdate%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
-¹⁰ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fgenerative-ai%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
-¹¹ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fchanges%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
-¹² https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fdefinitions%23toc-terms-your-content%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
-¹³ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Faccounts%2Fanswer%2F32046%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+¹ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fservice-specific%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+² https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fupdate%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+³ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Faccounts%2Fanswer%2F1350409%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+⁴ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+⁵ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fgenerative-ai%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+⁶ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fchanges%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+⁷ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fdefinitions%23toc-terms-your-content%3Futm_source%3Dtos2024-email%26utm_medium%3Demail
+⁸ https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Faccounts%2Fanswer%2F32046%3Futm_source%3Dtos2024-email%26utm_medium%3Demail

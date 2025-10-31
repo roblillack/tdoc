@@ -123,6 +123,7 @@ pub struct Formatter<W: Write> {
     pub style: FormattingStyle,
     writer: W,
     pending_links: Vec<LinkReference>,
+    link_indices: HashMap<String, usize>,
     next_link_index: usize,
 }
 
@@ -139,6 +140,7 @@ impl<W: Write> Formatter<W> {
             writer,
             style,
             pending_links: Vec::new(),
+            link_indices: HashMap::new(),
             next_link_index: 1,
         }
     }
@@ -237,6 +239,7 @@ impl<W: Write> Formatter<W> {
 
     fn flush_pending_links(&mut self, prefix: &str) -> std::io::Result<bool> {
         if self.pending_links.is_empty() {
+            self.link_indices.clear();
             self.next_link_index = 1;
             return Ok(false);
         }
@@ -244,6 +247,7 @@ impl<W: Write> Formatter<W> {
         self.write_blank_lines_with_prefix(prefix, 1)?;
 
         let links = std::mem::take(&mut self.pending_links);
+        self.link_indices.clear();
 
         let max_label_width = links
             .last()
@@ -691,12 +695,17 @@ impl<W: Write> Formatter<W> {
     }
 
     fn register_numbered_link(&mut self, target: &str) -> usize {
+        if let Some(&index) = self.link_indices.get(target) {
+            return index;
+        }
+
         let index = self.next_link_index;
         self.next_link_index += 1;
         self.pending_links.push(LinkReference {
             index,
             target: target.to_string(),
         });
+        self.link_indices.insert(target.to_string(), index);
         index
     }
 
@@ -1144,6 +1153,37 @@ mod tests {
             "¹ \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
         ));
         assert!(result.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn test_duplicate_links_share_indices() {
+        let doc = doc(vec![p_(vec![
+            span("See "),
+            link_text__("https://example.com/docs", "Docs"),
+            span(" and later revisit "),
+            link_text__("https://example.com/docs", "Docs again"),
+            span(" for details."),
+        ])]);
+
+        let mut ascii_output = Vec::new();
+        Formatter::new_ascii(&mut ascii_output)
+            .write_document(&doc)
+            .unwrap();
+        let ascii_result = String::from_utf8(ascii_output).unwrap();
+        assert!(ascii_result.contains("Docs¹"));
+        assert!(ascii_result.contains("Docs again¹"));
+        assert_eq!(ascii_result.matches("\n¹ ").count(), 1);
+        assert!(!ascii_result.contains('²'));
+
+        let mut ansi_output = Vec::new();
+        Formatter::new_ansi(&mut ansi_output)
+            .write_document(&doc)
+            .unwrap();
+        let ansi_result = String::from_utf8(ansi_output).unwrap();
+        assert!(ansi_result.contains("Docs\x1b]8;;\x1b\\¹"));
+        assert!(ansi_result.contains("Docs again\x1b]8;;\x1b\\¹"));
+        assert_eq!(ansi_result.matches("\n¹ ").count(), 1);
+        assert!(!ansi_result.contains('²'));
     }
 
     #[test]
