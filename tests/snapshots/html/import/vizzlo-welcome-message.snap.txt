@@ -27,4 +27,9 @@ The Vizzlo Team.
 Vizzlo[6].
 Made with ❤ in Leipzig & the world.
 
-[1] https://vizzlo.com/graphs[2] https://vizzlo.com/gallery[3] https://vizzlo.com/apps[4] https://vizzlo.com/help[5] mailto:help@vizzlo.com[6] https://vizzlo.com/
+[1] https://vizzlo.com/graphs
+[2] https://vizzlo.com/gallery
+[3] https://vizzlo.com/apps
+[4] https://vizzlo.com/help
+[5] mailto:help@vizzlo.com
+[6] https://vizzlo.com/

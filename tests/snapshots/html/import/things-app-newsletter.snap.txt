@@ -52,4 +52,8 @@ the Things application. Unsubscribe[5]
 
 
 
-[1] https://example.example/t/TRACKINGLINK/[2] https://example.example/t/TRACKINGLINK/[3] https://example.example/t/TRACKINGLINK/[4] https://example.example/t/TRACKINGLINK/[5] https://example.example/t/TRACKINGLINK/
+[1] https://example.example/t/TRACKINGLINK/
+[2] https://example.example/t/TRACKINGLINK/
+[3] https://example.example/t/TRACKINGLINK/
+[4] https://example.example/t/TRACKINGLINK/
+[5] https://example.example/t/TRACKINGLINK/

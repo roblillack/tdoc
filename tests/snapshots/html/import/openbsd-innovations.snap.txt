@@ -9,7 +9,9 @@ This is a list of software and ideas developed or maintained by the
 OpenBSD project, sorted in order of approximate introduction. Some of
 them are explained in detail in our research papers[2].
 
-[1] index.html[2] events.html
+[1] index.html
+[2] events.html
+
 Concepts
 --------
 
@@ -228,7 +230,65 @@ Concepts
    reside). The kernel, libc, libcrypto, and ld.so(1) are compiled with
    this option. amd64 only, for now.
 
-[1] hackathons.html[2] http://www.citi.umich.edu/u/provos/ssh/privsep.html[3] https://man.openbsd.org/bgpd.8[4] https://man.openbsd.org/dhclient.8[5] https://man.openbsd.org/dhcpd.8[6] https://man.openbsd.org/dvmrpd.8[7] https://man.openbsd.org/eigrpd.8[8] https://man.openbsd.org/file.1[9] https://man.openbsd.org/httpd.8[10] https://man.openbsd.org/iked.8[11] https://man.openbsd.org/ldapd.8[12] https://man.openbsd.org/ldpd.8[13] https://man.openbsd.org/mountd.8[14] https://man.openbsd.org/npppd.8[15] https://man.openbsd.org/ntpd.8[16] https://man.openbsd.org/ospfd.8[17] https://man.openbsd.org/ospf6d.8[18] https://man.openbsd.org/pflogd.8[19] https://man.openbsd.org/radiusd.8[20] https://man.openbsd.org/relayd.8[21] https://man.openbsd.org/ripd.8[22] https://man.openbsd.org/script.1[23] https://man.openbsd.org/smtpd.8[24] https://man.openbsd.org/syslogd.8[25] https://man.openbsd.org/tcpdump.8[26] https://man.openbsd.org/tmux.1[27] https://man.openbsd.org/xconsole.1[28] https://man.openbsd.org/xdm.1[29] https://man.openbsd.org/Xserver.1[30] https://man.openbsd.org/ypldap.8[31] https://man.openbsd.org/pkg_add.1[32] https://man.openbsd.org/ping.8[33] https://man.openbsd.org/traceroute.8[34] https://man.openbsd.org/mount.8[35] papers/eurobsdcon2009/otto-malloc.pdf[36] https://www.openbsd.org/papers/nycbsdcon08-pie/[37] https://www.openbsd.org/papers/asiabsdcon2015-pie-slides.pdf[38] https://man.openbsd.org/sigreturn.2[39] https://www.cs.vu.nl/~herbertb/papers/srop_sp14.pdf[40] https://man.openbsd.org/rc.8[41] https://man.openbsd.org/kbind.2[42] https://man.openbsd.org/sshd.8[43] https://man.openbsd.org/bgpd.8[44] https://man.openbsd.org/smtpd.8[45] https://man.openbsd.org/clang.1[46] https://man.openbsd.org/clang.1[47] https://man.openbsd.org/mmap.2[48] https://man.openbsd.org/mmap.2[49] https://man.openbsd.org/msyscall.2[50] https://man.openbsd.org/mmap.2[51] https://man.openbsd.org/mprotect.2[52] https://man.openbsd.org/munmap.2[53] https://man.openbsd.org/mimmutable.2[54] https://man.openbsd.org/execve.2[55] https://man.openbsd.org/pinsyscall.2[56] https://man.openbsd.org/pinsyscalls.2[57] https://man.openbsd.org/pinsyscalls.2[58] https://man.openbsd.org/msyscall.2
+[1] hackathons.html
+[2] http://www.citi.umich.edu/u/provos/ssh/privsep.html
+[3] https://man.openbsd.org/bgpd.8
+[4] https://man.openbsd.org/dhclient.8
+[5] https://man.openbsd.org/dhcpd.8
+[6] https://man.openbsd.org/dvmrpd.8
+[7] https://man.openbsd.org/eigrpd.8
+[8] https://man.openbsd.org/file.1
+[9] https://man.openbsd.org/httpd.8
+[10] https://man.openbsd.org/iked.8
+[11] https://man.openbsd.org/ldapd.8
+[12] https://man.openbsd.org/ldpd.8
+[13] https://man.openbsd.org/mountd.8
+[14] https://man.openbsd.org/npppd.8
+[15] https://man.openbsd.org/ntpd.8
+[16] https://man.openbsd.org/ospfd.8
+[17] https://man.openbsd.org/ospf6d.8
+[18] https://man.openbsd.org/pflogd.8
+[19] https://man.openbsd.org/radiusd.8
+[20] https://man.openbsd.org/relayd.8
+[21] https://man.openbsd.org/ripd.8
+[22] https://man.openbsd.org/script.1
+[23] https://man.openbsd.org/smtpd.8
+[24] https://man.openbsd.org/syslogd.8
+[25] https://man.openbsd.org/tcpdump.8
+[26] https://man.openbsd.org/tmux.1
+[27] https://man.openbsd.org/xconsole.1
+[28] https://man.openbsd.org/xdm.1
+[29] https://man.openbsd.org/Xserver.1
+[30] https://man.openbsd.org/ypldap.8
+[31] https://man.openbsd.org/pkg_add.1
+[32] https://man.openbsd.org/ping.8
+[33] https://man.openbsd.org/traceroute.8
+[34] https://man.openbsd.org/mount.8
+[35] papers/eurobsdcon2009/otto-malloc.pdf
+[36] https://www.openbsd.org/papers/nycbsdcon08-pie/
+[37] https://www.openbsd.org/papers/asiabsdcon2015-pie-slides.pdf
+[38] https://man.openbsd.org/sigreturn.2
+[39] https://www.cs.vu.nl/~herbertb/papers/srop_sp14.pdf
+[40] https://man.openbsd.org/rc.8
+[41] https://man.openbsd.org/kbind.2
+[42] https://man.openbsd.org/sshd.8
+[43] https://man.openbsd.org/bgpd.8
+[44] https://man.openbsd.org/smtpd.8
+[45] https://man.openbsd.org/clang.1
+[46] https://man.openbsd.org/clang.1
+[47] https://man.openbsd.org/mmap.2
+[48] https://man.openbsd.org/mmap.2
+[49] https://man.openbsd.org/msyscall.2
+[50] https://man.openbsd.org/mmap.2
+[51] https://man.openbsd.org/mprotect.2
+[52] https://man.openbsd.org/munmap.2
+[53] https://man.openbsd.org/mimmutable.2
+[54] https://man.openbsd.org/execve.2
+[55] https://man.openbsd.org/pinsyscall.2
+[56] https://man.openbsd.org/pinsyscalls.2
+[57] https://man.openbsd.org/pinsyscalls.2
+[58] https://man.openbsd.org/msyscall.2
+
 Functions
 ---------
 
@@ -288,7 +348,11 @@ Functions
    Reyk Flöter, maintained by Rob Pierce and Martijn van Duren; started
    in 2006/07, moved to libutil on May 11, 2019, OpenBSD 6.6
 
-[1] https://www.usenix.org/legacy/events/usenix99/provos/provos_html/node1.html[2] https://man.openbsd.org/strlcat.3[3] https://man.openbsd.org/getpwuid_shadow.3[4] https://man.openbsd.org/calloc_conceal.3
+[1] https://www.usenix.org/legacy/events/usenix99/provos/provos_html/node1.html
+[2] https://man.openbsd.org/strlcat.3
+[3] https://man.openbsd.org/getpwuid_shadow.3
+[4] https://man.openbsd.org/calloc_conceal.3
+
 Programs and subsystems
 -----------------------
 
@@ -575,7 +639,61 @@ Programs and subsystems
  • dhcpleased(8): Written and maintained by Florian Obser. Imported
    February 26, 2021; released with OpenBSD 6.9.
 
-[1] https://man.openbsd.org/ypset.8[2] https://man.openbsd.org/ypcat.1[3] https://man.openbsd.org/ypmatch.1[4] https://man.openbsd.org/ypwhich.1[5] papers/anoncvs-paper.pdf[6] papers/anoncvs-slides.pdf[7] https://man.openbsd.org/ssh.1[8] https://man.openbsd.org/scp.1[9] https://man.openbsd.org/sftp.1[10] https://man.openbsd.org/ssh-add.1[11] https://man.openbsd.org/ssh-agent.1[12] https://man.openbsd.org/ssh-keygen.1[13] https://man.openbsd.org/sshd.8[14] https://man.openbsd.org/sftp-server.8[15] https://man.openbsd.org/pfctl.8[16] https://man.openbsd.org/pflogd.8[17] https://man.openbsd.org/authpf.8[18] https://man.openbsd.org/ftp-proxy.8[19] https://man.openbsd.org/OpenBSD-5.9/systrace.1[20] https://man.openbsd.org/pledge.2[21] https://man.openbsd.org/bgpd.8[22] https://man.openbsd.org/bgpctl.8[23] https://man.openbsd.org/ntpd.8[24] https://man.openbsd.org/ntpctl.8[25] https://man.openbsd.org/ospfctl.8[26] https://man.openbsd.org/dvmrpctl.8[27] https://man.openbsd.org/ripctl.8[28] https://man.openbsd.org/relayctl.8[29] https://monkey.org/~marius/cwm/README[30] https://github.com/chneukirchen/cwm[31] https://man.openbsd.org/ospf6ctl.8[32] https://man.openbsd.org/smtpd.8[33] https://man.openbsd.org/smtpctl.8[34] https://man.openbsd.org/makemap.8[35] https://man.openbsd.org/tmux.1[36] https://man.openbsd.org/ldpctl.8[37] https://man.openbsd.org/mandoc.1[38] https://man.openbsd.org/man.1[39] https://man.openbsd.org/apropos.1[40] https://man.openbsd.org/makewhatis.8[41] https://man.openbsd.org/man.cgi.8[42] https://man.openbsd.org/ldapctl.8[43] https://man.openbsd.org/iked.8[44] https://man.openbsd.org/ikectl.8[45] https://man.openbsd.org/iscsictl.8[46] https://man.openbsd.org/rc.subr.8[47] https://man.openbsd.org/npppctl.8[48] https://man.openbsd.org/ldomctl.8[49] https://www.tedunangst.com/flak/post/signify[50] https://man.openbsd.org/eigrpctl.8[51] https://man.openbsd.org/vmd.8[52] https://man.openbsd.org/vmctl.8[53] https://man.openbsd.org/OpenBSD-6.0/ping6.8[54] https://man.openbsd.org/OpenBSD-6.0/xdm.1
+[1] https://man.openbsd.org/ypset.8
+[2] https://man.openbsd.org/ypcat.1
+[3] https://man.openbsd.org/ypmatch.1
+[4] https://man.openbsd.org/ypwhich.1
+[5] papers/anoncvs-paper.pdf
+[6] papers/anoncvs-slides.pdf
+[7] https://man.openbsd.org/ssh.1
+[8] https://man.openbsd.org/scp.1
+[9] https://man.openbsd.org/sftp.1
+[10] https://man.openbsd.org/ssh-add.1
+[11] https://man.openbsd.org/ssh-agent.1
+[12] https://man.openbsd.org/ssh-keygen.1
+[13] https://man.openbsd.org/sshd.8
+[14] https://man.openbsd.org/sftp-server.8
+[15] https://man.openbsd.org/pfctl.8
+[16] https://man.openbsd.org/pflogd.8
+[17] https://man.openbsd.org/authpf.8
+[18] https://man.openbsd.org/ftp-proxy.8
+[19] https://man.openbsd.org/OpenBSD-5.9/systrace.1
+[20] https://man.openbsd.org/pledge.2
+[21] https://man.openbsd.org/bgpd.8
+[22] https://man.openbsd.org/bgpctl.8
+[23] https://man.openbsd.org/ntpd.8
+[24] https://man.openbsd.org/ntpctl.8
+[25] https://man.openbsd.org/ospfctl.8
+[26] https://man.openbsd.org/dvmrpctl.8
+[27] https://man.openbsd.org/ripctl.8
+[28] https://man.openbsd.org/relayctl.8
+[29] https://monkey.org/~marius/cwm/README
+[30] https://github.com/chneukirchen/cwm
+[31] https://man.openbsd.org/ospf6ctl.8
+[32] https://man.openbsd.org/smtpd.8
+[33] https://man.openbsd.org/smtpctl.8
+[34] https://man.openbsd.org/makemap.8
+[35] https://man.openbsd.org/tmux.1
+[36] https://man.openbsd.org/ldpctl.8
+[37] https://man.openbsd.org/mandoc.1
+[38] https://man.openbsd.org/man.1
+[39] https://man.openbsd.org/apropos.1
+[40] https://man.openbsd.org/makewhatis.8
+[41] https://man.openbsd.org/man.cgi.8
+[42] https://man.openbsd.org/ldapctl.8
+[43] https://man.openbsd.org/iked.8
+[44] https://man.openbsd.org/ikectl.8
+[45] https://man.openbsd.org/iscsictl.8
+[46] https://man.openbsd.org/rc.subr.8
+[47] https://man.openbsd.org/npppctl.8
+[48] https://man.openbsd.org/ldomctl.8
+[49] https://www.tedunangst.com/flak/post/signify
+[50] https://man.openbsd.org/eigrpctl.8
+[51] https://man.openbsd.org/vmd.8
+[52] https://man.openbsd.org/vmctl.8
+[53] https://man.openbsd.org/OpenBSD-6.0/ping6.8
+[54] https://man.openbsd.org/OpenBSD-6.0/xdm.1
+
 Projects maintained by OpenBSD developers outside OpenBSD
 ---------------------------------------------------------
 

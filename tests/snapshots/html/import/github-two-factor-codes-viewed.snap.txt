@@ -26,4 +26,5 @@ support page.[2]
 Thanks,
 The GitHub Team
 
-[1] https://github.com/settings/security-log[2] https://github.com/contact
+[1] https://github.com/settings/security-log
+[2] https://github.com/contact

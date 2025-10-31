@@ -14,4 +14,7 @@ Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA
 Sie erhalten diese E-Mail, weil max@example.example[3] eine Datei oder
 einen Ordner in Google Drive für Sie freigegeben hat.[4]
 
-[1] mailto:max@example.example[2] https://example.example/example[3] mailto:max@example.example[4] https://example.example/example
+[1] mailto:max@example.example
+[2] https://example.example/example
+[3] mailto:max@example.example
+[4] https://example.example/example

@@ -92,4 +92,11 @@ Unsubscribe[8]
 
 © Doist Inc. 2100 Geng Road, Suite 210 Palo Alto, CA 94303 US
 
-[1] https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly[2] https://todoist.com/help/articles/use-calendar-with-todoist-rCqwLCt3G?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly#h_01HXS15SKBRVD8VW0M5TZNZCYX[3] https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly[4] https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly[5] https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly[6] https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly[7] https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly[8] https://todoist.com/unsubscribe
+[1] https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+[2] https://todoist.com/help/articles/use-calendar-with-todoist-rCqwLCt3G?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly#h_01HXS15SKBRVD8VW0M5TZNZCYX
+[3] https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+[4] https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+[5] https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+[6] https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+[7] https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+[8] https://todoist.com/unsubscribe

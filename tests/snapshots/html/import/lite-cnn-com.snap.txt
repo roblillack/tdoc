@@ -285,4 +285,8 @@ Reserved.
  Terms of Use [2]  |   Privacy Policy [3]  |   Ad Choices [4]  |
 Cookie Settings [5]
 
-[1] https://www.cnn.com/[2] https://www.cnn.com/terms[3] https://www.cnn.com/privacy[4] https://www.cnn.com/ad-choices[5] 
+[1] https://www.cnn.com/
+[2] https://www.cnn.com/terms
+[3] https://www.cnn.com/privacy
+[4] https://www.cnn.com/ad-choices
+[5] 

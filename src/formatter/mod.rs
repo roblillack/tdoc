@@ -236,6 +236,7 @@ impl<W: Write> Formatter<W> {
             };
             let parts = vec![footnote_text];
             self.write_wrapped_text(&parts, &first_prefix, &continuation_prefix)?;
+            writeln!(self.writer)?;
         }
 
         self.next_link_index = 1;
@@ -992,6 +993,13 @@ mod tests {
         let footnote_pos = result.find("[1] https://example.com/docs").unwrap();
         let heading_pos = result.find("Next section").unwrap();
         assert!(footnote_pos < heading_pos);
+        let footnote_entry = "[1] https://example.com/docs";
+        let footer_start = result.find(footnote_entry).unwrap();
+        let after_entry = footer_start + footnote_entry.len();
+        assert!(
+            result[after_entry..].starts_with('\n'),
+            "expected newline after footnote entry"
+        );
     }
 
     #[test]
