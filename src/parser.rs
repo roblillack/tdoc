@@ -336,6 +336,7 @@ impl Parser {
         wrapper_elements.insert("h1".to_string(), ParagraphType::Header1);
         wrapper_elements.insert("h2".to_string(), ParagraphType::Header2);
         wrapper_elements.insert("h3".to_string(), ParagraphType::Header3);
+        wrapper_elements.insert("pre".to_string(), ParagraphType::CodeBlock);
         wrapper_elements.insert("blockquote".to_string(), ParagraphType::Quote);
         wrapper_elements.insert("ul".to_string(), ParagraphType::UnorderedList);
         wrapper_elements.insert("ol".to_string(), ParagraphType::OrderedList);
@@ -472,7 +473,11 @@ impl Parser {
 
         if paragraph_type.is_leaf() {
             // Read content for leaf paragraphs
-            let content = self.read_content(tokenizer, paragraph_type.html_tag())?;
+            let content = if paragraph_type == ParagraphType::CodeBlock {
+                self.read_code_block_content(tokenizer, paragraph_type.html_tag())?
+            } else {
+                self.read_content(tokenizer, paragraph_type.html_tag())?
+            };
             paragraph = paragraph.with_content(content);
             self.add_paragraph_to_current_context(&paragraph, document, breadcrumbs)?;
         } else {
@@ -636,6 +641,60 @@ impl Parser {
 
         paragraphs.extend(breadcrumbs);
         Ok((paragraphs, None))
+    }
+
+    fn read_code_block_content(
+        &self,
+        tokenizer: &mut Tokenizer,
+        end_tag: &str,
+    ) -> Result<Vec<Span>, ParseError> {
+        let text = self.read_code_block_inner(tokenizer, end_tag)?;
+        if text.is_empty() {
+            Ok(Vec::new())
+        } else {
+            Ok(vec![Span::new_text(text)])
+        }
+    }
+
+    fn read_code_block_inner(
+        &self,
+        tokenizer: &mut Tokenizer,
+        end_tag: &str,
+    ) -> Result<String, ParseError> {
+        let mut buffer = String::new();
+
+        while let Some((token, token_pos)) = tokenizer.next_with_pos() {
+            match token {
+                Token::EndTag(tag_name) if tag_name == end_tag => {
+                    return Ok(buffer);
+                }
+                Token::Text(text) => {
+                    buffer.push_str(&self.decode_entities(&text));
+                }
+                Token::SelfClosingTag(tag) => {
+                    if tag.name == "br" {
+                        buffer.push('\n');
+                    } else {
+                        buffer.push_str(&format!("<{} />", tag.name));
+                    }
+                }
+                Token::StartTag(tag) => {
+                    let tag_name = tag.name.clone();
+                    if self.wrapper_elements.contains_key(&tag_name) {
+                        tokenizer.putback(Token::StartTag(tag), token_pos);
+                        return Ok(buffer);
+                    }
+                    let inner = self.read_code_block_inner(tokenizer, &tag_name)?;
+                    buffer.push_str(&inner);
+                }
+                Token::EndTag(tag_name) => {
+                    tokenizer.putback(Token::EndTag(tag_name), token_pos);
+                    return Ok(buffer);
+                }
+            }
+        }
+
+        Ok(buffer)
     }
 
     fn read_content(

@@ -290,6 +290,9 @@ impl<W: Write> Formatter<W> {
             ParagraphType::Text => {
                 self.write_text_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
+            ParagraphType::CodeBlock => {
+                self.write_code_block_paragraph(&paragraph.content, prefix, continuation_prefix)?;
+            }
             ParagraphType::Quote => {
                 let quote_continuation =
                     format!("{}{}", continuation_prefix, self.style.quote_prefix);
@@ -400,6 +403,93 @@ impl<W: Write> Formatter<W> {
             }
         }
         Ok(())
+    }
+
+    fn write_code_block_paragraph(
+        &mut self,
+        spans: &[Span],
+        prefix: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        self.write_code_block_fence(prefix)?;
+
+        let mut code_text = Self::collect_code_text(spans);
+        if !code_text.is_empty() {
+            code_text = code_text.replace("\r\n", "\n").replace('\r', "\n");
+            let mut lines = code_text.split('\n').peekable();
+            while let Some(line) = lines.next() {
+                let is_last = lines.peek().is_none();
+                if is_last && line.is_empty() {
+                    break;
+                }
+                self.write_hard_wrapped_code_line(line, continuation_prefix)?;
+            }
+        }
+
+        self.write_code_block_fence(continuation_prefix)?;
+        Ok(())
+    }
+
+    fn write_hard_wrapped_code_line(
+        &mut self,
+        line: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        let available_width = self
+            .style
+            .wrap_width
+            .saturating_sub(continuation_prefix.chars().count())
+            .max(1);
+
+        if line.is_empty() {
+            writeln!(self.writer, "{}", continuation_prefix)?;
+            return Ok(());
+        }
+
+        let mut remaining = line;
+        while !remaining.is_empty() {
+            let mut end_idx = 0;
+            for (count, (idx, ch)) in remaining.char_indices().enumerate() {
+                if count >= available_width {
+                    break;
+                }
+                end_idx = idx + ch.len_utf8();
+            }
+
+            if end_idx == 0 {
+                end_idx = remaining.len();
+            }
+
+            let (chunk, rest) = remaining.split_at(end_idx);
+            writeln!(self.writer, "{}{}", continuation_prefix, chunk)?;
+            remaining = rest;
+        }
+
+        Ok(())
+    }
+
+    fn write_code_block_fence(&mut self, prefix: &str) -> std::io::Result<()> {
+        const MIN_FENCE_WIDTH: usize = 4;
+        let available_width = self.style.wrap_width.saturating_sub(prefix.chars().count());
+        let dash_count = available_width.max(MIN_FENCE_WIDTH);
+        writeln!(self.writer, "{}{}", prefix, "-".repeat(dash_count))
+    }
+
+    fn collect_code_text(spans: &[Span]) -> String {
+        let mut buffer = String::new();
+        for span in spans {
+            Self::append_plain_text(span, &mut buffer);
+        }
+        buffer
+    }
+
+    fn append_plain_text(span: &Span, buffer: &mut String) {
+        if !span.text.is_empty() {
+            buffer.push_str(&span.text);
+        }
+        for child in &span.children {
+            Self::append_plain_text(child, buffer);
+        }
     }
 
     fn write_blank_lines_with_prefix(&mut self, prefix: &str, count: usize) -> std::io::Result<()> {

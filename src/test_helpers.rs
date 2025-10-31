@@ -34,6 +34,10 @@ pub fn h3_(s: &str) -> Paragraph {
     Paragraph::new_header3().with_content(vec![span(s)])
 }
 
+pub fn code_block__(s: &str) -> Paragraph {
+    Paragraph::new_code_block().with_content(vec![span(s)])
+}
+
 pub fn quote_(children: Vec<Paragraph>) -> Paragraph {
     Paragraph::new_quote().with_children(children)
 }

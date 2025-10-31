@@ -1,7 +1,7 @@
 use tdoc::ftml;
 use tdoc::test_helpers::{
-    b__, code__, doc as doc_, h1_, i__, li_, link_, link__, link_text__, mark__, ol_, p_, p__,
-    quote_, s__, span, u__, ul_,
+    b__, code__, code_block__, doc as doc_, h1_, i__, li_, link_, link__, link_text__, mark__, ol_,
+    p_, p__, quote_, s__, span, u__, ul_,
 };
 
 #[test]
@@ -101,6 +101,17 @@ fn supports_links() {
             vec![span("Mixed "), b__("Bold")],
         )]),
     ]);
+
+    assert_eq!(doc, expected);
+}
+
+#[test]
+fn supports_code_blocks() {
+    let doc = ftml! {
+        code { "fn main() {}\nprintln!(\"hi\");" }
+    };
+
+    let expected = doc_(vec![code_block__("fn main() {}\nprintln!(\"hi\");")]);
 
     assert_eq!(doc, expected);
 }

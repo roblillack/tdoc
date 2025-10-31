@@ -14,6 +14,8 @@ pub enum ParagraphType {
     Header2,
     /// A level-3 heading (`<h3>`).
     Header3,
+    /// A preformatted code block (`<pre>`).
+    CodeBlock,
     /// An ordered list (`<ol>`) paragraph.
     OrderedList,
     /// An unordered (bulleted) list (`<ul>`) paragraph.
@@ -29,6 +31,7 @@ impl fmt::Display for ParagraphType {
             ParagraphType::Header1 => "Header Lvl 1",
             ParagraphType::Header2 => "Header Lvl 2",
             ParagraphType::Header3 => "Header Lvl 3",
+            ParagraphType::CodeBlock => "Code Block",
             ParagraphType::OrderedList => "Ordered List",
             ParagraphType::UnorderedList => "Unordered List",
             ParagraphType::Quote => "Quote",
@@ -46,6 +49,7 @@ impl ParagraphType {
                 | ParagraphType::Header1
                 | ParagraphType::Header2
                 | ParagraphType::Header3
+                | ParagraphType::CodeBlock
         )
     }
 
@@ -56,6 +60,7 @@ impl ParagraphType {
             ParagraphType::Header1 => "h1",
             ParagraphType::Header2 => "h2",
             ParagraphType::Header3 => "h3",
+            ParagraphType::CodeBlock => "pre",
             ParagraphType::OrderedList => "ol",
             ParagraphType::UnorderedList => "ul",
             ParagraphType::Quote => "blockquote",
@@ -69,6 +74,7 @@ impl ParagraphType {
             "h1" => Some(ParagraphType::Header1),
             "h2" => Some(ParagraphType::Header2),
             "h3" => Some(ParagraphType::Header3),
+            "pre" => Some(ParagraphType::CodeBlock),
             "ol" => Some(ParagraphType::OrderedList),
             "ul" => Some(ParagraphType::UnorderedList),
             "blockquote" => Some(ParagraphType::Quote),
@@ -137,6 +143,11 @@ impl Paragraph {
         Self::new(ParagraphType::Header3)
     }
 
+    /// Convenience constructor for [`ParagraphType::CodeBlock`].
+    pub fn new_code_block() -> Self {
+        Self::new(ParagraphType::CodeBlock)
+    }
+
     /// Convenience constructor for [`ParagraphType::OrderedList`].
     pub fn new_ordered_list() -> Self {
         Self::new(ParagraphType::OrderedList)
@@ -201,6 +212,11 @@ mod tests {
     fn test_html_tag_conversion() {
         assert_eq!(ParagraphType::Text.html_tag(), "p");
         assert_eq!(ParagraphType::from_html_tag("p"), Some(ParagraphType::Text));
+        assert_eq!(ParagraphType::CodeBlock.html_tag(), "pre");
+        assert_eq!(
+            ParagraphType::from_html_tag("pre"),
+            Some(ParagraphType::CodeBlock)
+        );
         assert_eq!(ParagraphType::from_html_tag("div"), None);
     }
 
@@ -208,6 +224,7 @@ mod tests {
     fn test_is_leaf() {
         assert!(ParagraphType::Text.is_leaf());
         assert!(ParagraphType::Header1.is_leaf());
+        assert!(ParagraphType::CodeBlock.is_leaf());
         assert!(!ParagraphType::OrderedList.is_leaf());
         assert!(!ParagraphType::Quote.is_leaf());
     }

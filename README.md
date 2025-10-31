@@ -64,7 +64,7 @@ For the full FTML specification, see the [original repository](https://github.co
 tdoc provides a comprehensive toolkit for working with FTML documents in Rust:
 
 - **Load and Save**: Parse FTML documents from files or streams, and write them back with proper formatting
-- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code`, [clickable links](https://github.com/roblillack/tdoc) and all supported paragraph types
+- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code`, fenced code blocks, [clickable links](https://github.com/roblillack/tdoc) and all supported paragraph types
 - **Format Conversion**: Convert between FTML and other formats:
   - **Markdown**: Export FTML documents to Markdown for compatibility with documentation systems
   - **HTML**: Import HTML documents into FTML (basic support), with plans for full HTML export
@@ -80,8 +80,15 @@ FTML documents consist of a hierarchy of elements:
 
 - **Text paragraphs** (`<p>`)
 - **Headers** (`<h1>`, `<h2>`, `<h3>`)
+- **Code blocks** (`<pre>`)
 - **Lists** - ordered (`<ol>`) or unordered (`<ul>`)
 - **Blockquotes** (`<blockquote>`)
+
+### Code Blocks
+
+- Represented in FTML as `<pre>` elements and emitted via the `code { "..." }` block in the `ftml!` macro.
+- When rendered in ASCII or ANSI, code blocks maintain paragraph spacing and are wrapped in `----` separators with hard character-level wrapping.
+- Markdown export uses fenced code blocks (`````), and HTML/FTML writers preserve the original whitespace verbatim.
 
 ### Inline Styles
 
@@ -177,6 +184,7 @@ fn main() -> tdoc::Result<()> {
             }
         }
         p { "Inline styles work " b { "just as well" } "." }
+        code { "fn main() {\n    println!(\"Hello from FTML!\");\n}\n" }
     };
 
     write(&mut std::io::stdout(), &doc)?;
