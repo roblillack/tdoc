@@ -5,11 +5,46 @@
 [![Downloads](https://img.shields.io/crates/d/tdoc.svg)](https://crates.io/crates/tdoc)
 [![Docs.rs](https://docs.rs/tdoc/badge.svg)](https://docs.rs/tdoc)
 
-A Rust library and CLI tools for working with FTML (Formatted Text Markup Language) documents.
+A command-line tool and Rust library for handling all kinds of text documents (Markdown, HTML, FTML - Formatted Text Markup Language).
 
 This project is a partial rewrite of the Go library available at https://github.com/roblillack/ftml, bringing FTML support to the Rust ecosystem with improved performance and memory safety.
 
 ![tdoc terminal rendering example](screenshot.png)
+
+## CLI usage
+
+`tdoc` is the unified CLI for viewing and exporting FTML, HTML, and Markdown content.
+When no input path is provided it reads from stdin. The output format is detected
+from the `--output/-o` file extension.
+
+```bash
+# View a local FTML file with ANSI styling (defaults to a pager)
+tdoc document.ftml
+
+# View a local Markdown file with ANSI styling
+tdoc notes.md
+
+# View a local HTML file with ANSI styling
+tdoc email.html
+
+# View from a URL
+tdoc https://example.com/document.html
+
+# Disable ANSI formatting (disables the pager and emits ASCII)
+tdoc --no-ansi document.ftml
+
+# Read from stdin (defaults to FTML)
+cat document.ftml | tdoc
+
+# Force the input format for stdin/unknown extensions
+cat notes.md | tdoc --input-format markdown
+
+# Export to different formats (extension determines the output)
+tdoc paper.ftml --output paper.md      # Markdown
+tdoc paper.ftml --output paper.ftml    # FTML
+tdoc paper.ftml --output paper.html    # HTML
+tdoc paper.ftml --output paper.txt     # Wrapped ASCII text
+```
 
 ## What is FTML?
 
@@ -181,43 +216,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-```
-
-## CLI Tools
-
-### tdoc
-
-`tdoc` is the unified CLI for viewing and exporting FTML, HTML, and Markdown content.
-When no input path is provided it reads FTML from stdin. The output format is detected
-from the `--output/-o` file extension.
-
-```bash
-# View a local FTML file with ANSI styling (defaults to a pager)
-tdoc document.ftml
-
-# View a local Markdown file with ANSI styling
-tdoc notes.md
-
-# View a local HTML file with ANSI styling
-tdoc email.html
-
-# View from a URL
-tdoc https://example.com/document.html
-
-# Disable ANSI formatting (disables the pager and emits ASCII)
-tdoc --no-ansi document.ftml
-
-# Read from stdin (defaults to FTML)
-cat document.ftml | tdoc
-
-# Force the input format for stdin/unknown extensions
-cat notes.md | tdoc --input-format markdown
-
-# Export to different formats (extension determines the output)
-tdoc paper.ftml --output paper.md      # Markdown
-tdoc paper.ftml --output paper.ftml    # FTML
-tdoc paper.ftml --output paper.html    # HTML
-tdoc paper.ftml --output paper.txt     # Wrapped ASCII text
 ```
 
 ## Implementation Status
