@@ -137,8 +137,7 @@ impl<'a> Parser<'a> {
     ) -> Result<(), HtmlError> {
         let node = self.down(para_type)?;
 
-        let (content, extra_token, closed) =
-            self.read_content(end_tag.as_deref(), start_text)?;
+        let (content, extra_token, closed) = self.read_content(end_tag.as_deref(), start_text)?;
 
         if para_type == ParagraphType::Quote && has_meaningful_content(&content) {
             let text_para = self.down(ParagraphType::Text)?;
@@ -232,7 +231,12 @@ impl<'a> Parser<'a> {
                     }
 
                     let style = inline_style_for(&name).unwrap_or(InlineStyle::None);
-                    let span = self.read_span(style, &name)?;
+                    let link_target = if style == InlineStyle::Link {
+                        start.attribute("href")
+                    } else {
+                        None
+                    };
+                    let span = self.read_span(style, &name, link_target)?;
                     spans.add(span);
                 }
                 Token::EmptyElement(empty) => {
@@ -250,9 +254,15 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn read_span(&mut self, style: InlineStyle, end_tag: &str) -> Result<Span, HtmlError> {
+    fn read_span(
+        &mut self,
+        style: InlineStyle,
+        end_tag: &str,
+        link_target: Option<String>,
+    ) -> Result<Span, HtmlError> {
         let mut children = Vec::new();
         let mut first = false;
+        let link_target = link_target.map(decode_html);
 
         loop {
             let (text, token) = self.read_text()?;
@@ -266,7 +276,7 @@ impl<'a> Parser<'a> {
             }
 
             let Some(token) = token else {
-                return Ok(build_span(style, children));
+                return Ok(build_span(style, children, link_target.clone()));
             };
 
             if is_line_break(&token) {
@@ -287,17 +297,22 @@ impl<'a> Parser<'a> {
                 Token::StartElement(start) => {
                     let name = lowercase_name(start.name());
                     if is_block_level(&name) {
-                        return Ok(build_span(style, children));
+                        return Ok(build_span(style, children, link_target.clone()));
                     }
 
                     let nested_style = inline_style_for(&name).unwrap_or(InlineStyle::None);
-                    let span = self.read_span(nested_style, &name)?;
+                    let nested_link = if nested_style == InlineStyle::Link {
+                        start.attribute("href")
+                    } else {
+                        None
+                    };
+                    let span = self.read_span(nested_style, &name, nested_link)?;
                     children.push(span);
                 }
                 Token::EndElement(end) => {
                     let name = lowercase_name(end.name());
                     if name == end_tag || is_block_level(&name) {
-                        return Ok(build_span(style, children));
+                        return Ok(build_span(style, children, link_target.clone()));
                     }
                 }
                 _ => {}
@@ -621,14 +636,18 @@ fn has_meaningful_content(spans: &[Span]) -> bool {
         return true;
     }
 
-    spans.first()
+    spans
+        .first()
         .map(|span| !span.children.is_empty() || !span.text.trim().is_empty())
         .unwrap_or(false)
 }
 
-fn build_span(style: InlineStyle, children: Vec<Span>) -> Span {
+fn build_span(style: InlineStyle, children: Vec<Span>, link_target: Option<String>) -> Span {
     let mut span = Span::new_styled(style);
     span.children = children;
+    if style == InlineStyle::Link {
+        span.link_target = link_target;
+    }
     span
 }
 
@@ -657,6 +676,7 @@ fn inline_style_for(tag: &str) -> Option<InlineStyle> {
         "s" | "del" | "strike" => Some(InlineStyle::Strike),
         "mark" => Some(InlineStyle::Highlight),
         "code" | "tt" => Some(InlineStyle::Code),
+        "a" => Some(InlineStyle::Link),
         _ => None,
     }
 }
@@ -664,8 +684,7 @@ fn inline_style_for(tag: &str) -> Option<InlineStyle> {
 fn is_block_level(tag: &str) -> bool {
     matches!(
         tag,
-        "p"
-            | "div"
+        "p" | "div"
             | "h1"
             | "h2"
             | "h3"

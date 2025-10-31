@@ -183,6 +183,10 @@ impl Writer {
     }
 
     fn render_span_simple(&self, span: &Span, first: bool, last: bool) -> String {
+        if span.style == InlineStyle::Link {
+            return self.render_link_simple(span, first, last);
+        }
+
         let mut result = String::new();
 
         if !span.children.is_empty() {
@@ -203,6 +207,35 @@ impl Writer {
             result.push_str(&text_with_breaks);
         }
 
+        result
+    }
+
+    fn render_link_simple(&self, span: &Span, first: bool, last: bool) -> String {
+        let mut result = String::new();
+        result.push_str("<a");
+        if let Some(target) = &span.link_target {
+            result.push_str(" href=\"");
+            result.push_str(&self.encode_attribute(target));
+            result.push('"');
+        }
+        result.push('>');
+
+        if span.has_content() {
+            if !span.text.is_empty() {
+                let encoded_text = self.encode_entities(&span.text, first, last);
+                let text_with_breaks = encoded_text.replace('\n', "<br />\n");
+                result.push_str(&text_with_breaks);
+            }
+            for child in &span.children {
+                result.push_str(&self.render_span_simple(child, false, false));
+            }
+        } else if let Some(target) = &span.link_target {
+            let encoded_text = self.encode_entities(target, first, last);
+            let text_with_breaks = encoded_text.replace('\n', "<br />\n");
+            result.push_str(&text_with_breaks);
+        }
+
+        result.push_str("</a>");
         result
     }
 
@@ -230,6 +263,10 @@ impl Writer {
         first: bool,
         last: bool,
     ) -> io::Result<()> {
+        if span.style == InlineStyle::Link {
+            return self.write_link_span(writer, span, level, first, last);
+        }
+
         if let Some(tag) = self.style_tags.get(&span.style) {
             write!(writer, "<{}>", tag)?;
         }
@@ -248,6 +285,39 @@ impl Writer {
             write!(writer, "</{}>", tag)?;
         }
 
+        Ok(())
+    }
+
+    fn write_link_span<W: Write>(
+        &self,
+        writer: &mut W,
+        span: &Span,
+        level: usize,
+        first: bool,
+        last: bool,
+    ) -> io::Result<()> {
+        write!(writer, "<a")?;
+        if let Some(target) = &span.link_target {
+            write!(writer, " href=\"{}\"", self.encode_attribute(target))?;
+        }
+        write!(writer, ">")?;
+
+        if span.has_content() {
+            if !span.text.is_empty() {
+                let encoded_text = self.encode_entities(&span.text, first, last);
+                let text_with_breaks = encoded_text.replace('\n', "<br />\n");
+                self.emit_text(writer, &text_with_breaks, level)?;
+            }
+            for child in &span.children {
+                self.write_span(writer, child, level, false, false)?;
+            }
+        } else if let Some(target) = &span.link_target {
+            let encoded_text = self.encode_entities(target, first, last);
+            let text_with_breaks = encoded_text.replace('\n', "<br />\n");
+            self.emit_text(writer, &text_with_breaks, level)?;
+        }
+
+        write!(writer, "</a>")?;
         Ok(())
     }
 
@@ -341,6 +411,20 @@ impl Writer {
         result
     }
 
+    fn encode_attribute(&self, value: &str) -> String {
+        let mut encoded = String::new();
+        for ch in value.chars() {
+            match ch {
+                '&' => encoded.push_str("&amp;"),
+                '"' => encoded.push_str("&quot;"),
+                '<' => encoded.push_str("&lt;"),
+                '>' => encoded.push_str("&gt;"),
+                _ => encoded.push(ch),
+            }
+        }
+        encoded
+    }
+
     fn replace_spaces(&self, s: &str) -> String {
         "&emsp14;".repeat(s.len())
     }
@@ -373,7 +457,7 @@ pub fn write<W: Write>(writer: &mut W, document: &Document) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Document, Paragraph, Span};
+    use crate::{Document, InlineStyle, Paragraph, Span};
 
     #[test]
     fn test_simple_paragraph() {
@@ -401,6 +485,23 @@ mod tests {
         let result = writer.write_to_string(&doc).unwrap();
 
         assert_eq!(result, "<p>This is <b>bold</b> text.</p>\n");
+    }
+
+    #[test]
+    fn test_link_text() {
+        let link_span = Span::new_styled(InlineStyle::Link)
+            .with_link_target("https://example.com")
+            .with_children(vec![Span::new_text("Example")]);
+        let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("See "), link_span]);
+        let doc = Document::new().with_paragraphs(vec![paragraph]);
+
+        let writer = Writer::new();
+        let result = writer.write_to_string(&doc).unwrap();
+
+        assert_eq!(
+            result,
+            "<p>See <a href=\"https://example.com\">Example</a></p>\n"
+        );
     }
 
     #[test]

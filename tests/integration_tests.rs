@@ -106,6 +106,10 @@ fn test_parsing_inline_styles() {
             "This is a <b><i>second</i> test</b>.",
             ftml! { p { "This is a " b { i { "second" } " test" } "." } },
         ),
+        (
+            "Visit <a href=\"https://example.com\">Example</a>",
+            ftml! { p { "Visit " link { "https://example.com" "Example" } } },
+        ),
     ];
 
     for (input, expected) in tests {

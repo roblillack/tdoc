@@ -601,10 +601,15 @@ fn write_span<W: Write>(
     match span.style {
         InlineStyle::Link => {
             if let Some(target) = &span.link_target {
-                state.write_chunk(writer, "[")?;
-                write_span_content(writer, span, state)?;
-                let closing = format!("]({})", escape_link_destination(target));
-                state.write_chunk(writer, &closing)?;
+                if span.has_content() {
+                    state.write_chunk(writer, "[")?;
+                    write_span_content(writer, span, state)?;
+                    let closing = format!("]({})", escape_link_destination(target));
+                    state.write_chunk(writer, &closing)?;
+                } else {
+                    let autop = format!("<{}>", escape_link_destination(target));
+                    state.write_chunk(writer, &autop)?;
+                }
                 Ok(())
             } else {
                 write_span_content(writer, span, state)
@@ -1143,5 +1148,44 @@ mod tests {
         let result = String::from_utf8(output).unwrap();
 
         assert_eq!(result, "Line one\\\nLine two\n");
+    }
+
+    #[test]
+    fn test_parse_markdown_link() {
+        let input = "See [docs](https://example.com)";
+        let parsed = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(parsed.paragraphs.len(), 1);
+        let paragraph = &parsed.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 2);
+        assert_eq!(paragraph.content[0].text, "See ");
+
+        let link_span = &paragraph.content[1];
+        assert_eq!(link_span.style, InlineStyle::Link);
+        assert_eq!(
+            link_span.link_target.as_deref(),
+            Some("https://example.com")
+        );
+        assert_eq!(link_span.children.len(), 1);
+        assert_eq!(link_span.children[0].text, "docs");
+    }
+
+    #[test]
+    fn test_write_markdown_links() {
+        let doc = doc(vec![p_(vec![
+            span("See "),
+            link_text__("https://example.com/docs", "docs"),
+            span(" and "),
+            link__("https://example.com/quick"),
+        ])]);
+
+        let mut output = Vec::new();
+        write(&mut output, &doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert_eq!(
+            result,
+            "See [docs](https://example.com/docs) and <https://example.com/quick>\n"
+        );
     }
 }

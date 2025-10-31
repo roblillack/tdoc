@@ -99,6 +99,16 @@ impl Span {
         self
     }
 
+    /// Returns `true` when the span has either direct text or child spans.
+    pub fn has_content(&self) -> bool {
+        !self.text.is_empty() || !self.children.is_empty()
+    }
+
+    /// Returns `true` when the span has neither text nor child spans.
+    pub fn is_content_empty(&self) -> bool {
+        self.text.is_empty() && self.children.is_empty()
+    }
+
     /// Sets the link target for [`InlineStyle::Link`] spans.
     pub fn with_link_target(mut self, target: impl Into<String>) -> Self {
         self.link_target = Some(target.into());

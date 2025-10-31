@@ -103,7 +103,47 @@ macro_rules! __ftml_inline_nodes_inner {
 
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
+macro_rules! __ftml_parse_link_children {
+    () => {
+        ::std::vec::Vec::<$crate::Span>::new()
+    };
+    ($($rest:tt)*) => {
+        __ftml_inline_nodes!($($rest)*)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __ftml_link_target {
+    ($target:literal) => {
+        $target
+    };
+    (($($expr:tt)+)) => {
+        ($($expr)+)
+    };
+    ($target:ident) => {
+        $target
+    };
+    ($($path:ident)::+) => {
+        $($path)::+
+    };
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
 macro_rules! __ftml_build_inline {
+    (link { }) => {{
+        compile_error!("`link { ... }` requires at least a link target");
+    }};
+    (link { $target:tt $($rest:tt)* }) => {{
+        let mut __span = $crate::Span::new_styled($crate::InlineStyle::Link)
+            .with_link_target(__ftml_link_target!($target));
+        let __children = __ftml_parse_link_children!($($rest)*);
+        if !__children.is_empty() {
+            __span = __span.with_children(__children);
+        }
+        __span
+    }};
     (b { $($inner:tt)* }) => {{
         $crate::Span::new_styled($crate::InlineStyle::Bold)
             .with_children(__ftml_inline_nodes!($($inner)*))

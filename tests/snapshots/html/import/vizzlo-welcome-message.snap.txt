@@ -5,24 +5,26 @@ different charts and business graphics to spice up your presentations in
 just a few seconds.
 
 For the full portfolio of supported graphs please check:
-https://vizzlo.com/graphs
+https://vizzlo.com/graphs[1]
 
 You can find a list of weekly updated example charts in our gallery:
-https://vizzlo.com/gallery
+https://vizzlo.com/gallery[2]
 
 If you haven't done so already, download the Vizzlo application
 (available for Windows & Mac) to create stunning visuals even when
 offline. You can also integrate Vizzlo with PowerPoint or Google Slides:
-https://vizzlo.com/apps
+https://vizzlo.com/apps[3]
 
 To help you get started, please check the Vizzlo Help Center:
-https://vizzlo.com/help
+https://vizzlo.com/help[4]
 
 If there's anything else we can help you with, just send a quick message
-to help@vizzlo.com
+to help@vizzlo.com[5]
 
 Best,
 The Vizzlo Team.
 
-Vizzlo.
+Vizzlo[6].
 Made with ❤ in Leipzig & the world.
+
+[1] https://vizzlo.com/graphs[2] https://vizzlo.com/gallery[3] https://vizzlo.com/apps[4] https://vizzlo.com/help[5] mailto:help@vizzlo.com[6] https://vizzlo.com/

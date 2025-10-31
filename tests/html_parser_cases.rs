@@ -2,8 +2,8 @@ use std::io::Cursor;
 
 use tdoc::html;
 use tdoc::test_helpers::*;
-use tdoc::Document;
 use tdoc::writer::Writer;
+use tdoc::Document;
 use tdoc::Span;
 
 fn parse(input: &str) -> Document {
@@ -133,9 +133,18 @@ fn parsing_paragraphs_with_extra_tags() {
 fn parsing_and_writing_styles() {
     let simple_cases: &[(&str, Vec<Span>)] = &[
         ("This is a test.", vec![span("This is a test.")]),
-        ("&emsp14;This is a test.", vec![span("\u{2005}This is a test.")]),
-        ("This is a test.&emsp14;", vec![span("This is a test.\u{2005}")]),
-        ("A&emsp14;&emsp14;&emsp14;B", vec![span("A\u{2005}\u{2005}\u{2005}B")]),
+        (
+            "&emsp14;This is a test.",
+            vec![span("\u{2005}This is a test.")],
+        ),
+        (
+            "This is a test.&emsp14;",
+            vec![span("This is a test.\u{2005}")],
+        ),
+        (
+            "A&emsp14;&emsp14;&emsp14;B",
+            vec![span("A\u{2005}\u{2005}\u{2005}B")],
+        ),
     ];
 
     let indented_cases: &[(&str, Vec<Span>)] = &[
@@ -254,8 +263,7 @@ fn parsing_inline_styles_in_list_items() {
     let rendered = render(&document);
 
     assert_eq!(
-        expected,
-        rendered,
+        expected, rendered,
         "inline styles inside list items parsed incorrectly"
     );
 }

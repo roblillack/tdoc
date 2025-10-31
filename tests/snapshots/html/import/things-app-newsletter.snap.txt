@@ -25,8 +25,8 @@ What’s New for Mac
 
 
 Things 3.19 is available on the App Store as a free update for all our
-customers (Mac, iPad, iPhone). The new features also require that you
-update to the latest versions of macOS, iOS, and watchOS.
+customers (Mac[1], iPad[2], iPhone[3]). The new features also require
+that you update to the latest versions of macOS, iOS, and watchOS.
 
 We hope you enjoy this update! 🙂
 
@@ -39,7 +39,7 @@ We’re hiring!
 
 👩🏻‍💻🧑🏽‍💻👨🏿‍💻 There’s a lot of exciting work ahead and we have an open
 position for a Cloud Platform Engineer. If that sounds like you, or
-someone you know, please check out our jobs page 👩🏾‍💻🧑🏼‍💻👨🏽‍💻
+someone you know, please check out our jobs page[4] 👩🏾‍💻🧑🏼‍💻👨🏽‍💻
 
 
 
@@ -48,6 +48,8 @@ Cultured Code GmbH & Co. KG
 Dieselstr. 28, 70469 Stuttgart, Germany
 
 You’re receiving this email because you subscribed on our website or in
-the Things application. Unsubscribe
+the Things application. Unsubscribe[5]
 
 
+
+[1] https://example.example/t/TRACKINGLINK/[2] https://example.example/t/TRACKINGLINK/[3] https://example.example/t/TRACKINGLINK/[4] https://example.example/t/TRACKINGLINK/[5] https://example.example/t/TRACKINGLINK/

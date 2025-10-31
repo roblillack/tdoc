@@ -45,11 +45,17 @@ pub enum ParseError {
 
 // Simple tokenizer for FTML parsing
 #[derive(Debug, Clone)]
+struct Tag {
+    name: String,
+    attributes: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
 enum Token {
     Text(String),
-    StartTag(String),
+    StartTag(Tag),
     EndTag(String),
-    SelfClosingTag(String),
+    SelfClosingTag(Tag),
 }
 
 struct Tokenizer {
@@ -150,7 +156,6 @@ impl Tokenizer {
         let mut in_quotes = false;
         let mut quote_char = '"';
 
-        // Find the end of the tag (looking for '>')
         while end_pos < self.input.len() {
             let remaining = &self.input[end_pos..];
             if let Some(ch) = remaining.chars().next() {
@@ -175,25 +180,102 @@ impl Tokenizer {
         let tag_content = &self.input[self.pos..end_pos];
         self.pos = end_pos + 1; // skip '>'
 
-        if let Some(stripped) = tag_content.strip_prefix('/') {
-            let tag_name = stripped.split_whitespace().next().unwrap_or("").to_string();
-            Some(Token::EndTag(tag_name))
-        } else if tag_content.ends_with('/') || tag_content == "br" {
-            let tag_name = tag_content
-                .trim_end_matches('/')
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .to_string();
-            Some(Token::SelfClosingTag(tag_name))
-        } else {
-            let tag_name = tag_content
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .to_string();
-            Some(Token::StartTag(tag_name))
+        let trimmed = tag_content.trim();
+        if trimmed.starts_with('/') {
+            let name = trimmed[1..].split_whitespace().next().unwrap_or("");
+            return Some(Token::EndTag(name.to_ascii_lowercase()));
         }
+
+        let mut effective = trimmed.to_string();
+        let mut self_closing = false;
+        if effective.ends_with('/') {
+            self_closing = true;
+            effective.truncate(effective.trim_end_matches('/').len());
+            effective = effective.trim_end().to_string();
+        }
+
+        let (name, attributes) = Self::parse_tag_parts(&effective);
+        if self_closing || name == "br" {
+            return Some(Token::SelfClosingTag(Tag { name, attributes }));
+        }
+
+        Some(Token::StartTag(Tag { name, attributes }))
+    }
+
+    fn parse_tag_parts(content: &str) -> (String, HashMap<String, String>) {
+        let mut chars = content.chars().peekable();
+
+        while matches!(chars.peek(), Some(ch) if ch.is_whitespace()) {
+            chars.next();
+        }
+
+        let mut name = String::new();
+        while let Some(&ch) = chars.peek() {
+            if ch.is_whitespace() {
+                break;
+            }
+            name.push(ch.to_ascii_lowercase());
+            chars.next();
+        }
+
+        let mut attributes = HashMap::new();
+
+        loop {
+            while matches!(chars.peek(), Some(ch) if ch.is_whitespace()) {
+                chars.next();
+            }
+
+            let mut attr_name = String::new();
+            while let Some(&ch) = chars.peek() {
+                if ch.is_whitespace() || ch == '=' {
+                    break;
+                }
+                attr_name.push(ch.to_ascii_lowercase());
+                chars.next();
+            }
+
+            if attr_name.is_empty() {
+                break;
+            }
+
+            while matches!(chars.peek(), Some(ch) if ch.is_whitespace()) {
+                chars.next();
+            }
+
+            let mut value = String::new();
+            if matches!(chars.peek(), Some('=')) {
+                chars.next(); // consume '='
+
+                while matches!(chars.peek(), Some(ch) if ch.is_whitespace()) {
+                    chars.next();
+                }
+
+                if let Some(&quote) = chars.peek() {
+                    if quote == '"' || quote == '\'' {
+                        chars.next(); // consume opening quote
+                        while let Some(&ch) = chars.peek() {
+                            chars.next();
+                            if ch == quote {
+                                break;
+                            }
+                            value.push(ch);
+                        }
+                    } else {
+                        while let Some(&ch) = chars.peek() {
+                            if ch.is_whitespace() {
+                                break;
+                            }
+                            value.push(ch);
+                            chars.next();
+                        }
+                    }
+                }
+            }
+
+            attributes.insert(attr_name, value);
+        }
+
+        (name, attributes)
     }
 
     fn parse_text(&mut self) -> Option<Token> {
@@ -265,6 +347,7 @@ impl Parser {
         inline_elements.insert("s".to_string(), InlineStyle::Strike);
         inline_elements.insert("mark".to_string(), InlineStyle::Highlight);
         inline_elements.insert("code".to_string(), InlineStyle::Code);
+        inline_elements.insert("a".to_string(), InlineStyle::Link);
 
         Self {
             wrapper_elements,
@@ -302,7 +385,8 @@ impl Parser {
         tokenizer: &mut Tokenizer,
     ) -> Result<(), ParseError> {
         match token {
-            Token::StartTag(tag_name) => {
+            Token::StartTag(tag) => {
+                let tag_name = tag.name.clone();
                 if tag_name == "li" {
                     if let Some(parent) = breadcrumbs.last_mut() {
                         if parent.paragraph_type == ParagraphType::UnorderedList
@@ -501,7 +585,8 @@ impl Parser {
                         return Err(ParseError::UnexpectedClosingTag(tag_name.clone()));
                     }
                 }
-                Token::StartTag(tag_name) => {
+                Token::StartTag(tag) => {
+                    let tag_name = tag.name.clone();
                     if tag_name == "li" {
                         if let Some(parent) = breadcrumbs.last_mut() {
                             if parent.paragraph_type == ParagraphType::UnorderedList
@@ -574,19 +659,27 @@ impl Parser {
                     }
                     break;
                 }
-                Token::SelfClosingTag(tag_name) if tag_name == "br" => {
-                    if !buffer.is_empty() {
-                        let decoded = self.decode_entities(&buffer);
-                        spans.push(Span::new_text(self.collapse_whitespace(
-                            &decoded,
-                            spans.is_empty(),
-                            false,
+                Token::SelfClosingTag(tag) => {
+                    if tag.name == "br" {
+                        if !buffer.is_empty() {
+                            let decoded = self.decode_entities(&buffer);
+                            spans.push(Span::new_text(self.collapse_whitespace(
+                                &decoded,
+                                spans.is_empty(),
+                                false,
+                            )));
+                            buffer.clear();
+                        }
+                        spans.push(Span::new_text("\n"));
+                    } else {
+                        return Err(ParseError::UnexpectedToken(format!(
+                            "self-closing tag {}",
+                            tag.name
                         )));
-                        buffer.clear();
                     }
-                    spans.push(Span::new_text("\n"));
                 }
-                Token::StartTag(tag_name) => {
+                Token::StartTag(tag) => {
+                    let tag_name = tag.name.clone();
                     if let Some(&style) = self.inline_elements.get(&tag_name) {
                         if !buffer.is_empty() {
                             spans.push(Span::new_text(self.decode_entities(
@@ -594,7 +687,7 @@ impl Parser {
                             )));
                             buffer.clear();
                         }
-                        let span = self.read_span(tokenizer, style, &tag_name)?;
+                        let span = self.read_span(tokenizer, style, tag)?;
                         spans.push(span);
                     } else if self.wrapper_elements.contains_key(&tag_name) {
                         // This is a structural element that should be handled by parent context
@@ -604,7 +697,7 @@ impl Parser {
                                 &self.collapse_whitespace(&buffer, spans.is_empty(), false),
                             )));
                         }
-                        tokenizer.putback(Token::StartTag(tag_name), token_pos);
+                        tokenizer.putback(Token::StartTag(tag), token_pos);
                         return Ok(spans);
                     } else {
                         return Err(ParseError::NonInlineToken(tag_name));
@@ -641,12 +734,6 @@ impl Parser {
                         return Err(ParseError::UnexpectedToken(format!("end tag {}", tag_name)));
                     }
                 }
-                Token::SelfClosingTag(tag_name) => {
-                    return Err(ParseError::UnexpectedToken(format!(
-                        "self-closing tag {}",
-                        tag_name
-                    )));
-                }
             }
         }
 
@@ -676,8 +763,16 @@ impl Parser {
         &self,
         tokenizer: &mut Tokenizer,
         style: InlineStyle,
-        end_tag: &str,
+        start_tag: Tag,
     ) -> Result<Span, ParseError> {
+        let end_tag = start_tag.name.clone();
+        let mut span = Span::new_styled(style);
+        if style == InlineStyle::Link {
+            if let Some(target) = start_tag.attributes.get("href") {
+                span = span.with_link_target(target.clone());
+            }
+        }
+
         let mut children = Vec::new();
         let mut buffer = String::new();
 
@@ -686,21 +781,21 @@ impl Parser {
                 Token::EndTag(tag_name) if tag_name == end_tag => {
                     if !buffer.is_empty() {
                         let text = self.decode_entities(&buffer);
-                        // Normalize whitespace in styled spans, but preserve line breaks
                         let normalized = self.normalize_span_whitespace(&text);
                         children.push(Span::new_text(normalized));
-                    }
-                    return Ok(Span::new_styled(style).with_children(children));
-                }
-                Token::SelfClosingTag(tag_name) if tag_name == "br" => {
-                    if !buffer.is_empty() {
-                        let text = self.decode_entities(&buffer);
-                        let normalized = self.normalize_span_whitespace(&text);
-                        children.push(Span::new_text(format!("{}\n", normalized)));
                         buffer.clear();
-                    } else {
-                        // If buffer is empty, just add newline to the last span if possible
-                        if let Some(last) = children.last_mut() {
+                    }
+                    span.children = children;
+                    return Ok(span);
+                }
+                Token::SelfClosingTag(tag) => {
+                    if tag.name == "br" {
+                        if !buffer.is_empty() {
+                            let text = self.decode_entities(&buffer);
+                            let normalized = self.normalize_span_whitespace(&text);
+                            children.push(Span::new_text(format!("{}\n", normalized)));
+                            buffer.clear();
+                        } else if let Some(last) = children.last_mut() {
                             if last.style == InlineStyle::None && last.children.is_empty() {
                                 last.text.push('\n');
                             } else {
@@ -709,12 +804,15 @@ impl Parser {
                         } else {
                             children.push(Span::new_text("\n"));
                         }
+                    } else {
+                        return Err(ParseError::UnexpectedToken(format!(
+                            "self-closing tag {}",
+                            tag.name
+                        )));
                     }
-
-                    // Mark that we just processed a line break so the next text can be trimmed
-                    // This will be handled by the Text token processing
                 }
-                Token::StartTag(tag_name) => {
+                Token::StartTag(tag) => {
+                    let tag_name = tag.name.clone();
                     if let Some(&child_style) = self.inline_elements.get(&tag_name) {
                         if !buffer.is_empty() {
                             let text = self.decode_entities(&buffer);
@@ -722,14 +820,13 @@ impl Parser {
                             children.push(Span::new_text(normalized));
                             buffer.clear();
                         }
-                        let child_span = self.read_span(tokenizer, child_style, &tag_name)?;
+                        let child_span = self.read_span(tokenizer, child_style, tag)?;
                         children.push(child_span);
                     } else {
                         return Err(ParseError::NonInlineToken(tag_name));
                     }
                 }
                 Token::Text(text) => {
-                    // If we just added a line break, trim leading whitespace from the next text
                     if !children.is_empty()
                         && children
                             .last()
@@ -741,8 +838,8 @@ impl Parser {
                         buffer.push_str(&text);
                     }
                 }
-                _ => {
-                    return Err(ParseError::UnexpectedToken(format!("{:?}", token)));
+                Token::EndTag(tag_name) => {
+                    return Err(ParseError::UnexpectedToken(format!("end tag {}", tag_name)));
                 }
             }
         }
@@ -900,5 +997,25 @@ mod tests {
         assert_eq!(doc.paragraphs[0].content[0].text, "A");
         assert_eq!(doc.paragraphs[0].content[1].text, "\n");
         assert_eq!(doc.paragraphs[0].content[2].text, "B");
+    }
+
+    #[test]
+    fn test_link() {
+        let input = "<p>See <a href=\"https://example.com\">Example</a></p>";
+        let doc = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(doc.paragraphs.len(), 1);
+        let paragraph = &doc.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 2);
+        assert_eq!(paragraph.content[0].text, "See ");
+
+        let link_span = &paragraph.content[1];
+        assert_eq!(link_span.style, InlineStyle::Link);
+        assert_eq!(
+            link_span.link_target.as_deref(),
+            Some("https://example.com")
+        );
+        assert_eq!(link_span.children.len(), 1);
+        assert_eq!(link_span.children[0].text, "Example");
     }
 }

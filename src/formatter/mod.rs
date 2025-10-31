@@ -33,6 +33,7 @@ pub struct FormattingStyle {
     pub unordered_list_item_prefix: String,
     pub wrap_width: usize,
     pub left_padding: usize,
+    pub enable_osc8_hyperlinks: bool,
 }
 
 impl Default for FormattingStyle {
@@ -44,6 +45,7 @@ impl Default for FormattingStyle {
             unordered_list_item_prefix: DEFAULT_UNORDERED_LIST_ITEM_PREFIX.to_string(),
             wrap_width: DEFAULT_WRAP_WIDTH,
             left_padding: 0,
+            enable_osc8_hyperlinks: false,
         }
     }
 }
@@ -76,6 +78,7 @@ impl FormattingStyle {
             unordered_list_item_prefix: DEFAULT_UNORDERED_LIST_ITEM_PREFIX.to_string(),
             wrap_width: DEFAULT_WRAP_WIDTH,
             left_padding: 0,
+            enable_osc8_hyperlinks: true,
         }
     }
 }
@@ -99,12 +102,25 @@ impl FormattingStyle {
 pub struct Formatter<W: Write> {
     pub style: FormattingStyle,
     writer: W,
+    pending_links: Vec<LinkReference>,
+    next_link_index: usize,
+}
+
+#[derive(Clone, Debug)]
+struct LinkReference {
+    index: usize,
+    target: String,
 }
 
 impl<W: Write> Formatter<W> {
     /// Creates a formatter over the given writer with the provided style.
     pub fn new(writer: W, style: FormattingStyle) -> Self {
-        Self { writer, style }
+        Self {
+            writer,
+            style,
+            pending_links: Vec::new(),
+            next_link_index: 1,
+        }
     }
 
     /// Creates a formatter that produces plain ASCII output.
@@ -121,6 +137,7 @@ impl<W: Write> Formatter<W> {
     pub fn write_document(&mut self, document: &Document) -> std::io::Result<()> {
         let indent = " ".repeat(self.style.left_padding);
         self.write_paragraphs(&document.paragraphs, &indent, &indent, &indent)?;
+        let _ = self.flush_pending_links(&indent)?;
 
         // Write reset styles if we have any
         if !self.style.reset_styles.is_empty() {
@@ -157,10 +174,21 @@ impl<W: Write> Formatter<W> {
         let mut previous_type: Option<ParagraphType> = None;
 
         for (idx, paragraph) in paragraphs.iter().enumerate() {
+            let flushed_links = if matches!(
+                paragraph.paragraph_type,
+                ParagraphType::Header1 | ParagraphType::Header2 | ParagraphType::Header3
+            ) {
+                self.flush_pending_links(blank_line_prefix)?
+            } else {
+                false
+            };
             let previous_after = previous_type
                 .map(|ty| self.blank_lines_after(ty))
                 .unwrap_or(0);
-            let blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
+            let mut blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
+            if flushed_links && blank_lines > 0 {
+                blank_lines -= 1;
+            }
             self.write_blank_lines_with_prefix(blank_line_prefix, previous_after.max(blank_lines))?;
             let paragraph_prefix = if idx < first_line_prefixes.len() {
                 first_line_prefixes[idx]
@@ -185,6 +213,33 @@ impl<W: Write> Formatter<W> {
         }
 
         Ok(())
+    }
+
+    fn flush_pending_links(&mut self, prefix: &str) -> std::io::Result<bool> {
+        if self.pending_links.is_empty() {
+            self.next_link_index = 1;
+            return Ok(false);
+        }
+
+        self.write_blank_lines_with_prefix(prefix, 1)?;
+
+        let links = std::mem::take(&mut self.pending_links);
+
+        for link in &links {
+            let label = format!("[{}] ", link.index);
+            let first_prefix = format!("{}{}", prefix, label);
+            let continuation_prefix = format!("{}{}", prefix, " ".repeat(label.chars().count()));
+            let footnote_text = if self.style.enable_osc8_hyperlinks {
+                self.osc8_wrap(&link.target, &link.target)
+            } else {
+                link.target.clone()
+            };
+            let parts = vec![footnote_text];
+            self.write_wrapped_text(&parts, &first_prefix, &continuation_prefix)?;
+        }
+
+        self.next_link_index = 1;
+        Ok(true)
     }
 
     fn write_paragraph(
@@ -355,7 +410,7 @@ impl<W: Write> Formatter<W> {
         }
     }
 
-    fn render_heading_text(&self, spans: &[Span]) -> std::io::Result<(String, usize)> {
+    fn render_heading_text(&mut self, spans: &[Span]) -> std::io::Result<(String, usize)> {
         let mut parts = Vec::new();
         for span in spans {
             self.collect_formatted_text(span, &mut parts)?;
@@ -467,25 +522,24 @@ impl<W: Write> Formatter<W> {
         }
     }
 
-    fn collect_formatted_text(&self, span: &Span, parts: &mut Vec<String>) -> std::io::Result<()> {
+    fn collect_formatted_text(
+        &mut self,
+        span: &Span,
+        parts: &mut Vec<String>,
+    ) -> std::io::Result<()> {
+        if span.style == InlineStyle::Link {
+            return self.collect_link_text(span, parts);
+        }
+
         if span.children.is_empty() {
-            // Handle line breaks specially
-            if span.text.contains('\n') {
-                for (i, line) in span.text.split('\n').enumerate() {
-                    if i > 0 {
-                        parts.push("\n".to_string());
-                    }
-                    if !line.is_empty() {
-                        parts.push(line.to_string());
-                    }
-                }
-            } else {
-                parts.push(span.text.clone());
-            }
+            self.push_text_fragment(parts, &span.text);
         } else {
-            // Apply styling to children
             if let Some(style_tags) = self.style.text_styles.get(&span.style) {
                 parts.push(style_tags.begin.clone());
+            }
+
+            if !span.text.is_empty() {
+                self.push_text_fragment(parts, &span.text);
             }
 
             for child in &span.children {
@@ -498,6 +552,94 @@ impl<W: Write> Formatter<W> {
         }
 
         Ok(())
+    }
+
+    fn collect_link_text(&mut self, span: &Span, parts: &mut Vec<String>) -> std::io::Result<()> {
+        let Some(target) = span.link_target.as_ref() else {
+            if !span.text.is_empty() {
+                self.push_text_fragment(parts, &span.text);
+            }
+            for child in &span.children {
+                self.collect_formatted_text(child, parts)?;
+            }
+            return Ok(());
+        };
+
+        if !span.has_content() {
+            let display = if self.style.enable_osc8_hyperlinks {
+                self.osc8_wrap(target, target)
+            } else {
+                target.clone()
+            };
+            self.push_text_fragment(parts, &display);
+            return Ok(());
+        }
+
+        let index = self.register_numbered_link(target);
+
+        if self.style.enable_osc8_hyperlinks {
+            parts.push(self.osc8_start(target));
+        }
+
+        if !span.text.is_empty() {
+            self.push_text_fragment(parts, &span.text);
+        }
+
+        for child in &span.children {
+            self.collect_formatted_text(child, parts)?;
+        }
+
+        if self.style.enable_osc8_hyperlinks {
+            parts.push(self.osc8_end());
+        }
+
+        parts.push(format!("[{}]", index));
+        Ok(())
+    }
+
+    fn push_text_fragment(&self, parts: &mut Vec<String>, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+
+        if text.contains('\n') {
+            for (i, line) in text.split('\n').enumerate() {
+                if i > 0 {
+                    parts.push("\n".to_string());
+                }
+                if !line.is_empty() {
+                    parts.push(line.to_string());
+                }
+            }
+        } else {
+            parts.push(text.to_string());
+        }
+    }
+
+    fn register_numbered_link(&mut self, target: &str) -> usize {
+        let index = self.next_link_index;
+        self.next_link_index += 1;
+        self.pending_links.push(LinkReference {
+            index,
+            target: target.to_string(),
+        });
+        index
+    }
+
+    fn osc8_start(&self, target: &str) -> String {
+        format!("\x1b]8;;{}\x1b\\", target)
+    }
+
+    fn osc8_end(&self) -> String {
+        "\x1b]8;;\x1b\\".to_string()
+    }
+
+    fn osc8_wrap(&self, target: &str, text: &str) -> String {
+        if self.style.enable_osc8_hyperlinks {
+            format!("\x1b]8;;{}\x1b\\{}\x1b]8;;\x1b\\", target, text)
+        } else {
+            text.to_string()
+        }
     }
 
     fn write_wrapped_text(
@@ -722,7 +864,9 @@ impl<W: Write> Formatter<W> {
     fn visible_width(&self, text: &str) -> usize {
         // Remove ANSI escape sequences for width calculation
         let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-        let visible_text = ansi_regex.replace_all(text, "");
+        let osc_regex = regex::Regex::new(r"\x1b]8;;[^\x1b]*\x1b\\").unwrap();
+        let without_ansi = ansi_regex.replace_all(text, "");
+        let visible_text = osc_regex.replace_all(&without_ansi, "");
         visible_text.chars().count()
     }
 }
@@ -819,6 +963,67 @@ mod tests {
             result.contains("\x1b[27m\n| \x1b[7m"),
             "Expected quote prefix to remain unstyled around forced line breaks"
         );
+    }
+
+    #[test]
+    fn test_ascii_links_with_footnotes() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("Docs[1]"));
+        assert!(result.contains("[1] https://example.com/docs"));
+        assert!(result.contains("https://example.com/plain"));
+        assert!(!result.contains("https://example.com/plain["));
+
+        let footnote_pos = result.find("[1] https://example.com/docs").unwrap();
+        let heading_pos = result.find("Next section").unwrap();
+        assert!(footnote_pos < heading_pos);
+    }
+
+    #[test]
+    fn test_ansi_links_with_footnotes() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        Formatter::new_ansi(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        let docs_pos = result.find("Docs").unwrap();
+        let index_pos = result.find("[1]").unwrap();
+        assert!(docs_pos < index_pos);
+        assert!(result.contains(
+            "\x1b]8;;https://example.com/plain\x1b\\https://example.com/plain\x1b]8;;\x1b\\"
+        ));
+        assert!(result.contains(
+            "[1] \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+        ));
+        assert!(result.ends_with("\x1b[0m"));
     }
 
     #[test]
