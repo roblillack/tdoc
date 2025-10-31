@@ -158,8 +158,7 @@ impl MarkdownBuilder {
                 self.ensure_paragraph().start_inline(span);
             }
             Tag::CodeBlock(_) => {
-                let paragraph = self.start_paragraph(ParagraphType::Text);
-                paragraph.start_inline(Span::new_styled(InlineStyle::Code));
+                self.start_paragraph(ParagraphType::CodeBlock);
             }
             Tag::FootnoteDefinition(name) => {
                 let paragraph = self.start_paragraph(ParagraphType::Text);
@@ -216,7 +215,6 @@ impl MarkdownBuilder {
                 self.current_paragraph_inline_end(InlineStyle::Link);
             }
             Tag::CodeBlock(_) => {
-                self.current_paragraph_inline_end(InlineStyle::Code);
                 self.finish_paragraph();
             }
             Tag::FootnoteDefinition(_) => {
@@ -538,6 +536,9 @@ fn write_paragraph<W: Write>(
             let content = render_spans_to_string(&paragraph.content)?;
             write_wrapped_lines(writer, prefix, continuation_prefix, &content)?;
         }
+        ParagraphType::CodeBlock => {
+            write_code_block(writer, prefix, continuation_prefix, &paragraph.content)?;
+        }
         ParagraphType::Header1 => {
             let content = render_spans_to_string(&paragraph.content)?;
             let first_prefix = format!("{}# ", prefix);
@@ -582,6 +583,31 @@ fn write_paragraph<W: Write>(
             }
         }
     }
+    Ok(())
+}
+
+fn write_code_block<W: Write>(
+    writer: &mut W,
+    prefix: &str,
+    continuation_prefix: &str,
+    spans: &[Span],
+) -> std::io::Result<()> {
+    writeln!(writer, "{}```", prefix)?;
+
+    let mut content = String::new();
+    for span in spans {
+        collect_plain_text(span, &mut content);
+    }
+    let normalized = content.replace("\r\n", "\n").replace('\r', "\n");
+
+    if !normalized.is_empty() {
+        for line in normalized.split('\n') {
+            writeln!(writer, "{}{}", continuation_prefix, line)?;
+        }
+    }
+
+    writeln!(writer, "{}```", continuation_prefix)?;
+    writeln!(writer)?;
     Ok(())
 }
 

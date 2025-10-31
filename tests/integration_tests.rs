@@ -1,5 +1,7 @@
 use std::io::Cursor;
-use tdoc::{ftml, parse, write, Document, InlineStyle, ParagraphType};
+use tdoc::{
+    formatter::Formatter, ftml, markdown, parse, write, Document, InlineStyle, ParagraphType,
+};
 
 #[test]
 fn test_parsing_simple_paragraphs() {
@@ -142,6 +144,61 @@ fn test_write_spaces() {
         let output = String::from_utf8(buf).unwrap();
         assert_eq!(output, expected_output);
     }
+}
+
+#[test]
+fn test_code_block_html_roundtrip() {
+    let input = "<pre>fn main() {}\nprintln!(\"hi\");</pre>";
+    let doc = parse(Cursor::new(input)).unwrap();
+    let expected = ftml! { code { "fn main() {}\nprintln!(\"hi\");" } };
+    assert_eq!(doc, expected);
+
+    let mut buf = Vec::new();
+    write(&mut buf, &doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    assert_eq!(output, "<pre>\nfn main() {}\nprintln!(\"hi\");\n</pre>\n");
+}
+
+#[test]
+fn test_formatter_code_block_ascii() {
+    let doc = ftml! { code { "fn main() {}\nprintln!(\"hi\");" } };
+    let mut output = Vec::new();
+    let mut formatter = Formatter::new_ascii(&mut output);
+    let fence = "-".repeat(formatter.style.wrap_width);
+    formatter.write_document(&doc).unwrap();
+    let rendered = String::from_utf8(output).unwrap();
+    let body = "fn main() {}\nprintln!(\"hi\");";
+    let expected = format!("{fence}\n{body}\n{fence}\n", fence = fence, body = body);
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn test_formatter_code_block_wrapping() {
+    let doc = ftml! { code { "abcdefghijk" } };
+    let mut output = Vec::new();
+    let mut formatter = Formatter::new_ascii(&mut output);
+    formatter.style.wrap_width = 8;
+    let fence = "-".repeat(formatter.style.wrap_width);
+    formatter.write_document(&doc).unwrap();
+    let rendered = String::from_utf8(output).unwrap();
+    let expected = format!("{fence}\nabcdefgh\nijk\n{fence}\n", fence = fence);
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn test_markdown_code_block_roundtrip() {
+    let input = "```\nfn main() {}\nprintln!(\"hi\");\n```\n";
+    let doc = markdown::parse(Cursor::new(input)).unwrap();
+    let expected = ftml! { code { "fn main() {}\nprintln!(\"hi\");\n" } };
+    assert_eq!(doc, expected);
+
+    let mut output = Vec::new();
+    markdown::write(&mut output, &doc).unwrap();
+    let markdown_out = String::from_utf8(output).unwrap();
+    assert_eq!(
+        markdown_out,
+        "```\nfn main() {}\nprintln!(\"hi\");\n\n```\n\n"
+    );
 }
 
 #[test]

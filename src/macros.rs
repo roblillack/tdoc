@@ -48,6 +48,11 @@ macro_rules! __ftml_build_block {
     (h3 { $($inner:tt)* }) => {{
         $crate::Paragraph::new_header3().with_content(__ftml_inline_nodes!($($inner)*))
     }};
+    (code { $($inner:tt)* }) => {{
+        let __text = __ftml_collect_code_text!($($inner)*);
+        $crate::Paragraph::new_code_block()
+            .with_content(::std::vec::Vec::from([$crate::Span::new_text(__text)]))
+    }};
     (quote { $($inner:tt)* }) => {{
         $crate::Paragraph::new_quote().with_children(__ftml_collect_blocks!($($inner)*))
     }};
@@ -59,6 +64,43 @@ macro_rules! __ftml_build_block {
     }};
     ($other:ident { $($inner:tt)* }) => {{
         compile_error!(concat!("Unknown FTML element: ", stringify!($other)));
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __ftml_collect_code_text {
+    () => {
+        ::std::string::String::new()
+    };
+    ($($tt:tt)*) => {{
+        let mut __text = ::std::string::String::new();
+        __ftml_collect_code_text_inner!(__text, $($tt)*);
+        __text
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __ftml_collect_code_text_inner {
+    ($buf:ident,) => {};
+    ($buf:ident) => {};
+    ($buf:ident, , $($rest:tt)*) => {
+        __ftml_collect_code_text_inner!($buf, $($rest)*);
+    };
+    ($buf:ident, $lit:literal $($rest:tt)*) => {{
+        $buf.push_str($lit);
+        __ftml_collect_code_text_inner!($buf, $($rest)*);
+    }};
+    ($buf:ident, ($($expr:tt)*) $($rest:tt)*) => {{
+        $buf.push_str(&::std::string::ToString::to_string(&($($expr)*)));
+        __ftml_collect_code_text_inner!($buf, $($rest)*);
+    }};
+    ($buf:ident, $other:tt $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Unsupported token inside FTML code block: ",
+            stringify!($other)
+        ));
     }};
 }
 
@@ -213,9 +255,9 @@ macro_rules! __ftml_list_entries_inner {
 #[macro_export(local_inner_macros)]
 /// Builds a [`Document`](crate::Document) using an inline FTML DSL.
 ///
-/// The macro accepts block-level tags such as `p`, `h1`, `quote`, `ul`, and
-/// `ol`. Inline runs can contain string literals or inline tags like `b`, `i`,
-/// `mark`, or `code`.
+/// The macro accepts block-level tags such as `p`, `h1`, `quote`, `ul`, `ol`,
+/// and fenced `code` blocks. Inline runs can contain string literals or inline
+/// tags like `b`, `i`, `mark`, or `code`.
 ///
 /// # Examples
 ///

@@ -142,7 +142,18 @@ impl<'a> Parser<'a> {
     ) -> Result<(), HtmlError> {
         let node = self.down(para_type)?;
 
-        let (content, extra_token, closed) = self.read_content(end_tag.as_deref(), start_text)?;
+        let (content, extra_token, closed) = if para_type == ParagraphType::CodeBlock {
+            let (text, token, closed) =
+                self.read_preformatted_content(end_tag.as_deref(), start_text)?;
+            let spans = if text.is_empty() {
+                Vec::new()
+            } else {
+                vec![Span::new_text(text)]
+            };
+            (spans, token, closed)
+        } else {
+            self.read_content(end_tag.as_deref(), start_text)?
+        };
 
         if para_type == ParagraphType::Quote && has_meaningful_content(&content) {
             let text_para = self.down(ParagraphType::Text)?;
@@ -151,7 +162,10 @@ impl<'a> Parser<'a> {
         } else if (para_type == ParagraphType::Text && !content.is_empty())
             || matches!(
                 para_type,
-                ParagraphType::Header1 | ParagraphType::Header2 | ParagraphType::Header3
+                ParagraphType::Header1
+                    | ParagraphType::Header2
+                    | ParagraphType::Header3
+                    | ParagraphType::CodeBlock
             )
         {
             node.borrow_mut().content = content;
@@ -183,6 +197,87 @@ impl<'a> Parser<'a> {
         }
 
         Ok(())
+    }
+
+    fn read_preformatted_content(
+        &mut self,
+        end_tag: Option<&str>,
+        start_text: Option<String>,
+    ) -> Result<(String, Option<Token>, bool), HtmlError> {
+        let mut buffer = String::new();
+        if let Some(text) = start_text {
+            if !text.is_empty() {
+                buffer.push_str(&decode_html(text));
+            }
+        }
+
+        loop {
+            let (text, token) = self.read_text()?;
+
+            if !text.is_empty() {
+                buffer.push_str(&decode_html(text));
+            }
+
+            let Some(token) = token else {
+                return Ok((buffer, None, false));
+            };
+
+            if is_line_break(&token) {
+                buffer.push('\n');
+                continue;
+            }
+
+            if let Some(end_tag) = end_tag {
+                if let Token::EndElement(ref end) = token {
+                    if lowercase_name(end.name()) == end_tag {
+                        return Ok((buffer, None, true));
+                    }
+                }
+            }
+
+            match token {
+                Token::StartElement(start) => {
+                    let name = lowercase_name(start.name());
+                    if should_skip_tag(&name) {
+                        continue;
+                    }
+
+                    if is_block_level(&name) {
+                        return Ok((buffer, Some(Token::StartElement(start)), false));
+                    }
+
+                    let (nested_text, extra_token, closed) =
+                        self.read_preformatted_content(Some(&name), None)?;
+                    buffer.push_str(&nested_text);
+                    if let Some(extra) = extra_token {
+                        return Ok((buffer, Some(extra), closed));
+                    }
+                    if !closed {
+                        continue;
+                    }
+                }
+                Token::EmptyElement(empty) => {
+                    let name = lowercase_name(empty.name());
+                    if should_skip_tag(&name) {
+                        continue;
+                    }
+                    if is_line_break_element(&name) {
+                        buffer.push('\n');
+                    }
+                }
+                Token::EndElement(end) => {
+                    let name = lowercase_name(end.name());
+                    if Some(name.as_str()) == end_tag {
+                        return Ok((buffer, None, true));
+                    }
+                    if is_block_level(&name) {
+                        return Ok((buffer, Some(Token::EndElement(end)), false));
+                    }
+                    return Ok((buffer, Some(Token::EndElement(end)), false));
+                }
+                _ => {}
+            }
+        }
     }
 
     fn read_content(
@@ -722,6 +817,7 @@ fn paragraph_type_for(tag: &str) -> Option<ParagraphType> {
         "h1" => Some(ParagraphType::Header1),
         "h2" => Some(ParagraphType::Header2),
         "h3" => Some(ParagraphType::Header3),
+        "pre" => Some(ParagraphType::CodeBlock),
         "blockquote" => Some(ParagraphType::Quote),
         "ul" => Some(ParagraphType::UnorderedList),
         "ol" => Some(ParagraphType::OrderedList),

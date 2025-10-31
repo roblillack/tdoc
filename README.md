@@ -80,8 +80,15 @@ FTML documents consist of a hierarchy of elements:
 
 - **Text paragraphs** (`<p>`)
 - **Headers** (`<h1>`, `<h2>`, `<h3>`)
+- **Code blocks** (`<pre>`)
 - **Lists** - ordered (`<ol>`) or unordered (`<ul>`)
 - **Blockquotes** (`<blockquote>`)
+
+### Code Blocks
+
+- Represented in FTML as `<pre>` elements and emitted via the `code { "..." }` block in the `ftml!` macro.
+- When rendered in ASCII or ANSI, code blocks maintain paragraph spacing and are wrapped in `----` separators with hard character-level wrapping.
+- Markdown export uses fenced code blocks (`````), and HTML/FTML writers preserve the original whitespace verbatim.
 
 ### Inline Styles
 
@@ -177,6 +184,11 @@ fn main() -> tdoc::Result<()> {
             }
         }
         p { "Inline styles work " b { "just as well" } "." }
+        code {
+            "fn main() {\n"
+            "    println!(\"Hello from FTML!\");\n"
+            "}\n"
+        }
     };
 
     write(&mut std::io::stdout(), &doc)?;

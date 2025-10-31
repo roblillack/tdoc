@@ -95,7 +95,11 @@ impl Writer {
         let tag = paragraph.paragraph_type.html_tag();
 
         if paragraph.paragraph_type.is_leaf() {
-            self.write_leaf_paragraph(writer, &paragraph.content, tag, level)
+            if paragraph.paragraph_type == ParagraphType::CodeBlock {
+                self.write_code_block_paragraph(writer, &paragraph.content, level)
+            } else {
+                self.write_leaf_paragraph(writer, &paragraph.content, tag, level)
+            }
         } else {
             self.write_indent(writer, level)?;
             writeln!(writer, "<{}>", tag)?;
@@ -135,6 +139,29 @@ impl Writer {
             self.write_indent(writer, level)?;
             writeln!(writer, "</{}>", tag)
         }
+    }
+
+    fn write_code_block_paragraph<W: Write>(
+        &self,
+        writer: &mut W,
+        content: &[Span],
+        level: usize,
+    ) -> io::Result<()> {
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<pre>")?;
+
+        let mut code_text = self.collect_code_text(content);
+        if !code_text.is_empty() {
+            code_text = code_text.replace("\r\n", "\n").replace('\r', "\n");
+            let encoded = self.encode_pre_text(&code_text);
+            writer.write_all(encoded.as_bytes())?;
+            if !code_text.ends_with('\n') {
+                writeln!(writer)?;
+            }
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</pre>")
     }
 
     fn write_leaf_paragraph<W: Write>(
@@ -253,6 +280,36 @@ impl Writer {
             self.write_span(writer, span, level, is_first, is_last)?;
         }
         Ok(())
+    }
+
+    fn collect_code_text(&self, spans: &[Span]) -> String {
+        let mut buffer = String::new();
+        for span in spans {
+            Self::append_span_text(span, &mut buffer);
+        }
+        buffer
+    }
+
+    fn append_span_text(span: &Span, buffer: &mut String) {
+        if !span.text.is_empty() {
+            buffer.push_str(&span.text);
+        }
+        for child in &span.children {
+            Self::append_span_text(child, buffer);
+        }
+    }
+
+    fn encode_pre_text(&self, text: &str) -> String {
+        let mut encoded = String::new();
+        for ch in text.chars() {
+            match ch {
+                '&' => encoded.push_str("&amp;"),
+                '<' => encoded.push_str("&lt;"),
+                '>' => encoded.push_str("&gt;"),
+                _ => encoded.push(ch),
+            }
+        }
+        encoded
     }
 
     fn write_span<W: Write>(
