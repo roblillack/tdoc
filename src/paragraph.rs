@@ -99,10 +99,10 @@ impl ParagraphType {
             return true;
         }
 
-        match (self, closing) {
-            (ParagraphType::Checklist, ParagraphType::UnorderedList) => true,
-            _ => false,
-        }
+        matches!(
+            (self, closing),
+            (ParagraphType::Checklist, ParagraphType::UnorderedList)
+        )
     }
 }
 

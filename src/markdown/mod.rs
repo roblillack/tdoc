@@ -224,8 +224,11 @@ impl MarkdownBuilder {
                     checklist_state,
                 }) = self.stack.pop()
                 {
-                    if let Some(BlockContext::List { entries, is_checklist, .. }) =
-                        self.stack.last_mut()
+                    if let Some(BlockContext::List {
+                        entries,
+                        is_checklist,
+                        ..
+                    }) = self.stack.last_mut()
                     {
                         if let Some(checked) = checklist_state {
                             let item = Self::build_checklist_item(paragraphs, checked);
@@ -335,26 +338,24 @@ impl MarkdownBuilder {
     }
 
     fn push_task_marker(&mut self, checked: bool) {
-        if let Some(context) = self
+        if let Some(BlockContext::ListItem {
+            checklist_state, ..
+        }) = self
             .stack
             .iter_mut()
             .rev()
             .find(|ctx| matches!(ctx, BlockContext::ListItem { .. }))
         {
-            if let BlockContext::ListItem { checklist_state, .. } = context {
-                *checklist_state = Some(checked);
-            }
+            *checklist_state = Some(checked);
         }
 
-        if let Some(context) = self
+        if let Some(BlockContext::List { is_checklist, .. }) = self
             .stack
             .iter_mut()
             .rev()
             .find(|ctx| matches!(ctx, BlockContext::List { .. }))
         {
-            if let BlockContext::List { is_checklist, .. } = context {
-                *is_checklist = true;
-            }
+            *is_checklist = true;
         }
     }
 
@@ -406,7 +407,9 @@ impl MarkdownBuilder {
             match parent {
                 BlockContext::Document { paragraphs } => paragraphs.push(paragraph),
                 BlockContext::Quote { children } => children.push(paragraph),
-                BlockContext::ListItem { paragraphs: items, .. } => items.push(paragraph),
+                BlockContext::ListItem {
+                    paragraphs: items, ..
+                } => items.push(paragraph),
                 BlockContext::List { entries, .. } => {
                     entries.push(vec![paragraph]);
                 }
@@ -671,11 +674,7 @@ fn write_paragraph<W: Write>(
                         ' '
                     };
                     let first_prefix = format!("{}- [{}] ", prefix, marker);
-                    let continuation = format!(
-                        "{}{}",
-                        continuation_prefix,
-                        " ".repeat(6)
-                    );
+                    let continuation = format!("{}{}", continuation_prefix, " ".repeat(6));
                     let content = render_spans_to_string(&item.content)?;
                     write_wrapped_lines(writer, &first_prefix, &continuation, &content)?;
                 }
