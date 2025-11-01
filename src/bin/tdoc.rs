@@ -4,7 +4,6 @@ use reqwest::blocking::Client;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command as Process, Stdio};
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
 use tdoc::{html, markdown, pager, parse, write, Document};
@@ -187,20 +186,6 @@ fn view_document(document: &Document, no_ansi: bool) -> Result<(), String> {
     let use_pager = use_ansi;
 
     if use_pager {
-        // if let Ok((mut pager, pager_stdin)) = run_pager() {
-        //     let mut style = FormattingStyle::ansi();
-        //     configure_style_for_terminal(&mut style);
-
-        //     let mut formatter = Formatter::new(pager_stdin, style);
-        //     formatter
-        //         .write_document(document)
-        //         .map_err(|err| format!("Unable to write document: {err}"))?;
-
-        //     drop(formatter);
-        //     let _ = pager.wait();
-        //     return Ok(());
-        // }
-
         let mut buf = Vec::new();
         if use_ansi {
             let mut style = FormattingStyle::ansi();
@@ -271,39 +256,6 @@ fn configure_style_for_width(style: &mut FormattingStyle, width: usize) {
         style.wrap_width = width.saturating_sub(padding);
         style.left_padding = padding;
     }
-}
-
-fn run_pager() -> io::Result<(std::process::Child, std::process::ChildStdin)> {
-    let pager_cmd = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
-    let mut parts: Vec<&str> = pager_cmd.split_whitespace().collect();
-
-    if parts.is_empty() {
-        parts.push("less");
-    }
-
-    let program = parts[0];
-    let program_name = Path::new(program)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or(program);
-
-    let mut final_args: Vec<&str> = parts.into_iter().skip(1).collect();
-    if program_name == "less" || program_name == "more" {
-        final_args.push("-R");
-    }
-
-    let mut child = Process::new(program)
-        .args(&final_args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::inherit())
-        .spawn()?;
-
-    let stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| io::Error::other("Unable to open pager stdin"))?;
-
-    Ok((child, stdin))
 }
 
 fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {

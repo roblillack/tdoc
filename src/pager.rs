@@ -13,7 +13,6 @@ use crossterm::{
 use std::collections::HashMap;
 use std::io::{self, Stdout, Write};
 use std::ops::Range;
-use std::time::Duration;
 use unicode_width::UnicodeWidthChar;
 
 /// ANSI-aware segment ready for rendering.
@@ -1090,8 +1089,8 @@ where
         MoveTo(0, 0)
     )?;
 
-    let (_width, height) = terminal::size()?;
-    let viewport_height = height.saturating_sub(1) as usize;
+    let (_, current_height) = terminal::size()?;
+    let viewport_height = current_height.saturating_sub(1) as usize;
     let mut state = PagerState::new(content.len(), viewport_height);
 
     let mut result = Ok(());
@@ -1106,58 +1105,85 @@ where
             needs_redraw = false;
         }
 
-        if event::poll(Duration::from_millis(10))? {
-            match event::read()? {
-                Event::Key(key_event) => {
-                    let mut key_redraw = false;
-                    if !handle_key_event(key_event, &mut state, &content, &mut key_redraw) {
-                        break 'outer;
-                    }
-                    needs_redraw |= key_redraw;
+        match event::read()? {
+            Event::Key(key_event) => {
+                let mut key_redraw = false;
+                if !handle_key_event(key_event, &mut state, &content, &mut key_redraw) {
+                    break 'outer;
                 }
-                Event::Resize(new_width, new_height) => {
-                    let new_viewport_height = new_height.saturating_sub(1) as usize;
-                    let center_line = state.scroll_offset + state.viewport_height / 2;
-                    let relative_position = if state.total_lines <= 1 {
-                        0.0
-                    } else {
-                        let denom = (state.total_lines.saturating_sub(1)) as f64;
-                        (center_line as f64 / denom).clamp(0.0, 1.0)
-                    };
-                    let active_match_line = match &state.search_mode {
-                        SearchMode::Active {
-                            matches,
-                            current_match,
-                            ..
-                        } => matches.get(*current_match).map(|m| m.line_idx),
-                        _ => None,
-                    };
+                needs_redraw |= key_redraw;
+            }
+            Event::Resize(new_width, new_height) => {
+                let new_viewport_height = new_height.saturating_sub(1) as usize;
+                let center_line = state.scroll_offset + state.viewport_height / 2;
+                let relative_position = if state.total_lines <= 1 {
+                    0.0
+                } else {
+                    let denom = (state.total_lines.saturating_sub(1)) as f64;
+                    (center_line as f64 / denom).clamp(0.0, 1.0)
+                };
+                let active_match_line = match &state.search_mode {
+                    SearchMode::Active {
+                        matches,
+                        current_match,
+                        ..
+                    } => matches.get(*current_match).map(|m| m.line_idx),
+                    _ => None,
+                };
 
-                    if let Some(regen) = regenerator.as_mut() {
-                        let regenerated = regen(new_width, new_height)
-                            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-                        content = parse_content_to_lines(&regenerated);
-                        state.total_lines = content.len();
-                        state.rebuild_search_results(&content, active_match_line);
-                    } else {
-                        state.total_lines = content.len();
-                    }
+                let prev_total_lines = content.len();
+                let half_viewport = new_viewport_height / 2;
+                let target_center_old = if prev_total_lines <= 1 {
+                    0
+                } else {
+                    let denom = (prev_total_lines.saturating_sub(1)) as f64;
+                    (relative_position * denom).round() as usize
+                };
+                let old_max_scroll = if new_viewport_height == 0 {
+                    prev_total_lines.saturating_sub(1)
+                } else {
+                    prev_total_lines.saturating_sub(new_viewport_height)
+                };
+                let mut old_scroll_offset = target_center_old.saturating_sub(half_viewport);
+                if old_scroll_offset > old_max_scroll {
+                    old_scroll_offset = old_max_scroll;
+                }
 
-                    state.viewport_height = new_viewport_height;
+                state.viewport_height = new_viewport_height;
+                state.total_lines = prev_total_lines;
+                state.scroll_offset = old_scroll_offset;
 
-                    let target_center = if state.total_lines <= 1 {
-                        0
-                    } else {
-                        let denom = (state.total_lines.saturating_sub(1)) as f64;
-                        (relative_position * denom).round() as usize
-                    };
-                    let half_viewport = new_viewport_height / 2;
-                    state.scroll_offset = target_center.saturating_sub(half_viewport);
-                    state.clamp_scroll();
+                let mut new_total_lines = prev_total_lines;
+                if let Some(regen) = regenerator.as_mut() {
+                    let regenerated = regen(new_width, new_height)
+                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+                    let regenerated_lines = parse_content_to_lines(&regenerated);
+                    new_total_lines = regenerated_lines.len();
+                    state.rebuild_search_results(&regenerated_lines, active_match_line);
+                    content = regenerated_lines;
                     needs_redraw = true;
                 }
-                _ => {}
+
+                state.total_lines = new_total_lines;
+
+                let target_center_new = if new_total_lines <= 1 {
+                    0
+                } else {
+                    let denom = (new_total_lines.saturating_sub(1)) as f64;
+                    (relative_position * denom).round() as usize
+                };
+                let new_max_scroll = if new_viewport_height == 0 {
+                    new_total_lines.saturating_sub(1)
+                } else {
+                    new_total_lines.saturating_sub(new_viewport_height)
+                };
+                let mut new_scroll_offset = target_center_new.saturating_sub(half_viewport);
+                if new_scroll_offset > new_max_scroll {
+                    new_scroll_offset = new_max_scroll;
+                }
+                state.scroll_offset = new_scroll_offset;
             }
+            _ => {}
         }
     }
 
