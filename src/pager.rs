@@ -2,7 +2,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
-        MouseEvent, MouseEventKind,
+        MouseButton, MouseEvent, MouseEventKind,
     },
     execute, queue,
     style::{
@@ -16,6 +16,7 @@ use crossterm::{
 use std::collections::HashMap;
 use std::io::{self, Stdout, Write};
 use std::ops::Range;
+use std::sync::Arc;
 use unicode_width::UnicodeWidthChar;
 
 /// ANSI-aware segment ready for rendering.
@@ -126,6 +127,19 @@ impl AnsiStyle {
         style
     }
 
+    fn with_link_style(&self, focused: bool) -> Self {
+        let mut style = self.clone();
+        style.attributes.underlined = true;
+        if focused {
+            style.fg = Some(Color::White);
+            style.bg = Some(Color::Blue);
+        } else {
+            style.fg = Some(Color::Blue);
+            style.bg = None;
+        }
+        style
+    }
+
     fn apply(&self, stdout: &mut Stdout) -> io::Result<()> {
         queue!(
             stdout,
@@ -168,17 +182,36 @@ enum SearchMode {
     },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
+struct LinkInfo {
+    url: String,
+    line_idx: usize,
+    start_char: usize,
+    end_char: usize,
+    start_col: usize,
+    end_col: usize,
+}
+
+#[derive(Clone)]
 pub struct PagerOptions {
     pub enable_mouse_capture: bool,
+    pub link_callback: Option<Arc<dyn Fn(&str) + Send + Sync>>,
 }
 
 impl Default for PagerOptions {
     fn default() -> Self {
         Self {
             enable_mouse_capture: true,
+            link_callback: Some(default_link_callback()),
         }
     }
+}
+
+fn default_link_callback() -> Arc<dyn Fn(&str) + Send + Sync> {
+    Arc::new(|target: &str| {
+        println!("{}", target);
+        std::process::exit(0);
+    })
 }
 
 struct PagerState {
@@ -188,6 +221,8 @@ struct PagerState {
     search_mode: SearchMode,
     search_input: String,
     last_terminal_height: usize,
+    links: Vec<LinkInfo>,
+    focused_link: Option<usize>,
 }
 
 impl PagerState {
@@ -199,6 +234,8 @@ impl PagerState {
             search_mode: SearchMode::Normal,
             search_input: String::new(),
             last_terminal_height: 0,
+            links: Vec::new(),
+            focused_link: None,
         }
     }
 
@@ -313,6 +350,97 @@ impl PagerState {
         }
     }
 
+    fn rebuild_links(&mut self, content: &[ParsedLine]) {
+        let previous = self
+            .focused_link
+            .and_then(|idx| self.links.get(idx).cloned());
+        self.links = collect_links(content);
+        if let Some(prev_link) = previous {
+            self.focused_link = self.links.iter().position(|link| {
+                link.url == prev_link.url
+                    && link.line_idx == prev_link.line_idx
+                    && link.start_char == prev_link.start_char
+            });
+        } else {
+            self.focused_link = None;
+        }
+        if let Some(idx) = self.focused_link {
+            if idx >= self.links.len() {
+                self.focused_link = None;
+            }
+        }
+    }
+
+    fn focus_next_link(&mut self) -> bool {
+        if self.links.is_empty() {
+            return false;
+        }
+        let next_index = match self.focused_link {
+            Some(idx) => (idx + 1) % self.links.len(),
+            None => 0,
+        };
+        let changed = self.focused_link != Some(next_index);
+        self.focused_link = Some(next_index);
+        self.ensure_link_visible(next_index);
+        changed
+    }
+
+    fn focus_prev_link(&mut self) -> bool {
+        if self.links.is_empty() {
+            return false;
+        }
+        let prev_index = match self.focused_link {
+            Some(0) => self.links.len().saturating_sub(1),
+            Some(idx) => idx.saturating_sub(1),
+            None => self.links.len().saturating_sub(1),
+        };
+        let changed = self.focused_link != Some(prev_index);
+        self.focused_link = Some(prev_index);
+        self.ensure_link_visible(prev_index);
+        changed
+    }
+
+    fn ensure_link_visible(&mut self, index: usize) {
+        if let Some(link) = self.links.get(index) {
+            if link.line_idx < self.scroll_offset {
+                self.scroll_offset = link.line_idx;
+            } else if self.viewport_height > 0
+                && link.line_idx >= self.scroll_offset + self.viewport_height
+            {
+                let desired = link
+                    .line_idx
+                    .saturating_sub(self.viewport_height.saturating_sub(1));
+                self.scroll_offset = desired;
+            }
+            self.clamp_scroll();
+        }
+    }
+
+    fn focus_link_at(&mut self, line_idx: usize, column: usize) -> Option<usize> {
+        if let Some(idx) = self.links.iter().position(|link| {
+            link.line_idx == line_idx
+                && column >= link.start_col
+                && column < link.end_col.max(link.start_col + 1)
+        }) {
+            let changed = self.focused_link != Some(idx);
+            self.focused_link = Some(idx);
+            if changed {
+                self.ensure_link_visible(idx);
+            }
+            Some(idx)
+        } else {
+            None
+        }
+    }
+
+    fn focused_link(&self) -> Option<&LinkInfo> {
+        self.focused_link.and_then(|idx| self.links.get(idx))
+    }
+
+    fn current_link_target(&self) -> Option<&str> {
+        self.focused_link().map(|link| link.url.as_str())
+    }
+
     fn next_match(&mut self) {
         if let SearchMode::Active {
             matches,
@@ -381,6 +509,85 @@ fn find_search_matches(query: &str, content: &[ParsedLine]) -> Vec<SearchMatch> 
     }
 
     matches
+}
+
+fn collect_links(content: &[ParsedLine]) -> Vec<LinkInfo> {
+    let mut links = Vec::new();
+
+    for (line_idx, line) in content.iter().enumerate() {
+        let mut current: Option<LinkInfo> = None;
+        let mut char_index = 0usize;
+        let mut col_index = 0usize;
+
+        for segment in &line.segments {
+            for ch in segment.text.chars() {
+                let width = UnicodeWidthChar::width(ch).unwrap_or(0);
+
+                if let Some(url) = &segment.hyperlink {
+                    let is_continuation = current
+                        .as_ref()
+                        .map(|link| {
+                            link.url == *url
+                                && link.line_idx == line_idx
+                                && link.end_char == char_index
+                        })
+                        .unwrap_or(false);
+
+                    if !is_continuation {
+                        if let Some(mut link) = current.take() {
+                            if link.end_col == link.start_col {
+                                link.end_col = link.start_col + 1;
+                            }
+                            links.push(link);
+                        }
+                        current = Some(LinkInfo {
+                            url: url.clone(),
+                            line_idx,
+                            start_char: char_index,
+                            end_char: char_index,
+                            start_col: col_index,
+                            end_col: col_index,
+                        });
+                    }
+
+                    if let Some(link) = current.as_mut() {
+                        link.end_char = char_index + 1;
+                        if width > 0 {
+                            link.end_col = col_index + width;
+                        } else if link.end_col == link.start_col {
+                            link.end_col = link.start_col + 1;
+                        }
+                    }
+                } else if let Some(mut link) = current.take() {
+                    if link.end_col == link.start_col {
+                        link.end_col = link.start_col + 1;
+                    }
+                    links.push(link);
+                }
+
+                col_index += width;
+                char_index += 1;
+            }
+
+            if segment.hyperlink.is_none() {
+                if let Some(mut link) = current.take() {
+                    if link.end_col == link.start_col {
+                        link.end_col = link.start_col + 1;
+                    }
+                    links.push(link);
+                }
+            }
+        }
+
+        if let Some(mut link) = current.take() {
+            if link.end_col == link.start_col {
+                link.end_col = link.start_col + 1;
+            }
+            links.push(link);
+        }
+    }
+
+    links
 }
 
 impl ParsedLine {
@@ -743,7 +950,10 @@ fn render_pager(
         queue!(stdout, MoveTo(0, row as u16), Clear(ClearType::CurrentLine))?;
         if let Some(line) = content.get(line_idx) {
             let highlights = highlight_map.get(&line_idx).cloned().unwrap_or_default();
-            render_line(stdout, line, &highlights, content_width)?;
+            let focused_link = state
+                .focused_link()
+                .filter(|link| link.line_idx == line_idx);
+            render_line(stdout, line, &highlights, content_width, focused_link)?;
         }
     }
 
@@ -774,6 +984,7 @@ fn render_line(
     line: &ParsedLine,
     highlights: &[(usize, usize, bool)],
     width: usize,
+    focused_link: Option<&LinkInfo>,
 ) -> io::Result<()> {
     if width == 0 {
         return Ok(());
@@ -781,6 +992,7 @@ fn render_line(
 
     let chunks = line.to_render_chunks(highlights);
     let mut remaining = width;
+    let mut char_cursor = 0usize;
 
     for chunk in chunks {
         if remaining == 0 {
@@ -793,18 +1005,22 @@ fn render_line(
             break;
         }
 
-        chunk.style.apply(stdout)?;
+        let render_char_count = render_text.chars().count();
+        let chunk_start_char = char_cursor;
+        let chunk_end_char = char_cursor + render_char_count;
 
-        if let Some(url) = &chunk.hyperlink {
-            queue!(
-                stdout,
-                Print(format!("\x1b]8;;{}\x07", url)),
-                Print(render_text.as_str()),
-                Print("\x1b]8;;\x07")
-            )?;
-        } else {
-            queue!(stdout, Print(render_text.as_str()))?;
+        let mut style = chunk.style.clone();
+        if chunk.hyperlink.is_some() {
+            let is_focused = focused_link
+                .map(|link| link.start_char < chunk_end_char && link.end_char > chunk_start_char)
+                .unwrap_or(false);
+            style = style.with_link_style(is_focused);
         }
+
+        style.apply(stdout)?;
+        queue!(stdout, Print(render_text.as_str()))?;
+
+        char_cursor = chunk_end_char;
 
         if used_width >= remaining || !complete {
             break;
@@ -924,7 +1140,7 @@ fn draw_status_line(
         }
         SearchMode::Normal => {
             if state.total_lines == 0 {
-                " (empty) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search".to_string()
+                " (empty) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search, Tab: next link, Shift-Tab: prev, Enter: open".to_string()
             } else {
                 let percentage = if state.max_scroll() == 0 {
                     100
@@ -932,7 +1148,7 @@ fn draw_status_line(
                     (state.scroll_offset * 100) / state.max_scroll()
                 };
                 format!(
-                    " Line {}-{}/{} ({}%) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search",
+                    " Line {}-{}/{} ({}%) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search, Tab/Shift-Tab: links, Enter: open",
                     state.scroll_offset + 1,
                     (state.scroll_offset + state.viewport_height)
                         .min(state.total_lines),
@@ -987,6 +1203,7 @@ fn handle_key_event(
     state: &mut PagerState,
     content: &[ParsedLine],
     needs_redraw: &mut bool,
+    link_to_open: &mut Option<String>,
 ) -> bool {
     if matches!(state.search_mode, SearchMode::EnteringQuery) {
         match key_event.code {
@@ -1054,6 +1271,26 @@ fn handle_key_event(
             state.prev_match();
             *needs_redraw = true;
         }
+        KeyCode::Tab => {
+            let changed = if key_event.modifiers.contains(KeyModifiers::SHIFT) {
+                state.focus_prev_link()
+            } else {
+                state.focus_next_link()
+            };
+            if changed {
+                *needs_redraw = true;
+            }
+        }
+        KeyCode::BackTab => {
+            if state.focus_prev_link() {
+                *needs_redraw = true;
+            }
+        }
+        KeyCode::Enter => {
+            if let Some(target) = state.current_link_target() {
+                *link_to_open = Some(target.to_string());
+            }
+        }
         KeyCode::Down | KeyCode::Char('j') => {
             state.scroll_down();
             *needs_redraw = true;
@@ -1084,20 +1321,42 @@ fn handle_key_event(
     true
 }
 
-fn handle_mouse_event(mouse_event: MouseEvent, state: &mut PagerState) -> bool {
+fn handle_mouse_event(
+    mouse_event: MouseEvent,
+    state: &mut PagerState,
+    needs_redraw: &mut bool,
+    link_to_open: &mut Option<String>,
+) {
     match mouse_event.kind {
         MouseEventKind::ScrollUp => {
             let previous = state.scroll_offset;
             state.scroll_up();
-            state.scroll_offset != previous
+            if state.scroll_offset != previous {
+                *needs_redraw = true;
+            }
         }
         MouseEventKind::ScrollDown => {
             let previous = state.scroll_offset;
             state.scroll_down();
-            state.scroll_offset != previous
+            if state.scroll_offset != previous {
+                *needs_redraw = true;
+            }
         }
-        _ => false,
-    }
+        MouseEventKind::Down(MouseButton::Left) => {
+            let row = mouse_event.row as usize;
+            if row < state.viewport_height {
+                let line_idx = state.scroll_offset + row;
+                let column = mouse_event.column as usize;
+                if state.focus_link_at(line_idx, column).is_some() {
+                    *needs_redraw = true;
+                    if let Some(link) = state.focused_link() {
+                        *link_to_open = Some(link.url.clone());
+                    }
+                }
+            }
+        }
+        _ => {}
+    };
 }
 
 fn parse_content_to_lines(content: &str) -> Vec<ParsedLine> {
@@ -1123,9 +1382,11 @@ where
     let (_, current_height) = terminal::size()?;
     let viewport_height = current_height.saturating_sub(1) as usize;
     let mut state = PagerState::new(content.len(), viewport_height);
+    state.rebuild_links(&content);
 
     let mut result = Ok(());
     let mut needs_redraw = true;
+    let mut pending_link: Option<String> = None;
 
     'outer: loop {
         if needs_redraw {
@@ -1139,14 +1400,25 @@ where
         match event::read()? {
             Event::Key(key_event) => {
                 let mut key_redraw = false;
-                if !handle_key_event(key_event, &mut state, &content, &mut key_redraw) {
+                if !handle_key_event(
+                    key_event,
+                    &mut state,
+                    &content,
+                    &mut key_redraw,
+                    &mut pending_link,
+                ) {
                     break 'outer;
                 }
                 needs_redraw |= key_redraw;
             }
             Event::Mouse(mouse_event) => {
-                if options.enable_mouse_capture && handle_mouse_event(mouse_event, &mut state) {
-                    needs_redraw = true;
+                if options.enable_mouse_capture {
+                    handle_mouse_event(
+                        mouse_event,
+                        &mut state,
+                        &mut needs_redraw,
+                        &mut pending_link,
+                    );
                 }
             }
             Event::Resize(new_width, new_height) => {
@@ -1197,6 +1469,7 @@ where
                     new_total_lines = regenerated_lines.len();
                     state.rebuild_search_results(&regenerated_lines, active_match_line);
                     content = regenerated_lines;
+                    state.rebuild_links(&content);
                     needs_redraw = true;
                 }
 
@@ -1221,6 +1494,10 @@ where
             }
             _ => {}
         }
+
+        if pending_link.is_some() {
+            break 'outer;
+        }
     }
 
     if options.enable_mouse_capture {
@@ -1228,6 +1505,15 @@ where
     }
     execute!(stdout, Show, LeaveAlternateScreen)?;
     disable_raw_mode()?;
+
+    if result.is_ok() {
+        if let Some(link_target) = pending_link {
+            if let Some(callback) = options.link_callback.clone() {
+                callback(link_target.as_str());
+            }
+        }
+    }
+
     result
 }
 
