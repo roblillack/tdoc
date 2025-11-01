@@ -127,12 +127,15 @@ impl AnsiStyle {
         style
     }
 
-    fn with_link_style(&self, focused: bool) -> Self {
+    fn with_link_style(&self, focused: bool, hovered: bool) -> Self {
         let mut style = self.clone();
         style.attributes.underlined = true;
         if focused {
             style.fg = Some(Color::White);
             style.bg = Some(Color::Blue);
+        } else if hovered {
+            style.fg = Some(Color::Blue);
+            style.bg = Some(Color::Grey);
         } else {
             style.fg = Some(Color::Blue);
             style.bg = None;
@@ -223,6 +226,7 @@ struct PagerState {
     last_terminal_height: usize,
     links: Vec<LinkInfo>,
     focused_link: Option<usize>,
+    hovered_link: Option<usize>,
 }
 
 impl PagerState {
@@ -236,6 +240,7 @@ impl PagerState {
             last_terminal_height: 0,
             links: Vec::new(),
             focused_link: None,
+            hovered_link: None,
         }
     }
 
@@ -351,11 +356,14 @@ impl PagerState {
     }
 
     fn rebuild_links(&mut self, content: &[ParsedLine]) {
-        let previous = self
+        let previous_focus = self
             .focused_link
             .and_then(|idx| self.links.get(idx).cloned());
+        let previous_hover = self
+            .hovered_link
+            .and_then(|idx| self.links.get(idx).cloned());
         self.links = collect_links(content);
-        if let Some(prev_link) = previous {
+        if let Some(prev_link) = previous_focus {
             self.focused_link = self.links.iter().position(|link| {
                 link.url == prev_link.url
                     && link.line_idx == prev_link.line_idx
@@ -364,9 +372,23 @@ impl PagerState {
         } else {
             self.focused_link = None;
         }
+        if let Some(prev_link) = previous_hover {
+            self.hovered_link = self.links.iter().position(|link| {
+                link.url == prev_link.url
+                    && link.line_idx == prev_link.line_idx
+                    && link.start_char == prev_link.start_char
+            });
+        } else {
+            self.hovered_link = None;
+        }
         if let Some(idx) = self.focused_link {
             if idx >= self.links.len() {
                 self.focused_link = None;
+            }
+        }
+        if let Some(idx) = self.hovered_link {
+            if idx >= self.links.len() {
+                self.hovered_link = None;
             }
         }
     }
@@ -439,6 +461,34 @@ impl PagerState {
 
     fn current_link_target(&self) -> Option<&str> {
         self.focused_link().map(|link| link.url.as_str())
+    }
+
+    fn hovered_link(&self) -> Option<&LinkInfo> {
+        self.hovered_link.and_then(|idx| self.links.get(idx))
+    }
+
+    fn hovered_link_target(&self) -> Option<&str> {
+        self.hovered_link().map(|link| link.url.as_str())
+    }
+
+    fn hover_link_at(&mut self, line_idx: usize, column: usize) -> bool {
+        let new_hover = self.links.iter().position(|link| {
+            link.line_idx == line_idx
+                && column >= link.start_col
+                && column < link.end_col.max(link.start_col + 1)
+        });
+        if new_hover != self.hovered_link {
+            self.hovered_link = new_hover;
+            return true;
+        }
+        false
+    }
+
+    fn clear_hover(&mut self) -> bool {
+        if self.hovered_link.take().is_some() {
+            return true;
+        }
+        false
     }
 
     fn next_match(&mut self) {
@@ -953,7 +1003,17 @@ fn render_pager(
             let focused_link = state
                 .focused_link()
                 .filter(|link| link.line_idx == line_idx);
-            render_line(stdout, line, &highlights, content_width, focused_link)?;
+            let hovered_link = state
+                .hovered_link()
+                .filter(|link| link.line_idx == line_idx);
+            render_line(
+                stdout,
+                line,
+                &highlights,
+                content_width,
+                focused_link,
+                hovered_link,
+            )?;
         }
     }
 
@@ -985,6 +1045,7 @@ fn render_line(
     highlights: &[(usize, usize, bool)],
     width: usize,
     focused_link: Option<&LinkInfo>,
+    hovered_link: Option<&LinkInfo>,
 ) -> io::Result<()> {
     if width == 0 {
         return Ok(());
@@ -1014,7 +1075,10 @@ fn render_line(
             let is_focused = focused_link
                 .map(|link| link.start_char < chunk_end_char && link.end_char > chunk_start_char)
                 .unwrap_or(false);
-            style = style.with_link_style(is_focused);
+            let is_hovered = hovered_link
+                .map(|link| link.start_char < chunk_end_char && link.end_char > chunk_start_char)
+                .unwrap_or(false);
+            style = style.with_link_style(is_focused, is_hovered && !is_focused);
         }
 
         style.apply(stdout)?;
@@ -1107,7 +1171,7 @@ fn draw_status_line(
     width: u16,
     row: u16,
 ) -> io::Result<()> {
-    let status_text = match &state.search_mode {
+    let mut status_text = match &state.search_mode {
         SearchMode::EnteringQuery => format!("/{}", state.search_input),
         SearchMode::Active {
             query,
@@ -1158,6 +1222,11 @@ fn draw_status_line(
             }
         }
     };
+
+    if let Some(target) = state.hovered_link_target() {
+        status_text.push_str(" -- Link: ");
+        status_text.push_str(target);
+    }
 
     queue!(
         stdout,
@@ -1331,14 +1400,30 @@ fn handle_mouse_event(
         MouseEventKind::ScrollUp => {
             let previous = state.scroll_offset;
             state.scroll_up();
-            if state.scroll_offset != previous {
+            let row = mouse_event.row as usize;
+            let column = mouse_event.column as usize;
+            let hover_changed = if row < state.viewport_height {
+                let line_idx = state.scroll_offset + row;
+                state.hover_link_at(line_idx, column)
+            } else {
+                state.clear_hover()
+            };
+            if state.scroll_offset != previous || hover_changed {
                 *needs_redraw = true;
             }
         }
         MouseEventKind::ScrollDown => {
             let previous = state.scroll_offset;
             state.scroll_down();
-            if state.scroll_offset != previous {
+            let row = mouse_event.row as usize;
+            let column = mouse_event.column as usize;
+            let hover_changed = if row < state.viewport_height {
+                let line_idx = state.scroll_offset + row;
+                state.hover_link_at(line_idx, column)
+            } else {
+                state.clear_hover()
+            };
+            if state.scroll_offset != previous || hover_changed {
                 *needs_redraw = true;
             }
         }
@@ -1347,12 +1432,57 @@ fn handle_mouse_event(
             if row < state.viewport_height {
                 let line_idx = state.scroll_offset + row;
                 let column = mouse_event.column as usize;
-                if state.focus_link_at(line_idx, column).is_some() {
+                let hover_changed = state.hover_link_at(line_idx, column);
+                let focus_result = state.focus_link_at(line_idx, column);
+                if hover_changed || focus_result.is_some() {
                     *needs_redraw = true;
-                    if let Some(link) = state.focused_link() {
+                }
+                if let Some(idx) = focus_result {
+                    if let Some(link) = state.links.get(idx) {
                         *link_to_open = Some(link.url.clone());
                     }
                 }
+            } else if state.clear_hover() {
+                *needs_redraw = true;
+            }
+        }
+        MouseEventKind::Moved => {
+            let row = mouse_event.row as usize;
+            let column = mouse_event.column as usize;
+            let changed = if row < state.viewport_height {
+                let line_idx = state.scroll_offset + row;
+                state.hover_link_at(line_idx, column)
+            } else {
+                state.clear_hover()
+            };
+            if changed {
+                *needs_redraw = true;
+            }
+        }
+        MouseEventKind::Drag(MouseButton::Left) => {
+            let row = mouse_event.row as usize;
+            let column = mouse_event.column as usize;
+            let changed = if row < state.viewport_height {
+                let line_idx = state.scroll_offset + row;
+                state.hover_link_at(line_idx, column)
+            } else {
+                state.clear_hover()
+            };
+            if changed {
+                *needs_redraw = true;
+            }
+        }
+        MouseEventKind::Up(_) => {
+            let row = mouse_event.row as usize;
+            let column = mouse_event.column as usize;
+            let changed = if row < state.viewport_height {
+                let line_idx = state.scroll_offset + row;
+                state.hover_link_at(line_idx, column)
+            } else {
+                state.clear_hover()
+            };
+            if changed {
+                *needs_redraw = true;
             }
         }
         _ => {}
