@@ -2,12 +2,12 @@ use clap::{Parser, ValueEnum, ValueHint};
 use crossterm::terminal;
 use reqwest::blocking::Client;
 use std::fs::File;
-use std::io::{self, BufReader, Read, Write};
+use std::io::{self, BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command as Process, Stdio};
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
-use tdoc::{html, markdown, parse, write, Document};
+use tdoc::{html, markdown, pager, parse, write, Document};
 use url::Url;
 
 #[derive(Parser)]
@@ -187,19 +187,35 @@ fn view_document(document: &Document, no_ansi: bool) -> Result<(), String> {
     let use_pager = use_ansi;
 
     if use_pager {
-        if let Ok((mut pager, pager_stdin)) = run_pager() {
+        // if let Ok((mut pager, pager_stdin)) = run_pager() {
+        //     let mut style = FormattingStyle::ansi();
+        //     configure_style_for_terminal(&mut style);
+
+        //     let mut formatter = Formatter::new(pager_stdin, style);
+        //     formatter
+        //         .write_document(document)
+        //         .map_err(|err| format!("Unable to write document: {err}"))?;
+
+        //     drop(formatter);
+        //     let _ = pager.wait();
+        //     return Ok(());
+        // }
+
+        let mut buf = Vec::new();
+        let mut formatter = if use_ansi {
             let mut style = FormattingStyle::ansi();
             configure_style_for_terminal(&mut style);
+            Formatter::new(&mut buf, style)
+        } else {
+            Formatter::new_ascii(&mut buf)
+        };
 
-            let mut formatter = Formatter::new(pager_stdin, style);
-            formatter
-                .write_document(document)
-                .map_err(|err| format!("Unable to write document: {err}"))?;
+        formatter
+            .write_document(document)
+            .map_err(|err| format!("Unable to write document: {err}"))?;
 
-            drop(formatter);
-            let _ = pager.wait();
-            return Ok(());
-        }
+        let s = String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))?;
+        return pager::page_output(&s);
     }
 
     let mut formatter = if use_ansi {
