@@ -248,23 +248,7 @@ impl PagerState {
         }
 
         let query = self.search_input.clone();
-        let query_len = query.len();
-        let query_lower = query.to_lowercase();
-        let mut matches = Vec::new();
-
-        for (line_idx, line) in content.iter().enumerate() {
-            let line_lower = line.plain.to_lowercase();
-            let mut start = 0;
-            while let Some(pos) = line_lower[start..].find(&query_lower) {
-                let match_start = start + pos;
-                matches.push(SearchMatch {
-                    line_idx,
-                    start: match_start,
-                    end: match_start + query_len,
-                });
-                start += pos + 1;
-            }
-        }
+        let matches = find_search_matches(&query, content);
 
         if matches.is_empty() {
             self.search_mode = SearchMode::Normal;
@@ -277,6 +261,40 @@ impl PagerState {
                 matches,
                 current_match: 0,
             };
+        }
+    }
+
+    fn rebuild_search_results(&mut self, content: &[ParsedLine], target_line: Option<usize>) {
+        let mut reset_to_normal = false;
+
+        if let SearchMode::Active {
+            query,
+            matches,
+            current_match,
+            ..
+        } = &mut self.search_mode
+        {
+            let new_matches = find_search_matches(query, content);
+            if new_matches.is_empty() {
+                reset_to_normal = true;
+            } else {
+                let desired_index = target_line.and_then(|line| {
+                    new_matches
+                        .iter()
+                        .enumerate()
+                        .min_by_key(|(_, m)| m.line_idx.abs_diff(line))
+                        .map(|(idx, _)| idx)
+                });
+
+                let new_index = desired_index
+                    .unwrap_or_else(|| (*current_match).min(new_matches.len().saturating_sub(1)));
+                *current_match = new_index;
+                *matches = new_matches;
+            }
+        }
+
+        if reset_to_normal {
+            self.search_mode = SearchMode::Normal;
         }
     }
 
@@ -322,6 +340,32 @@ impl PagerState {
         self.search_mode = SearchMode::Normal;
         self.search_input.clear();
     }
+}
+
+fn find_search_matches(query: &str, content: &[ParsedLine]) -> Vec<SearchMatch> {
+    if query.is_empty() {
+        return Vec::new();
+    }
+
+    let query_len = query.len();
+    let query_lower = query.to_lowercase();
+    let mut matches = Vec::new();
+
+    for (line_idx, line) in content.iter().enumerate() {
+        let line_lower = line.plain.to_lowercase();
+        let mut start = 0;
+        while let Some(pos) = line_lower[start..].find(&query_lower) {
+            let match_start = start + pos;
+            matches.push(SearchMatch {
+                line_idx,
+                start: match_start,
+                end: match_start + query_len,
+            });
+            start += pos + 1;
+        }
+    }
+
+    matches
 }
 
 impl ParsedLine {
@@ -650,6 +694,8 @@ fn render_pager(
     let terminal_height_usize = terminal_height as usize;
     let previous_height = state.last_terminal_height;
     state.last_terminal_height = terminal_height_usize;
+
+    state.total_lines = content.len();
 
     state.update_viewport_height(terminal_height_usize.saturating_sub(1));
     let content_width = terminal_width.saturating_sub(1) as usize;
@@ -1023,7 +1069,17 @@ fn handle_key_event(
     true
 }
 
-fn run_interactive_pager(content: &[ParsedLine]) -> io::Result<()> {
+fn parse_content_to_lines(content: &str) -> Vec<ParsedLine> {
+    content.lines().map(ParsedLine::from_ansi).collect()
+}
+
+fn run_interactive_pager<F>(
+    mut content: Vec<ParsedLine>,
+    mut regenerator: Option<F>,
+) -> io::Result<()>
+where
+    F: FnMut(u16, u16) -> Result<String, String>,
+{
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(
@@ -1043,7 +1099,7 @@ fn run_interactive_pager(content: &[ParsedLine]) -> io::Result<()> {
 
     'outer: loop {
         if needs_redraw {
-            if let Err(err) = render_pager(&mut stdout, content, &mut state) {
+            if let Err(err) = render_pager(&mut stdout, &content, &mut state) {
                 result = Err(err);
                 break;
             }
@@ -1054,13 +1110,50 @@ fn run_interactive_pager(content: &[ParsedLine]) -> io::Result<()> {
             match event::read()? {
                 Event::Key(key_event) => {
                     let mut key_redraw = false;
-                    if !handle_key_event(key_event, &mut state, content, &mut key_redraw) {
+                    if !handle_key_event(key_event, &mut state, &content, &mut key_redraw) {
                         break 'outer;
                     }
                     needs_redraw |= key_redraw;
                 }
-                Event::Resize(_, new_height) => {
-                    state.update_viewport_height(new_height.saturating_sub(1) as usize);
+                Event::Resize(new_width, new_height) => {
+                    let new_viewport_height = new_height.saturating_sub(1) as usize;
+                    let center_line = state.scroll_offset + state.viewport_height / 2;
+                    let relative_position = if state.total_lines <= 1 {
+                        0.0
+                    } else {
+                        let denom = (state.total_lines.saturating_sub(1)) as f64;
+                        (center_line as f64 / denom).clamp(0.0, 1.0)
+                    };
+                    let active_match_line = match &state.search_mode {
+                        SearchMode::Active {
+                            matches,
+                            current_match,
+                            ..
+                        } => matches.get(*current_match).map(|m| m.line_idx),
+                        _ => None,
+                    };
+
+                    if let Some(regen) = regenerator.as_mut() {
+                        let regenerated = regen(new_width, new_height)
+                            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+                        content = parse_content_to_lines(&regenerated);
+                        state.total_lines = content.len();
+                        state.rebuild_search_results(&content, active_match_line);
+                    } else {
+                        state.total_lines = content.len();
+                    }
+
+                    state.viewport_height = new_viewport_height;
+
+                    let target_center = if state.total_lines <= 1 {
+                        0
+                    } else {
+                        let denom = (state.total_lines.saturating_sub(1)) as f64;
+                        (relative_position * denom).round() as usize
+                    };
+                    let half_viewport = new_viewport_height / 2;
+                    state.scroll_offset = target_center.saturating_sub(half_viewport);
+                    state.clamp_scroll();
                     needs_redraw = true;
                 }
                 _ => {}
@@ -1080,6 +1173,16 @@ fn is_interactive_terminal() -> bool {
 
 /// Page ANSI content to the terminal if needed.
 pub fn page_output(content: &str) -> Result<(), String> {
+    page_output_with_regenerator(
+        content,
+        Option::<fn(u16, u16) -> Result<String, String>>::None,
+    )
+}
+
+pub fn page_output_with_regenerator<F>(content: &str, regenerator: Option<F>) -> Result<(), String>
+where
+    F: FnMut(u16, u16) -> Result<String, String>,
+{
     let line_count = content.lines().count();
 
     let should_page = if !is_interactive_terminal() {
@@ -1092,8 +1195,8 @@ pub fn page_output(content: &str) -> Result<(), String> {
     };
 
     if should_page {
-        let parsed_lines: Vec<ParsedLine> = content.lines().map(ParsedLine::from_ansi).collect();
-        run_interactive_pager(&parsed_lines).map_err(|e| format!("Pager error: {}", e))
+        let parsed_lines = parse_content_to_lines(content);
+        run_interactive_pager(parsed_lines, regenerator).map_err(|e| format!("Pager error: {}", e))
     } else {
         print!("{}", content);
         Ok(())

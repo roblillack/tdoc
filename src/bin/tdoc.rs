@@ -2,7 +2,7 @@ use clap::{Parser, ValueEnum, ValueHint};
 use crossterm::terminal;
 use reqwest::blocking::Client;
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command as Process, Stdio};
 use std::time::Duration;
@@ -202,20 +202,42 @@ fn view_document(document: &Document, no_ansi: bool) -> Result<(), String> {
         // }
 
         let mut buf = Vec::new();
-        let mut formatter = if use_ansi {
+        if use_ansi {
             let mut style = FormattingStyle::ansi();
             configure_style_for_terminal(&mut style);
-            Formatter::new(&mut buf, style)
+            {
+                let mut formatter = Formatter::new(&mut buf, style);
+                formatter
+                    .write_document(document)
+                    .map_err(|err| format!("Unable to write document: {err}"))?;
+            }
         } else {
-            Formatter::new_ascii(&mut buf)
-        };
+            let mut formatter = Formatter::new_ascii(&mut buf);
+            formatter
+                .write_document(document)
+                .map_err(|err| format!("Unable to write document: {err}"))?;
+        }
 
-        formatter
-            .write_document(document)
-            .map_err(|err| format!("Unable to write document: {err}"))?;
+        let initial = String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))?;
 
-        let s = String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))?;
-        return pager::page_output(&s);
+        if use_ansi {
+            let regenerator = |new_width: u16, _new_height: u16| -> Result<String, String> {
+                let mut buf = Vec::new();
+                let mut style = FormattingStyle::ansi();
+                configure_style_for_width(&mut style, new_width as usize);
+                {
+                    let mut formatter = Formatter::new(&mut buf, style);
+                    formatter
+                        .write_document(document)
+                        .map_err(|err| format!("Unable to write document: {err}"))?;
+                }
+                String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
+            };
+
+            return pager::page_output_with_regenerator(&initial, Some(regenerator));
+        }
+
+        return pager::page_output(&initial);
     }
 
     let mut formatter = if use_ansi {
@@ -233,18 +255,21 @@ fn view_document(document: &Document, no_ansi: bool) -> Result<(), String> {
 
 fn configure_style_for_terminal(style: &mut FormattingStyle) {
     if let Ok((width, _height)) = terminal::size() {
-        let width = width as usize;
-        if width < 60 {
-            style.wrap_width = width;
-            style.left_padding = 0;
-        } else if width < 100 {
-            style.wrap_width = width.saturating_sub(2);
-            style.left_padding = 2;
-        } else {
-            let padding = (width.saturating_sub(100)) / 2 + 4;
-            style.wrap_width = width.saturating_sub(padding);
-            style.left_padding = padding;
-        }
+        configure_style_for_width(style, width as usize);
+    }
+}
+
+fn configure_style_for_width(style: &mut FormattingStyle, width: usize) {
+    if width < 60 {
+        style.wrap_width = width;
+        style.left_padding = 0;
+    } else if width < 100 {
+        style.wrap_width = width.saturating_sub(2);
+        style.left_padding = 2;
+    } else {
+        let padding = (width.saturating_sub(100)) / 2 + 4;
+        style.wrap_width = width.saturating_sub(padding);
+        style.left_padding = padding;
     }
 }
 
