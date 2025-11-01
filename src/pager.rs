@@ -1,6 +1,9 @@
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+        MouseEvent, MouseEventKind,
+    },
     execute, queue,
     style::{
         Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
@@ -163,6 +166,19 @@ enum SearchMode {
         matches: Vec<SearchMatch>,
         current_match: usize,
     },
+}
+
+#[derive(Clone, Copy)]
+pub struct PagerOptions {
+    pub enable_mouse_capture: bool,
+}
+
+impl Default for PagerOptions {
+    fn default() -> Self {
+        Self {
+            enable_mouse_capture: true,
+        }
+    }
 }
 
 struct PagerState {
@@ -1068,6 +1084,22 @@ fn handle_key_event(
     true
 }
 
+fn handle_mouse_event(mouse_event: MouseEvent, state: &mut PagerState) -> bool {
+    match mouse_event.kind {
+        MouseEventKind::ScrollUp => {
+            let previous = state.scroll_offset;
+            state.scroll_up();
+            state.scroll_offset != previous
+        }
+        MouseEventKind::ScrollDown => {
+            let previous = state.scroll_offset;
+            state.scroll_down();
+            state.scroll_offset != previous
+        }
+        _ => false,
+    }
+}
+
 fn parse_content_to_lines(content: &str) -> Vec<ParsedLine> {
     content.lines().map(ParsedLine::from_ansi).collect()
 }
@@ -1075,19 +1107,18 @@ fn parse_content_to_lines(content: &str) -> Vec<ParsedLine> {
 fn run_interactive_pager<F>(
     mut content: Vec<ParsedLine>,
     mut regenerator: Option<F>,
+    options: PagerOptions,
 ) -> io::Result<()>
 where
     F: FnMut(u16, u16) -> Result<String, String>,
 {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(
-        stdout,
-        EnterAlternateScreen,
-        Hide,
-        Clear(ClearType::All),
-        MoveTo(0, 0)
-    )?;
+    execute!(stdout, EnterAlternateScreen, Hide)?;
+    if options.enable_mouse_capture {
+        execute!(stdout, EnableMouseCapture)?;
+    }
+    execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
 
     let (_, current_height) = terminal::size()?;
     let viewport_height = current_height.saturating_sub(1) as usize;
@@ -1112,6 +1143,11 @@ where
                     break 'outer;
                 }
                 needs_redraw |= key_redraw;
+            }
+            Event::Mouse(mouse_event) => {
+                if options.enable_mouse_capture && handle_mouse_event(mouse_event, &mut state) {
+                    needs_redraw = true;
+                }
             }
             Event::Resize(new_width, new_height) => {
                 let new_viewport_height = new_height.saturating_sub(1) as usize;
@@ -1187,6 +1223,9 @@ where
         }
     }
 
+    if options.enable_mouse_capture {
+        execute!(stdout, DisableMouseCapture)?;
+    }
     execute!(stdout, Show, LeaveAlternateScreen)?;
     disable_raw_mode()?;
     result
@@ -1199,13 +1238,29 @@ fn is_interactive_terminal() -> bool {
 
 /// Page ANSI content to the terminal if needed.
 pub fn page_output(content: &str) -> Result<(), String> {
-    page_output_with_regenerator(
-        content,
-        Option::<fn(u16, u16) -> Result<String, String>>::None,
-    )
+    page_output_with_options(content, PagerOptions::default())
 }
 
 pub fn page_output_with_regenerator<F>(content: &str, regenerator: Option<F>) -> Result<(), String>
+where
+    F: FnMut(u16, u16) -> Result<String, String>,
+{
+    page_output_with_options_and_regenerator(content, regenerator, PagerOptions::default())
+}
+
+pub fn page_output_with_options(content: &str, options: PagerOptions) -> Result<(), String> {
+    page_output_with_options_and_regenerator(
+        content,
+        Option::<fn(u16, u16) -> Result<String, String>>::None,
+        options,
+    )
+}
+
+pub fn page_output_with_options_and_regenerator<F>(
+    content: &str,
+    regenerator: Option<F>,
+    options: PagerOptions,
+) -> Result<(), String>
 where
     F: FnMut(u16, u16) -> Result<String, String>,
 {
@@ -1222,7 +1277,8 @@ where
 
     if should_page {
         let parsed_lines = parse_content_to_lines(content);
-        run_interactive_pager(parsed_lines, regenerator).map_err(|e| format!("Pager error: {}", e))
+        run_interactive_pager(parsed_lines, regenerator, options)
+            .map_err(|e| format!("Pager error: {}", e))
     } else {
         print!("{}", content);
         Ok(())
