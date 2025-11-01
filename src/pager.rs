@@ -18,6 +18,7 @@ use std::io::{self, Stdout, Write};
 use std::ops::Range;
 use std::sync::Arc;
 use unicode_width::UnicodeWidthChar;
+use url::Url;
 
 /// ANSI-aware segment ready for rendering.
 #[derive(Clone, Debug)]
@@ -186,6 +187,41 @@ enum SearchMode {
 }
 
 #[derive(Clone)]
+pub struct LinkPolicy {
+    keep_external_links: bool,
+    activator: Arc<dyn Fn(&str) -> bool + Send + Sync>,
+}
+
+impl LinkPolicy {
+    pub fn new(
+        keep_external_links: bool,
+        activator: Arc<dyn Fn(&str) -> bool + Send + Sync>,
+    ) -> Self {
+        Self {
+            keep_external_links,
+            activator,
+        }
+    }
+
+    pub fn activates(&self, target: &str) -> bool {
+        (self.activator)(target)
+    }
+
+    pub fn keep_external_links(&self) -> bool {
+        self.keep_external_links
+    }
+}
+
+impl Default for LinkPolicy {
+    fn default() -> Self {
+        Self {
+            keep_external_links: false,
+            activator: Arc::new(|_| true),
+        }
+    }
+}
+
+#[derive(Clone)]
 struct LinkInfo {
     url: String,
     line_idx: usize,
@@ -193,12 +229,14 @@ struct LinkInfo {
     end_char: usize,
     start_col: usize,
     end_col: usize,
+    activates: bool,
 }
 
 #[derive(Clone)]
 pub struct PagerOptions {
     pub enable_mouse_capture: bool,
     pub link_callback: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    pub link_policy: LinkPolicy,
 }
 
 impl Default for PagerOptions {
@@ -206,6 +244,7 @@ impl Default for PagerOptions {
         Self {
             enable_mouse_capture: true,
             link_callback: Some(default_link_callback()),
+            link_policy: LinkPolicy::default(),
         }
     }
 }
@@ -227,10 +266,11 @@ struct PagerState {
     links: Vec<LinkInfo>,
     focused_link: Option<usize>,
     hovered_link: Option<usize>,
+    link_policy: LinkPolicy,
 }
 
 impl PagerState {
-    fn new(total_lines: usize, viewport_height: usize) -> Self {
+    fn new(total_lines: usize, viewport_height: usize, link_policy: LinkPolicy) -> Self {
         Self {
             scroll_offset: 0,
             total_lines,
@@ -241,6 +281,7 @@ impl PagerState {
             links: Vec::new(),
             focused_link: None,
             hovered_link: None,
+            link_policy,
         }
     }
 
@@ -362,7 +403,7 @@ impl PagerState {
         let previous_hover = self
             .hovered_link
             .and_then(|idx| self.links.get(idx).cloned());
-        self.links = collect_links(content);
+        self.links = collect_links(content, &self.link_policy);
         if let Some(prev_link) = previous_focus {
             self.focused_link = self.links.iter().position(|link| {
                 link.url == prev_link.url
@@ -382,7 +423,7 @@ impl PagerState {
             self.hovered_link = None;
         }
         if let Some(idx) = self.focused_link {
-            if idx >= self.links.len() {
+            if idx >= self.links.len() || !self.links[idx].activates {
                 self.focused_link = None;
             }
         }
@@ -394,12 +435,26 @@ impl PagerState {
     }
 
     fn focus_next_link(&mut self) -> bool {
-        if self.links.is_empty() {
+        let active: Vec<usize> = self
+            .links
+            .iter()
+            .enumerate()
+            .filter(|(_, link)| link.activates)
+            .map(|(idx, _)| idx)
+            .collect();
+        if active.is_empty() {
             return false;
         }
         let next_index = match self.focused_link {
-            Some(idx) => (idx + 1) % self.links.len(),
-            None => 0,
+            Some(current) => {
+                let position = active
+                    .iter()
+                    .position(|&idx| idx == current)
+                    .map(|pos| (pos + 1) % active.len())
+                    .unwrap_or(0);
+                active[position]
+            }
+            None => active[0],
         };
         let changed = self.focused_link != Some(next_index);
         self.focused_link = Some(next_index);
@@ -408,13 +463,27 @@ impl PagerState {
     }
 
     fn focus_prev_link(&mut self) -> bool {
-        if self.links.is_empty() {
+        let active: Vec<usize> = self
+            .links
+            .iter()
+            .enumerate()
+            .filter(|(_, link)| link.activates)
+            .map(|(idx, _)| idx)
+            .collect();
+        if active.is_empty() {
             return false;
         }
         let prev_index = match self.focused_link {
-            Some(0) => self.links.len().saturating_sub(1),
-            Some(idx) => idx.saturating_sub(1),
-            None => self.links.len().saturating_sub(1),
+            Some(current) => {
+                let position = active.iter().position(|&idx| idx == current).unwrap_or(0);
+                let new_pos = if position == 0 {
+                    active.len() - 1
+                } else {
+                    position - 1
+                };
+                active[new_pos]
+            }
+            None => active.last().copied().unwrap(),
         };
         let changed = self.focused_link != Some(prev_index);
         self.focused_link = Some(prev_index);
@@ -439,11 +508,14 @@ impl PagerState {
     }
 
     fn focus_link_at(&mut self, line_idx: usize, column: usize) -> Option<usize> {
-        if let Some(idx) = self.links.iter().position(|link| {
+        if let Some((idx, link)) = self.links.iter().enumerate().find(|(_, link)| {
             link.line_idx == line_idx
                 && column >= link.start_col
                 && column < link.end_col.max(link.start_col + 1)
         }) {
+            if !link.activates {
+                return None;
+            }
             let changed = self.focused_link != Some(idx);
             self.focused_link = Some(idx);
             if changed {
@@ -561,7 +633,7 @@ fn find_search_matches(query: &str, content: &[ParsedLine]) -> Vec<SearchMatch> 
     matches
 }
 
-fn collect_links(content: &[ParsedLine]) -> Vec<LinkInfo> {
+fn collect_links(content: &[ParsedLine], policy: &LinkPolicy) -> Vec<LinkInfo> {
     let mut links = Vec::new();
 
     for (line_idx, line) in content.iter().enumerate() {
@@ -597,6 +669,7 @@ fn collect_links(content: &[ParsedLine]) -> Vec<LinkInfo> {
                             end_char: char_index,
                             start_col: col_index,
                             end_col: col_index,
+                            activates: policy.activates(url),
                         });
                     }
 
@@ -633,6 +706,7 @@ fn collect_links(content: &[ParsedLine]) -> Vec<LinkInfo> {
             if link.end_col == link.start_col {
                 link.end_col = link.start_col + 1;
             }
+            link.activates = policy.activates(&link.url);
             links.push(link);
         }
     }
@@ -1013,6 +1087,7 @@ fn render_pager(
                 content_width,
                 focused_link,
                 hovered_link,
+                &state.link_policy,
             )?;
         }
     }
@@ -1046,6 +1121,7 @@ fn render_line(
     width: usize,
     focused_link: Option<&LinkInfo>,
     hovered_link: Option<&LinkInfo>,
+    link_policy: &LinkPolicy,
 ) -> io::Result<()> {
     if width == 0 {
         return Ok(());
@@ -1082,7 +1158,18 @@ fn render_line(
         }
 
         style.apply(stdout)?;
-        queue!(stdout, Print(render_text.as_str()))?;
+        if let Some(url) = &chunk.hyperlink {
+            let preserve = should_preserve_external_link(link_policy, url);
+            if preserve {
+                queue!(stdout, Print(format!("\x1b]8;;{}\x07", url)))?;
+            }
+            queue!(stdout, Print(render_text.as_str()))?;
+            if preserve {
+                queue!(stdout, Print("\x1b]8;;\x07"))?;
+            }
+        } else {
+            queue!(stdout, Print(render_text.as_str()))?;
+        }
 
         char_cursor = chunk_end_char;
 
@@ -1095,6 +1182,16 @@ fn render_line(
 
     queue!(stdout, SetAttribute(Attribute::Reset), ResetColor)?;
     Ok(())
+}
+
+fn should_preserve_external_link(policy: &LinkPolicy, url: &str) -> bool {
+    policy.keep_external_links() && !policy.activates(url) && has_scheme(url)
+}
+
+fn has_scheme(target: &str) -> bool {
+    Url::parse(target)
+        .map(|parsed| !parsed.scheme().is_empty())
+        .unwrap_or(false)
 }
 
 fn clip_to_width(text: &str, max_width: usize) -> (String, usize, bool) {
@@ -1511,7 +1608,7 @@ where
 
     let (_, current_height) = terminal::size()?;
     let viewport_height = current_height.saturating_sub(1) as usize;
-    let mut state = PagerState::new(content.len(), viewport_height);
+    let mut state = PagerState::new(content.len(), viewport_height, options.link_policy.clone());
     state.rebuild_links(&content);
 
     let mut result = Ok(());

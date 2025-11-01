@@ -4,6 +4,7 @@ use reqwest::blocking::Client;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
 use tdoc::{html, markdown, pager, parse, write, Document};
@@ -57,10 +58,18 @@ impl From<InputFormatArg> for InputFormat {
     }
 }
 
+#[derive(Clone)]
+enum ContentOrigin {
+    Url(Url),
+    File(PathBuf),
+    Stdin,
+}
+
 struct InputSource {
     format: InputFormat,
     reader: Box<dyn Read>,
     display_name: String,
+    origin: ContentOrigin,
 }
 
 enum OutputFormat {
@@ -85,13 +94,14 @@ fn run() -> Result<(), String> {
         format,
         reader,
         display_name,
+        origin,
     } = input_source;
     let document = parse_document(format, reader, &display_name)?;
 
     if let Some(output_path) = cli.output {
         write_output(&document, &output_path)?;
     } else {
-        view_document(&document, cli.no_ansi)?;
+        view_document(document, cli.no_ansi, origin, input_override)?;
     }
 
     Ok(())
@@ -106,15 +116,18 @@ fn create_reader(
             format: override_format.unwrap_or(InputFormat::Ftml),
             reader: Box::new(io::stdin()),
             display_name: "stdin".to_string(),
+            origin: ContentOrigin::Stdin,
         }),
         Some("-") => Ok(InputSource {
             format: override_format.unwrap_or(InputFormat::Ftml),
             reader: Box::new(io::stdin()),
             display_name: "stdin".to_string(),
+            origin: ContentOrigin::Stdin,
         }),
         Some(value) => {
             if let Ok(url) = Url::parse(value) {
                 if url.scheme() == "http" || url.scheme() == "https" {
+                    let origin = ContentOrigin::Url(url.clone());
                     let client = Client::builder()
                         .timeout(Duration::from_secs(10))
                         .build()
@@ -133,6 +146,7 @@ fn create_reader(
                         format,
                         reader: Box::new(response),
                         display_name: value.to_string(),
+                        origin,
                     });
                 }
             }
@@ -145,10 +159,13 @@ fn create_reader(
                 .or_else(|| detect_input_format(extension))
                 .unwrap_or(InputFormat::Ftml);
 
+            let origin = ContentOrigin::File(path.to_path_buf());
+
             Ok(InputSource {
                 format,
                 reader: Box::new(BufReader::new(file)),
                 display_name: value.to_string(),
+                origin,
             })
         }
     }
@@ -180,62 +197,67 @@ fn parse_document(
     }
 }
 
-fn view_document(document: &Document, no_ansi: bool) -> Result<(), String> {
+fn view_document(
+    document: Document,
+    no_ansi: bool,
+    mut origin: ContentOrigin,
+    input_override: Option<InputFormat>,
+) -> Result<(), String> {
     let stdout_is_tty = atty::is(atty::Stream::Stdout);
     let use_ansi = !no_ansi && stdout_is_tty;
     let use_pager = use_ansi;
 
-    if use_pager {
-        let mut buf = Vec::new();
-        if use_ansi {
+    if !use_pager {
+        let mut formatter = if use_ansi {
             let mut style = FormattingStyle::ansi();
             configure_style_for_terminal(&mut style);
-            {
-                let mut formatter = Formatter::new(&mut buf, style);
-                formatter
-                    .write_document(document)
-                    .map_err(|err| format!("Unable to write document: {err}"))?;
-            }
+            Formatter::new(io::stdout(), style)
         } else {
-            let mut formatter = Formatter::new_ascii(&mut buf);
-            formatter
-                .write_document(document)
-                .map_err(|err| format!("Unable to write document: {err}"))?;
-        }
+            Formatter::new_ascii(io::stdout())
+        };
 
-        let initial = String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))?;
-
-        if use_ansi {
-            let regenerator = |new_width: u16, _new_height: u16| -> Result<String, String> {
-                let mut buf = Vec::new();
-                let mut style = FormattingStyle::ansi();
-                configure_style_for_width(&mut style, new_width as usize);
-                {
-                    let mut formatter = Formatter::new(&mut buf, style);
-                    formatter
-                        .write_document(document)
-                        .map_err(|err| format!("Unable to write document: {err}"))?;
-                }
-                String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
-            };
-
-            return pager::page_output_with_regenerator(&initial, Some(regenerator));
-        }
-
-        return pager::page_output(&initial);
+        return formatter
+            .write_document(&document)
+            .map_err(|err| format!("Unable to write document: {err}"));
     }
 
-    let mut formatter = if use_ansi {
-        let mut style = FormattingStyle::ansi();
-        configure_style_for_terminal(&mut style);
-        Formatter::new(io::stdout(), style)
-    } else {
-        Formatter::new_ascii(io::stdout())
-    };
+    let mut current_document = document;
 
-    formatter
-        .write_document(document)
-        .map_err(|err| format!("Unable to write document: {err}"))
+    loop {
+        let initial = render_document_for_terminal(&current_document)?;
+        let document_for_regen = current_document.clone();
+        let regenerator = move |new_width: u16, _new_height: u16| -> Result<String, String> {
+            render_document_for_width(&document_for_regen, new_width as usize)
+        };
+
+        let mut options = pager::PagerOptions::default();
+        options.link_policy = build_link_policy(&origin);
+
+        let link_handler = match origin {
+            ContentOrigin::Stdin => None,
+            _ => Some(LinkCallbackState::new()),
+        };
+
+        options.link_callback = link_handler.as_ref().map(|handler| handler.callback());
+
+        pager::page_output_with_options_and_regenerator(&initial, Some(regenerator), options)?;
+
+        if let Some(handler) = link_handler {
+            if let Some(target) = handler.take() {
+                if let Some((next_document, next_origin)) =
+                    navigate_to_target(&origin, target.as_str(), input_override)?
+                {
+                    current_document = next_document;
+                    origin = next_origin;
+                }
+                continue;
+            }
+        }
+
+        break;
+    }
+
+    Ok(())
 }
 
 fn configure_style_for_terminal(style: &mut FormattingStyle) {
@@ -256,6 +278,182 @@ fn configure_style_for_width(style: &mut FormattingStyle, width: usize) {
         style.wrap_width = width.saturating_sub(padding);
         style.left_padding = padding;
     }
+}
+
+fn render_document_for_terminal(document: &Document) -> Result<String, String> {
+    let mut buf = Vec::new();
+    let mut style = FormattingStyle::ansi();
+    configure_style_for_terminal(&mut style);
+    {
+        let mut formatter = Formatter::new(&mut buf, style);
+        formatter
+            .write_document(document)
+            .map_err(|err| format!("Unable to write document: {err}"))?;
+    }
+    String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
+}
+
+fn render_document_for_width(document: &Document, width: usize) -> Result<String, String> {
+    let mut buf = Vec::new();
+    let mut style = FormattingStyle::ansi();
+    configure_style_for_width(&mut style, width);
+    {
+        let mut formatter = Formatter::new(&mut buf, style);
+        formatter
+            .write_document(document)
+            .map_err(|err| format!("Unable to write document: {err}"))?;
+    }
+    String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
+}
+
+#[derive(Clone)]
+struct LinkCallbackState {
+    inner: Arc<Mutex<Option<String>>>,
+}
+
+impl LinkCallbackState {
+    fn new() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn callback(&self) -> Arc<dyn Fn(&str) + Send + Sync> {
+        let inner = self.inner.clone();
+        Arc::new(move |target: &str| {
+            if let Ok(mut slot) = inner.lock() {
+                *slot = Some(target.to_string());
+            }
+        })
+    }
+
+    fn take(&self) -> Option<String> {
+        self.inner.lock().ok().and_then(|mut slot| slot.take())
+    }
+}
+
+fn build_link_policy(origin: &ContentOrigin) -> pager::LinkPolicy {
+    match origin {
+        ContentOrigin::Url(base_url) => {
+            let base = base_url.clone();
+            pager::LinkPolicy::new(
+                false,
+                Arc::new(move |target: &str| {
+                    let trimmed = target.trim();
+                    if trimmed.is_empty() || trimmed.starts_with('#') {
+                        return false;
+                    }
+                    match Url::options().base_url(Some(&base)).parse(trimmed) {
+                        Ok(resolved) => matches!(resolved.scheme(), "http" | "https"),
+                        Err(_) => false,
+                    }
+                }),
+            )
+        }
+        ContentOrigin::File(path) => {
+            let base_dir = path
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."));
+            pager::LinkPolicy::new(
+                true,
+                Arc::new(move |target: &str| {
+                    let trimmed = target.trim();
+                    if trimmed.is_empty() || is_absolute_url(trimmed) {
+                        return false;
+                    }
+                    let candidate = if Path::new(trimmed).is_absolute() {
+                        PathBuf::from(trimmed)
+                    } else {
+                        base_dir.join(trimmed)
+                    };
+                    match std::fs::canonicalize(&candidate) {
+                        Ok(resolved) => resolved.is_file(),
+                        Err(_) => false,
+                    }
+                }),
+            )
+        }
+        ContentOrigin::Stdin => pager::LinkPolicy::new(true, Arc::new(|_| false)),
+    }
+}
+
+fn navigate_to_target(
+    origin: &ContentOrigin,
+    target: &str,
+    input_override: Option<InputFormat>,
+) -> Result<Option<(Document, ContentOrigin)>, String> {
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    match origin {
+        ContentOrigin::Url(current_url) => {
+            if trimmed.starts_with('#') {
+                return Ok(None);
+            }
+            let resolved = match Url::options().base_url(Some(current_url)).parse(trimmed) {
+                Ok(url) => url,
+                Err(_) => return Ok(None),
+            };
+            if !matches!(resolved.scheme(), "http" | "https") {
+                return Ok(None);
+            }
+            if &resolved == current_url {
+                return Ok(None);
+            }
+
+            let input_source = create_reader(Some(resolved.as_str()), input_override)?;
+            let InputSource {
+                format,
+                reader,
+                display_name,
+                origin,
+            } = input_source;
+            let document = parse_document(format, reader, &display_name)?;
+            Ok(Some((document, origin)))
+        }
+        ContentOrigin::File(current_path) => {
+            if is_absolute_url(trimmed) {
+                return Ok(None);
+            }
+            let base_dir = current_path
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."));
+            let candidate = if Path::new(trimmed).is_absolute() {
+                PathBuf::from(trimmed)
+            } else {
+                base_dir.join(trimmed)
+            };
+            let resolved = match std::fs::canonicalize(&candidate) {
+                Ok(path) => path,
+                Err(_) => return Ok(None),
+            };
+            if !resolved.is_file() {
+                return Ok(None);
+            }
+            let path_string = match resolved.to_str() {
+                Some(value) => value.to_owned(),
+                None => return Ok(None),
+            };
+            let input_source = create_reader(Some(path_string.as_str()), input_override)?;
+            let InputSource {
+                format,
+                reader,
+                display_name,
+                origin,
+            } = input_source;
+            let document = parse_document(format, reader, &display_name)?;
+            Ok(Some((document, origin)))
+        }
+        ContentOrigin::Stdin => Ok(None),
+    }
+}
+
+fn is_absolute_url(value: &str) -> bool {
+    Url::parse(value).is_ok()
 }
 
 fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {
