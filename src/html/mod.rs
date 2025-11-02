@@ -971,7 +971,10 @@ fn is_transparent_container_element(tag: &str) -> bool {
 
 fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
     while let Some(last) = spans.last_mut() {
-        if last.style != InlineStyle::None || !last.children.is_empty() || last.link_target.is_some() {
+        if last.style != InlineStyle::None
+            || !last.children.is_empty()
+            || last.link_target.is_some()
+        {
             break;
         }
 

@@ -2,6 +2,7 @@
 
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag};
+use std::borrow::Cow;
 use std::io::{Read, Write};
 
 /// Parses Markdown into a [`Document`].
@@ -35,6 +36,7 @@ pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
 
 struct MarkdownBuilder {
     stack: Vec<BlockContext>,
+    in_html_comment: bool,
 }
 
 impl MarkdownBuilder {
@@ -43,6 +45,7 @@ impl MarkdownBuilder {
             stack: vec![BlockContext::Document {
                 paragraphs: Vec::new(),
             }],
+            in_html_comment: false,
         }
     }
 
@@ -106,7 +109,7 @@ impl MarkdownBuilder {
         match event {
             Event::Start(tag) => self.handle_start_tag(tag),
             Event::End(tag) => self.handle_end_tag(tag),
-            Event::Text(text) => self.push_text(text.as_ref()),
+            Event::Text(text) => self.handle_text(text.as_ref()),
             Event::Html(html) => self.handle_html(html.as_ref()),
             Event::Code(text) => self.push_code(text.as_ref()),
             Event::FootnoteReference(reference) => {
@@ -266,9 +269,75 @@ impl MarkdownBuilder {
         }
     }
 
+    fn strip_html_comments<'a>(&mut self, html: &'a str) -> Option<Cow<'a, str>> {
+        let mut remaining = html;
+        let mut output: Option<String> = None;
+
+        loop {
+            if self.in_html_comment {
+                if let Some(end_idx) = remaining.find("-->") {
+                    remaining = &remaining[end_idx + 3..];
+                    self.in_html_comment = false;
+                } else {
+                    return output.map(Cow::Owned);
+                }
+            }
+
+            match remaining.find("<!--") {
+                Some(start_idx) => {
+                    let (before, rest) = remaining.split_at(start_idx);
+                    if !before.is_empty() {
+                        output.get_or_insert_with(String::new).push_str(before);
+                    }
+
+                    remaining = &rest[4..];
+                    if let Some(end_idx) = remaining.find("-->") {
+                        remaining = &remaining[end_idx + 3..];
+                    } else {
+                        self.in_html_comment = true;
+                        return output.map(Cow::Owned);
+                    }
+                }
+                None => {
+                    if remaining.is_empty() {
+                        return output.map(Cow::Owned);
+                    }
+
+                    if let Some(mut collected) = output {
+                        collected.push_str(remaining);
+                        return Some(Cow::Owned(collected));
+                    } else {
+                        return Some(Cow::Borrowed(remaining));
+                    }
+                }
+            }
+        }
+    }
+
+    fn handle_text(&mut self, text: &str) {
+        let Some(text) = self.strip_html_comments(text) else {
+            return;
+        };
+
+        if text.is_empty() {
+            return;
+        }
+
+        self.push_text(text.as_ref());
+    }
+
     fn handle_html(&mut self, html: &str) {
+        let Some(html) = self.strip_html_comments(html) else {
+            return;
+        };
+
         let trimmed = html.trim();
         if trimmed.is_empty() {
+            return;
+        }
+
+        if trimmed.starts_with("<!--") && trimmed.ends_with("-->") {
+            // Drop HTML comments entirely.
             return;
         }
 
@@ -307,7 +376,7 @@ impl MarkdownBuilder {
             return;
         }
 
-        self.push_text(html);
+        self.push_text(html.as_ref());
     }
 
     fn current_paragraph_inline_end(&mut self, style: InlineStyle) {

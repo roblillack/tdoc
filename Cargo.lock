@@ -1230,6 +1230,7 @@ dependencies = [
  "crossterm",
  "html-escape",
  "insta",
+ "once_cell",
  "pulldown-cmark",
  "regex",
  "reqwest",
