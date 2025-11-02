@@ -130,6 +130,20 @@ fn parsing_paragraphs_with_extra_tags() {
 }
 
 #[test]
+fn parsing_list_with_stray_paragraph_closer() {
+    let input = "<ul><li>First</li></p><li>Second</li></ul>";
+    let expected = doc(vec![ul_(vec![
+        li_(vec![p__("First")]),
+        li_(vec![p__("Second")]),
+    ])]);
+    let actual = parse(input);
+    assert_eq!(
+        expected, actual,
+        "unexpected parse for list with stray paragraph close tag"
+    );
+}
+
+#[test]
 fn parsing_and_writing_styles() {
     let simple_cases: &[(&str, Vec<Span>)] = &[
         ("This is a test.", vec![span("This is a test.")]),

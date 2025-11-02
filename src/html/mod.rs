@@ -119,6 +119,9 @@ impl<'a> Parser<'a> {
                 }
 
                 if let Some(para_type) = paragraph_type_for(&tag) {
+                    if para_type.is_leaf() {
+                        return Ok(());
+                    }
                     return self.up(para_type);
                 }
             }
