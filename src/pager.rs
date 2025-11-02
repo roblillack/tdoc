@@ -192,6 +192,29 @@ pub struct LinkPolicy {
     activator: Arc<dyn Fn(&str) -> bool + Send + Sync>,
 }
 
+#[derive(Clone, Debug)]
+struct ScrollbarGeometry {
+    knob_start: usize,
+    knob_size: usize,
+}
+
+#[derive(Clone, Debug)]
+struct ScrollbarDrag {
+    anchor_within_knob: usize,
+}
+
+#[derive(Clone, Debug)]
+struct ContentDrag {
+    origin_row: usize,
+    origin_scroll_offset: usize,
+}
+
+#[derive(Clone, Debug)]
+enum DragState {
+    Scrollbar(ScrollbarDrag),
+    Content(ContentDrag),
+}
+
 impl LinkPolicy {
     pub fn new(
         keep_external_links: bool,
@@ -263,10 +286,12 @@ struct PagerState {
     search_mode: SearchMode,
     search_input: String,
     last_terminal_height: usize,
+    last_terminal_width: usize,
     links: Vec<LinkInfo>,
     focused_link: Option<usize>,
     hovered_link: Option<usize>,
     link_policy: LinkPolicy,
+    drag_state: Option<DragState>,
 }
 
 impl PagerState {
@@ -278,11 +303,169 @@ impl PagerState {
             search_mode: SearchMode::Normal,
             search_input: String::new(),
             last_terminal_height: 0,
+            last_terminal_width: 0,
             links: Vec::new(),
             focused_link: None,
             hovered_link: None,
             link_policy,
+            drag_state: None,
         }
+    }
+
+    fn scrollbar_column(&self) -> Option<usize> {
+        if self.last_terminal_width == 0 {
+            None
+        } else {
+            Some(self.last_terminal_width.saturating_sub(1))
+        }
+    }
+
+    fn scrollbar_geometry(&self) -> Option<ScrollbarGeometry> {
+        if self.viewport_height == 0 || self.total_lines <= self.viewport_height {
+            return None;
+        }
+
+        let mut knob_size = (self.viewport_height * self.viewport_height) / self.total_lines;
+        knob_size = knob_size.max(1).min(self.viewport_height);
+        let max_scroll = self.total_lines.saturating_sub(self.viewport_height);
+        let knob_travel = self.viewport_height.saturating_sub(knob_size);
+        let knob_start = if max_scroll == 0 || knob_travel == 0 {
+            0
+        } else {
+            (self.scroll_offset * knob_travel) / max_scroll
+        };
+
+        Some(ScrollbarGeometry {
+            knob_start,
+            knob_size,
+        })
+    }
+
+    fn scroll_offset_from_knob_start(&self, knob_start: usize, knob_size: usize) -> usize {
+        let max_scroll = self.max_scroll();
+        if max_scroll == 0 {
+            return 0;
+        }
+
+        let knob_travel = self.viewport_height.saturating_sub(knob_size);
+        if knob_travel == 0 {
+            return self.scroll_offset.min(max_scroll);
+        }
+
+        let clamped_start = knob_start.min(knob_travel);
+        (clamped_start * max_scroll + knob_travel / 2) / knob_travel
+    }
+
+    fn begin_scrollbar_drag(&mut self, pointer_row: usize) -> bool {
+        self.drag_state = None;
+        let Some(geometry) = self.scrollbar_geometry() else {
+            return false;
+        };
+
+        let knob_start = geometry.knob_start;
+        let knob_size = geometry.knob_size;
+        let knob_end = knob_start.saturating_add(knob_size);
+        let knob_travel = self.viewport_height.saturating_sub(knob_size);
+
+        let mut anchor = if knob_size <= 1 {
+            0
+        } else if pointer_row < knob_start {
+            0
+        } else if pointer_row >= knob_end {
+            knob_size.saturating_sub(1)
+        } else {
+            pointer_row - knob_start
+        };
+        anchor = anchor.min(knob_size.saturating_sub(1));
+
+        let mut new_scroll = self.scroll_offset;
+        if pointer_row < knob_start || pointer_row >= knob_end {
+            let desired_anchor = knob_size / 2;
+            anchor = desired_anchor.min(knob_size.saturating_sub(1));
+            let target_start = pointer_row.saturating_sub(anchor).min(knob_travel);
+            new_scroll = self.scroll_offset_from_knob_start(target_start, knob_size);
+        }
+
+        self.drag_state = Some(DragState::Scrollbar(ScrollbarDrag {
+            anchor_within_knob: anchor,
+        }));
+
+        let previous = self.scroll_offset;
+        self.scroll_offset = new_scroll.min(self.max_scroll());
+        self.clamp_scroll();
+        previous != self.scroll_offset
+    }
+
+    fn update_scrollbar_drag(&mut self, pointer_row: usize) -> bool {
+        let anchor = match self.drag_state {
+            Some(DragState::Scrollbar(ref drag)) => drag.anchor_within_knob,
+            _ => return false,
+        };
+
+        let Some(geometry) = self.scrollbar_geometry() else {
+            return false;
+        };
+
+        let knob_size = geometry.knob_size;
+        let knob_travel = self.viewport_height.saturating_sub(knob_size);
+        let adjusted_anchor = anchor.min(knob_size.saturating_sub(1));
+        let target_start = pointer_row.saturating_sub(adjusted_anchor).min(knob_travel);
+        let new_scroll = self
+            .scroll_offset_from_knob_start(target_start, knob_size)
+            .min(self.max_scroll());
+
+        if new_scroll != self.scroll_offset {
+            self.scroll_offset = new_scroll;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn begin_content_drag(&mut self, pointer_row: usize) {
+        self.drag_state = Some(DragState::Content(ContentDrag {
+            origin_row: pointer_row,
+            origin_scroll_offset: self.scroll_offset,
+        }));
+    }
+
+    fn update_content_drag(&mut self, pointer_row: usize) -> bool {
+        let drag = match self.drag_state {
+            Some(DragState::Content(ref drag)) => drag,
+            _ => return false,
+        };
+
+        let delta = pointer_row as isize - drag.origin_row as isize;
+        let origin = drag.origin_scroll_offset as isize;
+        let max_scroll = self.max_scroll() as isize;
+        let new_scroll = (origin - delta).clamp(0, max_scroll) as usize;
+
+        if new_scroll != self.scroll_offset {
+            self.scroll_offset = new_scroll;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn end_drag(&mut self) {
+        self.drag_state = None;
+    }
+
+    fn is_dragging(&self) -> bool {
+        self.drag_state.is_some()
+    }
+
+    fn update_drag(&mut self, pointer_row: usize) -> bool {
+        match self.drag_state {
+            Some(DragState::Scrollbar(_)) => self.update_scrollbar_drag(pointer_row),
+            Some(DragState::Content(_)) => self.update_content_drag(pointer_row),
+            None => false,
+        }
+    }
+
+    fn dragging_scrollbar(&self) -> bool {
+        matches!(self.drag_state, Some(DragState::Scrollbar(_)))
     }
 
     fn update_viewport_height(&mut self, height: usize) {
@@ -1101,6 +1284,7 @@ fn render_pager(
     let terminal_height_usize = terminal_height as usize;
     let previous_height = state.last_terminal_height;
     state.last_terminal_height = terminal_height_usize;
+    state.last_terminal_width = terminal_width as usize;
 
     state.total_lines = content.len();
 
@@ -1554,12 +1738,13 @@ fn handle_mouse_event(
     needs_redraw: &mut bool,
     link_to_open: &mut Option<String>,
 ) {
+    let row = mouse_event.row as usize;
+    let column = mouse_event.column as usize;
+
     match mouse_event.kind {
         MouseEventKind::ScrollUp => {
             let previous = state.scroll_offset;
             state.scroll_up();
-            let row = mouse_event.row as usize;
-            let column = mouse_event.column as usize;
             let hover_changed = if row < state.viewport_height {
                 let line_idx = state.scroll_offset + row;
                 state.hover_link_at(line_idx, column)
@@ -1573,8 +1758,6 @@ fn handle_mouse_event(
         MouseEventKind::ScrollDown => {
             let previous = state.scroll_offset;
             state.scroll_down();
-            let row = mouse_event.row as usize;
-            let column = mouse_event.column as usize;
             let hover_changed = if row < state.viewport_height {
                 let line_idx = state.scroll_offset + row;
                 state.hover_link_at(line_idx, column)
@@ -1586,18 +1769,36 @@ fn handle_mouse_event(
             }
         }
         MouseEventKind::Down(MouseButton::Left) => {
-            let row = mouse_event.row as usize;
+            state.end_drag();
             if row < state.viewport_height {
-                let line_idx = state.scroll_offset + row;
-                let column = mouse_event.column as usize;
-                let hover_changed = state.hover_link_at(line_idx, column);
-                let focus_result = state.focus_link_at(line_idx, column);
-                if hover_changed || focus_result.is_some() {
-                    *needs_redraw = true;
+                let mut handled = false;
+                if let Some(scrollbar_column) = state.scrollbar_column() {
+                    if column == scrollbar_column && state.scrollbar_geometry().is_some() {
+                        let scroll_changed = state.begin_scrollbar_drag(row);
+                        let hover_cleared = state.clear_hover();
+                        if scroll_changed || hover_cleared {
+                            *needs_redraw = true;
+                        }
+                        handled = true;
+                    }
                 }
-                if let Some(idx) = focus_result {
-                    if let Some(link) = state.links.get(idx) {
-                        *link_to_open = Some(link.url.clone());
+
+                if !handled {
+                    let line_idx = state.scroll_offset + row;
+                    let hover_changed = state.hover_link_at(line_idx, column);
+                    let focus_result = state.focus_link_at(line_idx, column);
+                    if hover_changed || focus_result.is_some() {
+                        *needs_redraw = true;
+                    }
+                    if let Some(idx) = focus_result {
+                        if let Some(link) = state.links.get(idx) {
+                            *link_to_open = Some(link.url.clone());
+                        }
+                    } else {
+                        state.begin_content_drag(row);
+                        if state.clear_hover() {
+                            *needs_redraw = true;
+                        }
                     }
                 }
             } else if state.clear_hover() {
@@ -1605,41 +1806,55 @@ fn handle_mouse_event(
             }
         }
         MouseEventKind::Moved => {
-            let row = mouse_event.row as usize;
-            let column = mouse_event.column as usize;
-            let changed = if row < state.viewport_height {
-                let line_idx = state.scroll_offset + row;
-                state.hover_link_at(line_idx, column)
-            } else {
-                state.clear_hover()
-            };
-            if changed {
-                *needs_redraw = true;
+            if !state.is_dragging() {
+                if row < state.viewport_height {
+                    let line_idx = state.scroll_offset + row;
+                    if state.hover_link_at(line_idx, column) {
+                        *needs_redraw = true;
+                    }
+                } else if state.clear_hover() {
+                    *needs_redraw = true;
+                }
             }
         }
         MouseEventKind::Drag(MouseButton::Left) => {
-            let row = mouse_event.row as usize;
-            let column = mouse_event.column as usize;
-            let changed = if row < state.viewport_height {
+            if state.is_dragging() {
+                let dragging_scrollbar = state.dragging_scrollbar();
+                let scroll_changed = state.update_drag(row);
+                let hover_cleared = if dragging_scrollbar {
+                    state.clear_hover()
+                } else {
+                    false
+                };
+                if scroll_changed || hover_cleared {
+                    *needs_redraw = true;
+                }
+            } else if row < state.viewport_height {
                 let line_idx = state.scroll_offset + row;
-                state.hover_link_at(line_idx, column)
-            } else {
-                state.clear_hover()
-            };
-            if changed {
+                if state.hover_link_at(line_idx, column) {
+                    *needs_redraw = true;
+                }
+            } else if state.clear_hover() {
                 *needs_redraw = true;
             }
         }
         MouseEventKind::Up(_) => {
-            let row = mouse_event.row as usize;
-            let column = mouse_event.column as usize;
-            let changed = if row < state.viewport_height {
+            let was_scrollbar_drag = state.dragging_scrollbar();
+            let was_dragging = state.is_dragging();
+            if was_dragging {
+                state.end_drag();
+            }
+
+            if was_scrollbar_drag {
+                if state.clear_hover() {
+                    *needs_redraw = true;
+                }
+            } else if row < state.viewport_height {
                 let line_idx = state.scroll_offset + row;
-                state.hover_link_at(line_idx, column)
-            } else {
-                state.clear_hover()
-            };
-            if changed {
+                if state.hover_link_at(line_idx, column) {
+                    *needs_redraw = true;
+                }
+            } else if state.clear_hover() {
                 *needs_redraw = true;
             }
         }
