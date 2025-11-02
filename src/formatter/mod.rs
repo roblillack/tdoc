@@ -607,30 +607,40 @@ impl<W: Write> Formatter<W> {
 
         let prefix_width = prefix.chars().count();
         let available_width = self.style.wrap_width.saturating_sub(prefix_width);
-        let padding = if available_width > visible_width {
-            (available_width - visible_width) / 2
-        } else {
-            0
-        };
+        if visible_width <= available_width {
+            let padding = if available_width > visible_width {
+                (available_width - visible_width) / 2
+            } else {
+                0
+            };
 
-        write!(self.writer, "{}", prefix)?;
-        for _ in 0..padding {
-            write!(self.writer, " ")?;
+            write!(self.writer, "{}", prefix)?;
+            for _ in 0..padding {
+                write!(self.writer, " ")?;
+            }
+            write!(self.writer, "{}", bold_text)?;
+            writeln!(self.writer)?;
+        } else {
+            let parts = vec![bold_text];
+            self.write_wrapped_text(&parts, prefix, prefix)?;
+            writeln!(self.writer)?;
         }
-        write!(self.writer, "{}", bold_text)?;
-        writeln!(self.writer)?;
 
         Ok(())
     }
 
     fn write_header2_paragraph(&mut self, spans: &[Span], prefix: &str) -> std::io::Result<()> {
-        let (bold_text, visible_width) = self.render_heading_text(spans)?;
+        let (bold_text, _) = self.render_heading_text(spans)?;
+        let prefix_width = prefix.chars().count();
+        let parts = vec![bold_text];
+        let line_widths = self.measure_wrapped_lines(&parts, prefix_width, prefix_width);
 
-        write!(self.writer, "{}{}", prefix, bold_text)?;
+        self.write_wrapped_text(&parts, prefix, prefix)?;
         writeln!(self.writer)?;
 
+        let underline_width = line_widths.into_iter().max().unwrap_or(0);
         write!(self.writer, "{}", prefix)?;
-        for _ in 0..visible_width {
+        for _ in 0..underline_width {
             write!(self.writer, "=")?;
         }
         writeln!(self.writer)?;
@@ -639,13 +649,17 @@ impl<W: Write> Formatter<W> {
     }
 
     fn write_header3_paragraph(&mut self, spans: &[Span], prefix: &str) -> std::io::Result<()> {
-        let (bold_text, visible_width) = self.render_heading_text(spans)?;
+        let (bold_text, _) = self.render_heading_text(spans)?;
+        let prefix_width = prefix.chars().count();
+        let parts = vec![bold_text];
+        let line_widths = self.measure_wrapped_lines(&parts, prefix_width, prefix_width);
 
-        write!(self.writer, "{}{}", prefix, bold_text)?;
+        self.write_wrapped_text(&parts, prefix, prefix)?;
         writeln!(self.writer)?;
 
+        let underline_width = line_widths.into_iter().max().unwrap_or(0);
         write!(self.writer, "{}", prefix)?;
-        for _ in 0..visible_width {
+        for _ in 0..underline_width {
             write!(self.writer, "-")?;
         }
         writeln!(self.writer)?;
@@ -973,6 +987,165 @@ impl<W: Write> Formatter<W> {
         Ok(())
     }
 
+    fn measure_wrapped_lines(
+        &self,
+        parts: &[String],
+        initial_prefix_width: usize,
+        continuation_prefix_width: usize,
+    ) -> Vec<usize> {
+        let mut full_text = String::new();
+        let mut has_forced_breaks = false;
+
+        for part in parts {
+            if part == "\n" {
+                has_forced_breaks = true;
+                full_text.push('\n');
+            } else {
+                full_text.push_str(part);
+            }
+        }
+
+        if full_text.is_empty() {
+            return Vec::new();
+        }
+
+        let mut widths = Vec::new();
+
+        if has_forced_breaks {
+            for (idx, segment) in full_text.split('\n').enumerate() {
+                let prefix_width = if idx == 0 {
+                    initial_prefix_width
+                } else {
+                    continuation_prefix_width
+                };
+                self.measure_wrapped_segment(
+                    segment,
+                    prefix_width,
+                    continuation_prefix_width,
+                    &mut widths,
+                );
+            }
+        } else {
+            self.measure_wrapped_segment(
+                &full_text,
+                initial_prefix_width,
+                continuation_prefix_width,
+                &mut widths,
+            );
+        }
+
+        widths
+    }
+
+    fn measure_wrapped_segment(
+        &self,
+        text: &str,
+        initial_prefix_width: usize,
+        continuation_prefix_width: usize,
+        widths: &mut Vec<usize>,
+    ) {
+        if text.is_empty() {
+            return;
+        }
+
+        let trimmed_text = text.trim_start_matches(' ');
+        let leading_spaces = text.len() - trimmed_text.len();
+
+        let mut current_width = 0usize;
+        let mut line_width = initial_prefix_width;
+        let mut pending_whitespace = 0usize;
+        let mut saw_visible_token = false;
+
+        for _ in 0..leading_spaces {
+            current_width += 1;
+            line_width += 1;
+            saw_visible_token = true;
+        }
+
+        if trimmed_text.is_empty() {
+            if current_width > 0 {
+                widths.push(current_width);
+            }
+            return;
+        }
+
+        let tokens = self.tokenize_for_wrap(trimmed_text);
+
+        if tokens.is_empty() {
+            if current_width > 0 {
+                widths.push(current_width);
+            }
+            return;
+        }
+
+        for (is_whitespace, token) in tokens {
+            if is_whitespace {
+                pending_whitespace += token.chars().count();
+                continue;
+            }
+
+            let word_width = self.visible_width(&token);
+            let whitespace_width = if current_width == 0 {
+                0
+            } else {
+                pending_whitespace
+            };
+
+            if line_width + whitespace_width + word_width > self.style.wrap_width
+                && current_width > 0
+            {
+                widths.push(current_width);
+                line_width = continuation_prefix_width;
+                current_width = 0;
+                pending_whitespace = 0;
+            }
+
+            if pending_whitespace > 0 && current_width > 0 {
+                line_width += pending_whitespace;
+                current_width += pending_whitespace;
+            }
+            pending_whitespace = 0;
+
+            current_width += word_width;
+            line_width += word_width;
+            if word_width > 0 {
+                saw_visible_token = true;
+            }
+        }
+
+        if current_width > 0 || saw_visible_token {
+            widths.push(current_width);
+        }
+    }
+
+    fn tokenize_for_wrap(&self, text: &str) -> Vec<(bool, String)> {
+        let mut tokens = Vec::new();
+        let mut current = String::new();
+        let mut current_kind: Option<bool> = None;
+
+        for ch in text.chars() {
+            let is_whitespace = ch.is_whitespace();
+            match current_kind {
+                Some(kind) if kind == is_whitespace => current.push(ch),
+                Some(kind) => {
+                    tokens.push((kind, std::mem::take(&mut current)));
+                    current.push(ch);
+                    current_kind = Some(is_whitespace);
+                }
+                None => {
+                    current.push(ch);
+                    current_kind = Some(is_whitespace);
+                }
+            }
+        }
+
+        if let Some(kind) = current_kind {
+            tokens.push((kind, current));
+        }
+
+        tokens
+    }
+
     fn write_wrapped_line(
         &mut self,
         text: &str,
@@ -999,29 +1172,7 @@ impl<W: Write> Formatter<W> {
             line_width += 1;
         }
 
-        let mut tokens: Vec<(bool, String)> = Vec::new();
-        let mut current = String::new();
-        let mut current_is_whitespace: Option<bool> = None;
-
-        for ch in trimmed_text.chars() {
-            let is_whitespace = ch.is_whitespace();
-            match current_is_whitespace {
-                Some(prev) if prev == is_whitespace => current.push(ch),
-                Some(prev) => {
-                    tokens.push((prev, std::mem::take(&mut current)));
-                    current.push(ch);
-                    current_is_whitespace = Some(is_whitespace);
-                }
-                None => {
-                    current.push(ch);
-                    current_is_whitespace = Some(is_whitespace);
-                }
-            }
-        }
-
-        if let Some(prev) = current_is_whitespace {
-            tokens.push((prev, current));
-        }
+        let tokens = self.tokenize_for_wrap(trimmed_text);
 
         if tokens.is_empty() {
             if !current_line.is_empty() {
@@ -1879,6 +2030,91 @@ mod tests {
         assert!(lines[0].chars().count() <= 10);
         assert!(lines[1].contains("7890"));
         assert!(lines.iter().any(|line| line.contains("1234")));
+    }
+
+    #[test]
+    fn test_header2_wraps_and_underlines_to_longest_line() {
+        let doc = doc(vec![h2_(
+            "A level two header that definitely needs to wrap across multiple segments",
+        )]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ascii();
+        style.wrap_width = 30;
+
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let non_empty: Vec<&str> = result
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+        assert!(
+            non_empty.len() >= 2,
+            "expected at least header text and underline lines, got {:?}",
+            non_empty
+        );
+
+        let underline_index = non_empty
+            .iter()
+            .position(|line| line.chars().all(|ch| ch == '=' || ch.is_whitespace()))
+            .expect("expected underline made of '=' characters");
+        let header_lines = &non_empty[..underline_index];
+        assert!(
+            !header_lines.is_empty(),
+            "expected header text lines before underline"
+        );
+
+        let max_line_width = header_lines
+            .iter()
+            .map(|line| line.chars().count())
+            .max()
+            .unwrap_or(0);
+        assert!(
+            max_line_width <= 30,
+            "wrapped header line exceeds configured width ({max_line_width})"
+        );
+
+        let underline_width = non_empty[underline_index]
+            .chars()
+            .filter(|ch| *ch == '=')
+            .count();
+        assert_eq!(underline_width, max_line_width);
+    }
+
+    #[test]
+    fn test_header1_wraps_when_text_exceeds_width() {
+        let doc = doc(vec![h1_(
+            "This level-one heading is long enough that it should wrap in the formatter output",
+        )]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ascii();
+        style.wrap_width = 24;
+
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let lines: Vec<&str> = result
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+        assert!(
+            lines.len() >= 2,
+            "expected heading text to wrap across multiple lines, got {:?}",
+            lines
+        );
+
+        for line in &lines {
+            assert!(
+                line.chars().count() <= 24,
+                "header line '{line}' exceeds configured wrap width"
+            );
+        }
     }
 
     #[test]
