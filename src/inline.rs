@@ -151,10 +151,12 @@ impl Span {
                     return Some(ch);
                 }
             }
-            span.text.chars().rev().next()
+            span.text.chars().next_back()
         }
 
-        last_char(self).map(|ch| ch.is_whitespace()).unwrap_or(false)
+        last_char(self)
+            .map(|ch| ch.is_whitespace())
+            .unwrap_or(false)
     }
 
     /// Returns `true` if the span's text or last descendant ends with `\n`.
