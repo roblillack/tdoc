@@ -20,6 +20,9 @@ use std::sync::Arc;
 use unicode_width::UnicodeWidthChar;
 use url::Url;
 
+type RegeneratorFn = Box<dyn FnMut(u16, u16) -> Result<String, String>>;
+type RegeneratorHandle<'a> = &'a mut Option<RegeneratorFn>;
+
 /// ANSI-aware segment ready for rendering.
 #[derive(Clone, Debug)]
 struct ParsedLineSegment {
@@ -370,9 +373,7 @@ impl PagerState {
         let knob_end = knob_start.saturating_add(knob_size);
         let knob_travel = self.viewport_height.saturating_sub(knob_size);
 
-        let mut anchor = if knob_size <= 1 {
-            0
-        } else if pointer_row < knob_start {
+        let mut anchor = if knob_size <= 1 || pointer_row < knob_start {
             0
         } else if pointer_row >= knob_end {
             knob_size.saturating_sub(1)
@@ -866,7 +867,7 @@ pub struct LinkCallbackContext<'a> {
     stdout: &'a mut Stdout,
     state: &'a mut PagerState,
     content: &'a mut Vec<ParsedLine>,
-    regenerator: &'a mut Option<Box<dyn FnMut(u16, u16) -> Result<String, String>>>,
+    regenerator: RegeneratorHandle<'a>,
     needs_redraw: &'a mut bool,
     exit_requested: &'a mut bool,
     post_exit_actions: &'a mut Vec<Box<dyn FnOnce() + Send + 'static>>,
@@ -917,10 +918,7 @@ impl<'a> LinkCallbackContext<'a> {
         Ok(())
     }
 
-    pub fn set_regenerator(
-        &mut self,
-        regenerator: Option<Box<dyn FnMut(u16, u16) -> Result<String, String>>>,
-    ) {
+    pub fn set_regenerator(&mut self, regenerator: Option<RegeneratorFn>) {
         *self.regenerator = regenerator;
     }
 
@@ -2000,7 +1998,7 @@ fn parse_content_to_lines(content: &str) -> Vec<ParsedLine> {
 
 fn run_interactive_pager(
     mut content: Vec<ParsedLine>,
-    mut regenerator: Option<Box<dyn FnMut(u16, u16) -> Result<String, String>>>,
+    mut regenerator: Option<RegeneratorFn>,
     options: PagerOptions,
 ) -> io::Result<()> {
     let PagerOptions {
@@ -2050,7 +2048,7 @@ fn run_interactive_pager(
                 };
 
                 if let Err(err) = callback.on_link(target.as_str(), &mut context) {
-                    result = Err(io::Error::new(io::ErrorKind::Other, err));
+                    result = Err(io::Error::other(err));
                     break 'outer;
                 }
 
@@ -2131,7 +2129,7 @@ fn run_interactive_pager(
                 let mut new_total_lines = prev_total_lines;
                 if let Some(regen) = regenerator.as_mut() {
                     let regenerated = regen(new_width, new_height)
-                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+                        .map_err(io::Error::other)?;
                     let regenerated_lines = parse_content_to_lines(&regenerated);
                     new_total_lines = regenerated_lines.len();
                     state.rebuild_search_results(&regenerated_lines, active_match_line);
@@ -2169,7 +2167,6 @@ fn run_interactive_pager(
     execute!(stdout, Show, LeaveAlternateScreen)?;
     disable_raw_mode()?;
 
-    drop(stdout);
     for action in post_exit_actions {
         action();
     }
@@ -2223,10 +2220,8 @@ where
 
     if should_page {
         let parsed_lines = parse_content_to_lines(content);
-        let boxed_regenerator = regenerator.map(|mut func| {
-            Box::new(move |width, height| func(width, height))
-                as Box<dyn FnMut(u16, u16) -> Result<String, String>>
-        });
+        let boxed_regenerator: Option<RegeneratorFn> =
+            regenerator.map(|func| Box::new(func) as RegeneratorFn);
         run_interactive_pager(parsed_lines, boxed_regenerator, options)
             .map_err(|e| format!("Pager error: {}", e))
     } else {

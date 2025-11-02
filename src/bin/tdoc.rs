@@ -235,15 +235,19 @@ fn view_document(
         render_document_for_width(&guard.document, new_width as usize)
     };
 
-    let mut options = pager::PagerOptions::default();
-    options.link_policy = build_link_policy(&origin);
-
-    options.link_callback = match origin {
+    let link_policy = build_link_policy(&origin);
+    let link_callback: Option<Arc<dyn pager::LinkCallback>> = match origin {
         ContentOrigin::Stdin => None,
         _ => Some(Arc::new(LinkCallbackState::new(
             shared_state.clone(),
             input_override,
         ))),
+    };
+
+    let options = pager::PagerOptions {
+        link_policy,
+        link_callback,
+        ..pager::PagerOptions::default()
     };
 
     pager::page_output_with_options_and_regenerator(&initial, Some(regenerator), options)
