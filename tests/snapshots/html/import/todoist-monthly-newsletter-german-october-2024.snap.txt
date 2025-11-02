@@ -9,7 +9,9 @@ Mache realistische Pläne mit deinen Aufgaben und Terminen an einem Ort.
 ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
 ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
 
-Im Browser anzeigen
+Im Browser anzeigen¹
+
+
 
 Die Todoist-Monatsübersicht
 
@@ -31,6 +33,8 @@ vermeiden, dass du zu vielen Verpflichtungen eingehst.
 
 
 
+
+
 So funktioniert’s
 
 Die Synchronisierung von Aufgaben mit Google Kalender ist kinderleicht
@@ -38,7 +42,7 @@ einzurichten (definitiv einfacher als Kitty in ihre Transportbox für den
 Tierarzttermin zu locken).
 
  • Wenn du es noch nicht getan hast, gehe zuerst zu den
-   Kalender-Einstellungen¹, um Todoist mit deinem Google Kalender-Konto
+   Kalender-Einstellungen², um Todoist mit deinem Google Kalender-Konto
    zu verbinden. Klicke auf Google Kalender verbinden und folge den
    Anweisungen.
 
@@ -49,7 +53,7 @@ Tierarzttermin zu locken).
  • Innerhalb von Sekunden wird ein „Todoist“-Kalender in deinem Google
    Kalender-Konto angezeigt.
 
-Todoist öffnen
+Todoist öffnen²
 
 Sobald das Feature „Aufgaben mit dem Kalender synchronisieren“ aktiviert
 ist, werden automatisch alle deine Todoist-Aufgaben mit einem
@@ -61,8 +65,8 @@ Kalender umplanen, was unnötiges Hin-und-Her zwischen verschiedenen Apps
 erspart.
 
 In unserem Help Center-Artikel findest du weitere Details zur
-Synchronisierung von Todoist mit Google Kalender². Alternativ kannst du
-auch das Video von Francesca ansehen³, in dem sie es ausführlich
+Synchronisierung von Todoist mit Google Kalender³. Alternativ kannst du
+auch das Video von Francesca ansehen⁴, in dem sie es ausführlich
 erklärt.
 
 Erlebe, wie deine Aufgaben zu Triumphen werden
@@ -83,25 +87,28 @@ Todoist anzuzeigen, damit du deine Erfolge im Laufe der Zeit mühelos
 verfolgen kannst.
 
 In der Zwischenzeit, lass uns wissen, was du von dem neuen Feature zur
-Aufgaben-Synchronisierung hältst⁴. Wir freuen uns auf dein Feedback,
+Aufgaben-Synchronisierung hältst⁵. Wir freuen uns auf dein Feedback,
 während wir das Kalendererlebnis in Todoist weiter verbessern.
 
 Bis nächsten Monat! 👋
 
 Mit produktiven Grüßen
 
-Inspiration Hub⁵ | Apps herunterladen⁶ | Help Center⁷
 
-Abbestellen⁸
+
+Inspiration Hub⁶ | Apps herunterladen⁷ | Help Center⁸
+
+Abbestellen⁹
 
 © Doist Inc. 2100 Geng Road, Suite 210 Palo Alto, CA 94303 Vereinigte
 Staaten
 
-¹ https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-² https://todoist.com/help/articles/use-calendar-with-todoist-rCqwLCt3G?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly#h_01HXS15SKBRVD8VW0M5TZNZCYX
-³ https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-⁴ https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-⁵ https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-⁶ https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-⁷ https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
-⁸ https://todoist.com/unsubscribe
+¹ https://todoist.doist-emails.com/de/emails/todoist/cms/TDMonthly1024
+² https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+³ https://todoist.com/help/articles/use-calendar-with-todoist-rCqwLCt3G?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly#h_01HXS15SKBRVD8VW0M5TZNZCYX
+⁴ https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁵ https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁶ https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁷ https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁸ https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly
+⁹ https://todoist.com/unsubscribe
