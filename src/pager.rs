@@ -434,7 +434,59 @@ impl PagerState {
         }
     }
 
+    fn focused_link_visible(&self) -> bool {
+        self.focused_link
+            .and_then(|idx| self.links.get(idx))
+            .map(|link| self.is_line_visible(link.line_idx))
+            .unwrap_or(false)
+    }
+
+    fn is_line_visible(&self, line_idx: usize) -> bool {
+        if self.viewport_height == 0 {
+            return false;
+        }
+        let start = self.scroll_offset;
+        let end = start.saturating_add(self.viewport_height);
+        line_idx >= start && line_idx < end
+    }
+
+    fn first_visible_active_link(&self) -> Option<usize> {
+        if self.viewport_height == 0 {
+            return None;
+        }
+        let start = self.scroll_offset;
+        let end = start.saturating_add(self.viewport_height);
+        self.links
+            .iter()
+            .enumerate()
+            .find(|(_, link)| link.activates && link.line_idx >= start && link.line_idx < end)
+            .map(|(idx, _)| idx)
+    }
+
+    fn last_visible_active_link(&self) -> Option<usize> {
+        if self.viewport_height == 0 {
+            return None;
+        }
+        let start = self.scroll_offset;
+        let end = start.saturating_add(self.viewport_height);
+        self.links
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, link)| link.activates && link.line_idx >= start && link.line_idx < end)
+            .map(|(idx, _)| idx)
+    }
+
     fn focus_next_link(&mut self) -> bool {
+        if !self.focused_link_visible() {
+            if let Some(idx) = self.first_visible_active_link() {
+                let changed = self.focused_link != Some(idx);
+                self.focused_link = Some(idx);
+                self.ensure_link_visible(idx);
+                return changed;
+            }
+        }
+
         let active: Vec<usize> = self
             .links
             .iter()
@@ -463,6 +515,15 @@ impl PagerState {
     }
 
     fn focus_prev_link(&mut self) -> bool {
+        if !self.focused_link_visible() {
+            if let Some(idx) = self.last_visible_active_link() {
+                let changed = self.focused_link != Some(idx);
+                self.focused_link = Some(idx);
+                self.ensure_link_visible(idx);
+                return changed;
+            }
+        }
+
         let active: Vec<usize> = self
             .links
             .iter()
