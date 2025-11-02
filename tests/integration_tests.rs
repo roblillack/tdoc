@@ -202,6 +202,22 @@ fn test_markdown_code_block_roundtrip() {
 }
 
 #[test]
+fn test_markdown_soft_break_collapses() {
+    let input = "Hello\nworld\nagain\n";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    let expected = ftml! { p { "Hello world again" } };
+    assert_eq!(parsed, expected);
+}
+
+#[test]
+fn test_markdown_hard_break_preserved() {
+    let input = "Hello  \nworld\n";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    let expected = ftml! { p { "Hello\nworld" } };
+    assert_eq!(parsed, expected);
+}
+
+#[test]
 fn test_simple_paragraph_roundtrip() {
     let input = "<p>This is a test.</p>";
     let doc = parse(Cursor::new(input)).unwrap();
