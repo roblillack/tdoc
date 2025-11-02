@@ -143,6 +143,20 @@ impl Span {
         }
     }
 
+    /// Returns `true` when the span's text or last descendant ends with whitespace.
+    pub fn ends_with_whitespace(&self) -> bool {
+        fn last_char(span: &Span) -> Option<char> {
+            for child in span.children.iter().rev() {
+                if let Some(ch) = last_char(child) {
+                    return Some(ch);
+                }
+            }
+            span.text.chars().rev().next()
+        }
+
+        last_char(self).map(|ch| ch.is_whitespace()).unwrap_or(false)
+    }
+
     /// Returns `true` if the span's text or last descendant ends with `\n`.
     pub fn ends_with_line_break(&self) -> bool {
         if !self.children.is_empty() {

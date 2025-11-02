@@ -331,7 +331,7 @@ impl MarkdownBuilder {
 
     fn push_soft_break(&mut self) {
         let paragraph = self.ensure_paragraph();
-        paragraph.push_text("\n");
+        paragraph.push_soft_break();
     }
 
     fn push_hard_break(&mut self) {
@@ -487,12 +487,40 @@ impl ParagraphContext {
         }
     }
 
+    fn span_target_mut(&mut self) -> &mut Vec<Span> {
+        if let Some(parent) = self.inline_stack.last_mut() {
+            &mut parent.children
+        } else {
+            &mut self.spans
+        }
+    }
+
     fn push_text(&mut self, text: &str) {
         if text.is_empty() {
             return;
         }
         let span = Span::new_text(text);
         self.push_span(span);
+    }
+
+    fn push_soft_break(&mut self) {
+        let target = self.span_target_mut();
+
+        if let Some(last) = target.last_mut() {
+            if last.ends_with_whitespace() {
+                return;
+            }
+
+            if last.style == InlineStyle::None
+                && last.link_target.is_none()
+                && last.children.is_empty()
+            {
+                last.text.push(' ');
+                return;
+            }
+        }
+
+        target.push(Span::new_text(" "));
     }
 
     fn push_code(&mut self, text: &str) {
