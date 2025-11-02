@@ -387,7 +387,7 @@ impl<'a> Parser<'a> {
         link_target: Option<String>,
     ) -> Result<SpanOutcome, HtmlError> {
         let mut children = Vec::new();
-        let mut first = false;
+        let mut first = true;
         let link_target = link_target.map(decode_html);
         let mut had_visible_text = false;
 
@@ -402,6 +402,9 @@ impl<'a> Parser<'a> {
                         had_visible_text = true;
                     }
                     children.push(Span::new_text(decoded));
+                    if let Some(last) = children.last() {
+                        first = last.ends_with_line_break();
+                    }
                 }
             }
 
@@ -452,6 +455,9 @@ impl<'a> Parser<'a> {
                         had_visible_text = true;
                     }
                     children.push(outcome.span);
+                    if let Some(last) = children.last() {
+                        first = last.ends_with_line_break();
+                    }
                 }
                 Token::EndElement(end) => {
                     let name = lowercase_name(end.name());

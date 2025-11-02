@@ -22,7 +22,7 @@ My Todo
 
 171 überfällige Aufgaben
 
-Todoist öffnen                 Deine Produktivitätsziele     ²
+Todoist öffnen        Deine Produktivitätsziele     ²
 
 Ziel von gestern
 
@@ -59,7 +59,7 @@ Todoist-Tipp des Tages
 [Android] Todoist unterstützt eine Schnelleinstellungs-Kachel für
 „Aufgabe hinzufügen“.
 
-So funktioniert das Einrichten        ¹
+So funktioniert das Einrichten      ¹
 
 Team-Aufgaben managen leicht gemacht
 
