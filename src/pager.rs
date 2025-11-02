@@ -255,10 +255,18 @@ struct LinkInfo {
     activates: bool,
 }
 
+pub trait LinkCallback: Send + Sync {
+    fn on_link(
+        &self,
+        target: &str,
+        context: &mut LinkCallbackContext<'_>,
+    ) -> Result<(), String>;
+}
+
 #[derive(Clone)]
 pub struct PagerOptions {
     pub enable_mouse_capture: bool,
-    pub link_callback: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    pub link_callback: Option<Arc<dyn LinkCallback>>,
     pub link_policy: LinkPolicy,
 }
 
@@ -270,13 +278,6 @@ impl Default for PagerOptions {
             link_policy: LinkPolicy::default(),
         }
     }
-}
-
-fn default_link_callback() -> Arc<dyn Fn(&str) + Send + Sync> {
-    Arc::new(|target: &str| {
-        println!("{}", target);
-        std::process::exit(0);
-    })
 }
 
 struct PagerState {
@@ -292,6 +293,7 @@ struct PagerState {
     hovered_link: Option<usize>,
     link_policy: LinkPolicy,
     drag_state: Option<DragState>,
+    status_message: Option<String>,
 }
 
 impl PagerState {
@@ -309,6 +311,7 @@ impl PagerState {
             hovered_link: None,
             link_policy,
             drag_state: None,
+            status_message: None,
         }
     }
 
@@ -849,6 +852,132 @@ impl PagerState {
         self.search_mode = SearchMode::Normal;
         self.search_input.clear();
     }
+
+    fn status_message(&self) -> Option<&str> {
+        self.status_message.as_deref()
+    }
+
+    fn set_status_message(&mut self, message: Option<String>) {
+        self.status_message = message;
+    }
+}
+
+pub struct LinkCallbackContext<'a> {
+    stdout: &'a mut Stdout,
+    state: &'a mut PagerState,
+    content: &'a mut Vec<ParsedLine>,
+    regenerator: &'a mut Option<Box<dyn FnMut(u16, u16) -> Result<String, String>>>,
+    needs_redraw: &'a mut bool,
+    exit_requested: &'a mut bool,
+    post_exit_actions: &'a mut Vec<Box<dyn FnOnce() + Send + 'static>>,
+}
+
+impl<'a> LinkCallbackContext<'a> {
+    pub fn set_status(&mut self, message: impl Into<String>) -> Result<(), String> {
+        self.state.set_status_message(Some(message.into()));
+        self.redraw_status_line().map_err(|err| err.to_string())
+    }
+
+    pub fn clear_status(&mut self) -> Result<(), String> {
+        self.state.set_status_message(None);
+        self.redraw_status_line().map_err(|err| err.to_string())
+    }
+
+    pub fn status(&self) -> Option<&str> {
+        self.state.status_message()
+    }
+
+    pub fn terminal_size(&self) -> (u16, u16) {
+        let width = self
+            .state
+            .last_terminal_width
+            .min(u16::MAX as usize) as u16;
+        let height = self
+            .state
+            .last_terminal_height
+            .min(u16::MAX as usize) as u16;
+        (width, height)
+    }
+
+    pub fn content_width(&self) -> usize {
+        self.state.last_terminal_width.saturating_sub(1)
+    }
+
+    pub fn replace_content(&mut self, new_content: &str) -> Result<(), String> {
+        *self.content = parse_content_to_lines(new_content);
+        self.state.total_lines = self.content.len();
+        self.state.scroll_offset = 0;
+        self.state.clamp_scroll();
+        self.state.focused_link = None;
+        self.state.hovered_link = None;
+        self.state.drag_state = None;
+        self.state.rebuild_search_results(self.content, None);
+        self.state.rebuild_links(self.content);
+        *self.needs_redraw = true;
+        Ok(())
+    }
+
+    pub fn set_regenerator(
+        &mut self,
+        regenerator: Option<Box<dyn FnMut(u16, u16) -> Result<String, String>>>,
+    ) {
+        *self.regenerator = regenerator;
+    }
+
+    pub fn set_link_policy(&mut self, policy: LinkPolicy) {
+        self.state.link_policy = policy;
+        self.state.focused_link = None;
+        self.state.hovered_link = None;
+        self.state.rebuild_links(self.content);
+        *self.needs_redraw = true;
+    }
+
+    pub fn request_exit(&mut self) {
+        *self.exit_requested = true;
+    }
+
+    pub fn on_exit<F>(&mut self, action: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        self.post_exit_actions.push(Box::new(action));
+    }
+
+    fn redraw_status_line(&mut self) -> io::Result<()> {
+        if self.state.last_terminal_width == 0 {
+            return Ok(());
+        }
+        let width = self
+            .state
+            .last_terminal_width
+            .min(u16::MAX as usize) as u16;
+        let row = self.state.viewport_height.min(u16::MAX as usize) as u16;
+        draw_status_line(self.stdout, self.state, width, row)?;
+        self.stdout.flush()
+    }
+}
+
+struct DefaultLinkCallback;
+
+impl LinkCallback for DefaultLinkCallback {
+    fn on_link(
+        &self,
+        target: &str,
+        context: &mut LinkCallbackContext<'_>,
+    ) -> Result<(), String> {
+        let target = target.to_string();
+        context.request_exit();
+        context.on_exit(move || {
+            println!("{}", target);
+            let _ = io::stdout().flush();
+            std::process::exit(0);
+        });
+        Ok(())
+    }
+}
+
+fn default_link_callback() -> Arc<dyn LinkCallback> {
+    Arc::new(DefaultLinkCallback)
 }
 
 fn find_search_matches(query: &str, content: &[ParsedLine]) -> Vec<SearchMatch> {
@@ -1513,72 +1642,75 @@ fn draw_status_line(
     width: u16,
     row: u16,
 ) -> io::Result<()> {
-    let mut status_text = match &state.search_mode {
-        SearchMode::EnteringQuery => format!("/{}", state.search_input),
-        SearchMode::Active {
-            query,
-            matches,
-            current_match,
-        } => {
-            let position_text = if state.total_lines == 0 {
-                " (empty)".to_string()
-            } else {
-                let percentage = if state.max_scroll() == 0 {
-                    100
-                } else {
-                    (state.scroll_offset * 100) / state.max_scroll()
-                };
-                format!(
-                    " Line {}-{}/{} ({}%)",
-                    state.scroll_offset + 1,
-                    (state.scroll_offset + state.viewport_height).min(state.total_lines),
-                    state.total_lines,
-                    percentage
-                )
-            };
-            format!(
-                "{} -- Searching: '{}' ({}/{} matches) -- n: next, N: prev, Esc: clear",
-                position_text,
+    let display_text = if let Some(custom) = state.status_message() {
+        truncate_with_padding(custom, width as usize)
+    } else {
+        let mut status_text = match &state.search_mode {
+            SearchMode::EnteringQuery => format!("/{}", state.search_input),
+            SearchMode::Active {
                 query,
-                current_match + 1,
-                matches.len()
-            )
-        }
-        SearchMode::Normal => {
-            if state.total_lines == 0 {
-                " (empty) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search, Tab: next link, Shift-Tab: prev, Enter: open".to_string()
-            } else {
-                let percentage = if state.max_scroll() == 0 {
-                    100
+                matches,
+                current_match,
+            } => {
+                let position_text = if state.total_lines == 0 {
+                    " (empty)".to_string()
                 } else {
-                    (state.scroll_offset * 100) / state.max_scroll()
+                    let percentage = if state.max_scroll() == 0 {
+                        100
+                    } else {
+                        (state.scroll_offset * 100) / state.max_scroll()
+                    };
+                    format!(
+                        " Line {}-{}/{} ({}%)",
+                        state.scroll_offset + 1,
+                        (state.scroll_offset + state.viewport_height).min(state.total_lines),
+                        state.total_lines,
+                        percentage
+                    )
                 };
                 format!(
-                    " Line {}-{}/{} ({}%) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search, Tab/Shift-Tab: links, Enter: open",
-                    state.scroll_offset + 1,
-                    (state.scroll_offset + state.viewport_height)
-                        .min(state.total_lines),
-                    state.total_lines,
-                    percentage
+                    "{} -- Searching: '{}' ({}/{} matches) -- n: next, N: prev, Esc: clear",
+                    position_text,
+                    query,
+                    current_match + 1,
+                    matches.len()
                 )
             }
-        }
-    };
+            SearchMode::Normal => {
+                if state.total_lines == 0 {
+                    " (empty) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search, Tab: next link, Shift-Tab: prev, Enter: open".to_string()
+                } else {
+                    let percentage = if state.max_scroll() == 0 {
+                        100
+                    } else {
+                        (state.scroll_offset * 100) / state.max_scroll()
+                    };
+                    format!(
+                        " Line {}-{}/{} ({}%) -- q: quit, ↑/↓ j/k: scroll, PgUp/PgDn, Home/End, /: search, Tab/Shift-Tab: links, Enter: open",
+                        state.scroll_offset + 1,
+                        (state.scroll_offset + state.viewport_height)
+                            .min(state.total_lines),
+                        state.total_lines,
+                        percentage
+                    )
+                }
+            }
+        };
 
-    if let Some(target) = state.hovered_link_target() {
-        status_text.push_str(" -- Link: ");
-        status_text.push_str(target);
-    }
+        if let Some(target) = state.hovered_link_target() {
+            status_text.push_str(" -- Link: ");
+            status_text.push_str(target);
+        }
+
+        truncate_with_padding(status_text.as_str(), width as usize)
+    };
 
     queue!(
         stdout,
         MoveTo(0, row),
         Clear(ClearType::CurrentLine),
         SetAttribute(Attribute::Reverse),
-        // SetAttribute(Attribute::Dim),
-        // SetBackgroundColor(Color::DarkGrey),
-        // SetForegroundColor(Color::White),
-        Print(truncate_with_padding(status_text.as_str(), width as usize)),
+        Print(display_text),
         SetAttribute(Attribute::Reset),
         ResetColor
     )?;
@@ -1866,30 +1998,35 @@ fn parse_content_to_lines(content: &str) -> Vec<ParsedLine> {
     content.lines().map(ParsedLine::from_ansi).collect()
 }
 
-fn run_interactive_pager<F>(
+fn run_interactive_pager(
     mut content: Vec<ParsedLine>,
-    mut regenerator: Option<F>,
+    mut regenerator: Option<Box<dyn FnMut(u16, u16) -> Result<String, String>>>,
     options: PagerOptions,
-) -> io::Result<()>
-where
-    F: FnMut(u16, u16) -> Result<String, String>,
-{
+) -> io::Result<()> {
+    let PagerOptions {
+        enable_mouse_capture,
+        link_callback,
+        link_policy,
+    } = options;
+
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, Hide)?;
-    if options.enable_mouse_capture {
+    if enable_mouse_capture {
         execute!(stdout, EnableMouseCapture)?;
     }
     execute!(stdout, Clear(ClearType::All), MoveTo(0, 0))?;
 
     let (_, current_height) = terminal::size()?;
     let viewport_height = current_height.saturating_sub(1) as usize;
-    let mut state = PagerState::new(content.len(), viewport_height, options.link_policy.clone());
+    let mut state = PagerState::new(content.len(), viewport_height, link_policy);
     state.rebuild_links(&content);
 
     let mut result = Ok(());
     let mut needs_redraw = true;
     let mut pending_link: Option<String> = None;
+    let mut post_exit_actions: Vec<Box<dyn FnOnce() + Send + 'static>> = Vec::new();
+    let mut exit_requested = false;
 
     'outer: loop {
         if needs_redraw {
@@ -1898,6 +2035,33 @@ where
                 break;
             }
             needs_redraw = false;
+        }
+
+        if let Some(target) = pending_link.take() {
+            if let Some(callback) = link_callback.as_ref() {
+                let mut context = LinkCallbackContext {
+                    stdout: &mut stdout,
+                    state: &mut state,
+                    content: &mut content,
+                    regenerator: &mut regenerator,
+                    needs_redraw: &mut needs_redraw,
+                    exit_requested: &mut exit_requested,
+                    post_exit_actions: &mut post_exit_actions,
+                };
+
+                if let Err(err) = callback.on_link(target.as_str(), &mut context) {
+                    result = Err(io::Error::new(io::ErrorKind::Other, err));
+                    break 'outer;
+                }
+
+                if exit_requested {
+                    break 'outer;
+                }
+
+                continue 'outer;
+            } else {
+                break 'outer;
+            }
         }
 
         match event::read()? {
@@ -1915,7 +2079,7 @@ where
                 needs_redraw |= key_redraw;
             }
             Event::Mouse(mouse_event) => {
-                if options.enable_mouse_capture {
+                if enable_mouse_capture {
                     handle_mouse_event(
                         mouse_event,
                         &mut state,
@@ -1997,24 +2161,17 @@ where
             }
             _ => {}
         }
-
-        if pending_link.is_some() {
-            break 'outer;
-        }
     }
 
-    if options.enable_mouse_capture {
+    if enable_mouse_capture {
         execute!(stdout, DisableMouseCapture)?;
     }
     execute!(stdout, Show, LeaveAlternateScreen)?;
     disable_raw_mode()?;
 
-    if result.is_ok() {
-        if let Some(link_target) = pending_link {
-            if let Some(callback) = options.link_callback.clone() {
-                callback(link_target.as_str());
-            }
-        }
+    drop(stdout);
+    for action in post_exit_actions {
+        action();
     }
 
     result
@@ -2032,7 +2189,7 @@ pub fn page_output(content: &str) -> Result<(), String> {
 
 pub fn page_output_with_regenerator<F>(content: &str, regenerator: Option<F>) -> Result<(), String>
 where
-    F: FnMut(u16, u16) -> Result<String, String>,
+    F: FnMut(u16, u16) -> Result<String, String> + 'static,
 {
     page_output_with_options_and_regenerator(content, regenerator, PagerOptions::default())
 }
@@ -2051,7 +2208,7 @@ pub fn page_output_with_options_and_regenerator<F>(
     options: PagerOptions,
 ) -> Result<(), String>
 where
-    F: FnMut(u16, u16) -> Result<String, String>,
+    F: FnMut(u16, u16) -> Result<String, String> + 'static,
 {
     let line_count = content.lines().count();
 
@@ -2066,7 +2223,11 @@ where
 
     if should_page {
         let parsed_lines = parse_content_to_lines(content);
-        run_interactive_pager(parsed_lines, regenerator, options)
+        let boxed_regenerator = regenerator.map(|mut func| {
+            Box::new(move |width, height| func(width, height))
+                as Box<dyn FnMut(u16, u16) -> Result<String, String>>
+        });
+        run_interactive_pager(parsed_lines, boxed_regenerator, options)
             .map_err(|e| format!("Pager error: {}", e))
     } else {
         print!("{}", content);

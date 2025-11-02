@@ -200,7 +200,7 @@ fn parse_document(
 fn view_document(
     document: Document,
     no_ansi: bool,
-    mut origin: ContentOrigin,
+    origin: ContentOrigin,
     input_override: Option<InputFormat>,
 ) -> Result<(), String> {
     let stdout_is_tty = atty::is(atty::Stream::Stdout);
@@ -221,43 +221,32 @@ fn view_document(
             .map_err(|err| format!("Unable to write document: {err}"));
     }
 
-    let mut current_document = document;
+    let shared_state = Arc::new(Mutex::new(LinkEnvironment {
+        document: document.clone(),
+        origin: origin.clone(),
+    }));
 
-    loop {
-        let initial = render_document_for_terminal(&current_document)?;
-        let document_for_regen = current_document.clone();
-        let regenerator = move |new_width: u16, _new_height: u16| -> Result<String, String> {
-            render_document_for_width(&document_for_regen, new_width as usize)
-        };
+    let initial = render_document_for_terminal(&document)?;
+    let regen_state = shared_state.clone();
+    let regenerator = move |new_width: u16, _new_height: u16| -> Result<String, String> {
+        let guard = regen_state
+            .lock()
+            .map_err(|_| "Failed to access document for resize".to_string())?;
+        render_document_for_width(&guard.document, new_width as usize)
+    };
 
-        let mut options = pager::PagerOptions::default();
-        options.link_policy = build_link_policy(&origin);
+    let mut options = pager::PagerOptions::default();
+    options.link_policy = build_link_policy(&origin);
 
-        let link_handler = match origin {
-            ContentOrigin::Stdin => None,
-            _ => Some(LinkCallbackState::new()),
-        };
+    options.link_callback = match origin {
+        ContentOrigin::Stdin => None,
+        _ => Some(Arc::new(LinkCallbackState::new(
+            shared_state.clone(),
+            input_override,
+        ))),
+    };
 
-        options.link_callback = link_handler.as_ref().map(|handler| handler.callback());
-
-        pager::page_output_with_options_and_regenerator(&initial, Some(regenerator), options)?;
-
-        if let Some(handler) = link_handler {
-            if let Some(target) = handler.take() {
-                if let Some((next_document, next_origin)) =
-                    navigate_to_target(&origin, target.as_str(), input_override)?
-                {
-                    current_document = next_document;
-                    origin = next_origin;
-                }
-                continue;
-            }
-        }
-
-        break;
-    }
-
-    Ok(())
+    pager::page_output_with_options_and_regenerator(&initial, Some(regenerator), options)
 }
 
 fn configure_style_for_terminal(style: &mut FormattingStyle) {
@@ -306,29 +295,72 @@ fn render_document_for_width(document: &Document, width: usize) -> Result<String
     String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
 }
 
-#[derive(Clone)]
+struct LinkEnvironment {
+    document: Document,
+    origin: ContentOrigin,
+}
+
 struct LinkCallbackState {
-    inner: Arc<Mutex<Option<String>>>,
+    shared: Arc<Mutex<LinkEnvironment>>,
+    input_override: Option<InputFormat>,
 }
 
 impl LinkCallbackState {
-    fn new() -> Self {
+    fn new(shared: Arc<Mutex<LinkEnvironment>>, input_override: Option<InputFormat>) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(None)),
+            shared,
+            input_override,
         }
     }
+}
 
-    fn callback(&self) -> Arc<dyn Fn(&str) + Send + Sync> {
-        let inner = self.inner.clone();
-        Arc::new(move |target: &str| {
-            if let Ok(mut slot) = inner.lock() {
-                *slot = Some(target.to_string());
+impl pager::LinkCallback for LinkCallbackState {
+    fn on_link(
+        &self,
+        target: &str,
+        context: &mut pager::LinkCallbackContext<'_>,
+    ) -> Result<(), String> {
+        let trimmed = target.trim();
+        if trimmed.is_empty() {
+            return Ok(());
+        }
+
+        let origin = {
+            let guard = self
+                .shared
+                .lock()
+                .map_err(|_| "Unable to read current document state".to_string())?;
+            guard.origin.clone()
+        };
+
+        context
+            .set_status(format!("Loading {trimmed} ..."))?;
+
+        match navigate_to_target(&origin, trimmed, self.input_override) {
+            Ok(Some((document, new_origin))) => {
+                let render_width = context.content_width().max(1);
+                let rendered = render_document_for_width(&document, render_width)?;
+                context.replace_content(&rendered)?;
+                context.set_link_policy(build_link_policy(&new_origin));
+                {
+                    let mut guard = self
+                        .shared
+                        .lock()
+                        .map_err(|_| "Unable to update current document state".to_string())?;
+                    guard.document = document;
+                    guard.origin = new_origin;
+                }
+                context.clear_status()?;
             }
-        })
-    }
+            Ok(None) => {
+                context.set_status("Unable to open link".to_string())?;
+            }
+            Err(err) => {
+                context.set_status(format!("Error: {err}"))?;
+            }
+        }
 
-    fn take(&self) -> Option<String> {
-        self.inner.lock().ok().and_then(|mut slot| slot.take())
+        Ok(())
     }
 }
 
