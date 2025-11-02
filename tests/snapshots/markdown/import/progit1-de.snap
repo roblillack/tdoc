@@ -1,0 +1,6 @@
+---
+source: tests/markdown_import.rs
+expression: rendered
+extension: ftml
+snapshot_kind: binary
+---

@@ -272,6 +272,11 @@ impl MarkdownBuilder {
             return;
         }
 
+        if trimmed.starts_with("<!--") && trimmed.ends_with("-->") {
+            // Drop HTML comments entirely.
+            return;
+        }
+
         let lowercase = trimmed.to_ascii_lowercase();
 
         if is_open_tag(&lowercase, "mark") {
