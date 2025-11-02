@@ -4,10 +4,10 @@ use reqwest::blocking::Client;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command as Process, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
-use tdoc::{html, markdown, parse, write, Document};
+use tdoc::{html, markdown, pager, parse, write, Document};
 use url::Url;
 
 #[derive(Parser)]
@@ -58,10 +58,18 @@ impl From<InputFormatArg> for InputFormat {
     }
 }
 
+#[derive(Clone)]
+enum ContentOrigin {
+    Url(Url),
+    File(PathBuf),
+    Stdin,
+}
+
 struct InputSource {
     format: InputFormat,
     reader: Box<dyn Read>,
     display_name: String,
+    origin: ContentOrigin,
 }
 
 enum OutputFormat {
@@ -86,13 +94,14 @@ fn run() -> Result<(), String> {
         format,
         reader,
         display_name,
+        origin,
     } = input_source;
     let document = parse_document(format, reader, &display_name)?;
 
     if let Some(output_path) = cli.output {
         write_output(&document, &output_path)?;
     } else {
-        view_document(&document, cli.no_ansi)?;
+        view_document(document, cli.no_ansi, origin, input_override)?;
     }
 
     Ok(())
@@ -107,15 +116,18 @@ fn create_reader(
             format: override_format.unwrap_or(InputFormat::Ftml),
             reader: Box::new(io::stdin()),
             display_name: "stdin".to_string(),
+            origin: ContentOrigin::Stdin,
         }),
         Some("-") => Ok(InputSource {
             format: override_format.unwrap_or(InputFormat::Ftml),
             reader: Box::new(io::stdin()),
             display_name: "stdin".to_string(),
+            origin: ContentOrigin::Stdin,
         }),
         Some(value) => {
             if let Ok(url) = Url::parse(value) {
                 if url.scheme() == "http" || url.scheme() == "https" {
+                    let origin = ContentOrigin::Url(url.clone());
                     let client = Client::builder()
                         .timeout(Duration::from_secs(10))
                         .build()
@@ -134,6 +146,7 @@ fn create_reader(
                         format,
                         reader: Box::new(response),
                         display_name: value.to_string(),
+                        origin,
                     });
                 }
             }
@@ -146,10 +159,13 @@ fn create_reader(
                 .or_else(|| detect_input_format(extension))
                 .unwrap_or(InputFormat::Ftml);
 
+            let origin = ContentOrigin::File(path.to_path_buf());
+
             Ok(InputSource {
                 format,
                 reader: Box::new(BufReader::new(file)),
                 display_name: value.to_string(),
+                origin,
             })
         }
     }
@@ -181,88 +197,299 @@ fn parse_document(
     }
 }
 
-fn view_document(document: &Document, no_ansi: bool) -> Result<(), String> {
+fn view_document(
+    document: Document,
+    no_ansi: bool,
+    origin: ContentOrigin,
+    input_override: Option<InputFormat>,
+) -> Result<(), String> {
     let stdout_is_tty = atty::is(atty::Stream::Stdout);
     let use_ansi = !no_ansi && stdout_is_tty;
     let use_pager = use_ansi;
 
-    if use_pager {
-        if let Ok((mut pager, pager_stdin)) = run_pager() {
+    if !use_pager {
+        let mut formatter = if use_ansi {
             let mut style = FormattingStyle::ansi();
             configure_style_for_terminal(&mut style);
+            Formatter::new(io::stdout(), style)
+        } else {
+            Formatter::new_ascii(io::stdout())
+        };
 
-            let mut formatter = Formatter::new(pager_stdin, style);
-            formatter
-                .write_document(document)
-                .map_err(|err| format!("Unable to write document: {err}"))?;
-
-            drop(formatter);
-            let _ = pager.wait();
-            return Ok(());
-        }
+        return formatter
+            .write_document(&document)
+            .map_err(|err| format!("Unable to write document: {err}"));
     }
 
-    let mut formatter = if use_ansi {
-        let mut style = FormattingStyle::ansi();
-        configure_style_for_terminal(&mut style);
-        Formatter::new(io::stdout(), style)
-    } else {
-        Formatter::new_ascii(io::stdout())
+    let shared_state = Arc::new(Mutex::new(LinkEnvironment {
+        document: document.clone(),
+        origin: origin.clone(),
+    }));
+
+    let initial = render_document_for_terminal(&document)?;
+    let regen_state = shared_state.clone();
+    let regenerator = move |new_width: u16, _new_height: u16| -> Result<String, String> {
+        let guard = regen_state
+            .lock()
+            .map_err(|_| "Failed to access document for resize".to_string())?;
+        render_document_for_width(&guard.document, new_width as usize)
     };
 
-    formatter
-        .write_document(document)
-        .map_err(|err| format!("Unable to write document: {err}"))
+    let link_policy = build_link_policy(&origin);
+    let link_callback: Option<Arc<dyn pager::LinkCallback>> = match origin {
+        ContentOrigin::Stdin => None,
+        _ => Some(Arc::new(LinkCallbackState::new(
+            shared_state.clone(),
+            input_override,
+        ))),
+    };
+
+    let options = pager::PagerOptions {
+        link_policy,
+        link_callback,
+        ..pager::PagerOptions::default()
+    };
+
+    pager::page_output_with_options_and_regenerator(&initial, Some(regenerator), options)
 }
 
 fn configure_style_for_terminal(style: &mut FormattingStyle) {
     if let Ok((width, _height)) = terminal::size() {
-        let width = width as usize;
-        if width < 60 {
-            style.wrap_width = width;
-            style.left_padding = 0;
-        } else if width < 100 {
-            style.wrap_width = width.saturating_sub(2);
-            style.left_padding = 2;
-        } else {
-            let padding = (width.saturating_sub(100)) / 2 + 4;
-            style.wrap_width = width.saturating_sub(padding);
-            style.left_padding = padding;
+        configure_style_for_width(style, width as usize);
+    }
+}
+
+fn configure_style_for_width(style: &mut FormattingStyle, width: usize) {
+    if width < 60 {
+        style.wrap_width = width;
+        style.left_padding = 0;
+    } else if width < 100 {
+        style.wrap_width = width.saturating_sub(2);
+        style.left_padding = 2;
+    } else {
+        let padding = (width.saturating_sub(100)) / 2 + 4;
+        style.wrap_width = width.saturating_sub(padding);
+        style.left_padding = padding;
+    }
+}
+
+fn render_document_for_terminal(document: &Document) -> Result<String, String> {
+    let mut buf = Vec::new();
+    let mut style = FormattingStyle::ansi();
+    configure_style_for_terminal(&mut style);
+    {
+        let mut formatter = Formatter::new(&mut buf, style);
+        formatter
+            .write_document(document)
+            .map_err(|err| format!("Unable to write document: {err}"))?;
+    }
+    String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
+}
+
+fn render_document_for_width(document: &Document, width: usize) -> Result<String, String> {
+    let mut buf = Vec::new();
+    let mut style = FormattingStyle::ansi();
+    configure_style_for_width(&mut style, width);
+    {
+        let mut formatter = Formatter::new(&mut buf, style);
+        formatter
+            .write_document(document)
+            .map_err(|err| format!("Unable to write document: {err}"))?;
+    }
+    String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
+}
+
+struct LinkEnvironment {
+    document: Document,
+    origin: ContentOrigin,
+}
+
+struct LinkCallbackState {
+    shared: Arc<Mutex<LinkEnvironment>>,
+    input_override: Option<InputFormat>,
+}
+
+impl LinkCallbackState {
+    fn new(shared: Arc<Mutex<LinkEnvironment>>, input_override: Option<InputFormat>) -> Self {
+        Self {
+            shared,
+            input_override,
         }
     }
 }
 
-fn run_pager() -> io::Result<(std::process::Child, std::process::ChildStdin)> {
-    let pager_cmd = std::env::var("PAGER").unwrap_or_else(|_| "less".to_string());
-    let mut parts: Vec<&str> = pager_cmd.split_whitespace().collect();
+impl pager::LinkCallback for LinkCallbackState {
+    fn on_link(
+        &self,
+        target: &str,
+        context: &mut pager::LinkCallbackContext<'_>,
+    ) -> Result<(), String> {
+        let trimmed = target.trim();
+        if trimmed.is_empty() {
+            return Ok(());
+        }
 
-    if parts.is_empty() {
-        parts.push("less");
+        let origin = {
+            let guard = self
+                .shared
+                .lock()
+                .map_err(|_| "Unable to read current document state".to_string())?;
+            guard.origin.clone()
+        };
+
+        context
+            .set_status(format!("Loading {trimmed} ..."))?;
+
+        match navigate_to_target(&origin, trimmed, self.input_override) {
+            Ok(Some((document, new_origin))) => {
+                let render_width = context.content_width().max(1);
+                let rendered = render_document_for_width(&document, render_width)?;
+                context.replace_content(&rendered)?;
+                context.set_link_policy(build_link_policy(&new_origin));
+                {
+                    let mut guard = self
+                        .shared
+                        .lock()
+                        .map_err(|_| "Unable to update current document state".to_string())?;
+                    guard.document = document;
+                    guard.origin = new_origin;
+                }
+                context.clear_status()?;
+            }
+            Ok(None) => {
+                context.set_status("Unable to open link".to_string())?;
+            }
+            Err(err) => {
+                context.set_status(format!("Error: {err}"))?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn build_link_policy(origin: &ContentOrigin) -> pager::LinkPolicy {
+    match origin {
+        ContentOrigin::Url(base_url) => {
+            let base = base_url.clone();
+            pager::LinkPolicy::new(
+                false,
+                Arc::new(move |target: &str| {
+                    let trimmed = target.trim();
+                    if trimmed.is_empty() || trimmed.starts_with('#') {
+                        return false;
+                    }
+                    match Url::options().base_url(Some(&base)).parse(trimmed) {
+                        Ok(resolved) => matches!(resolved.scheme(), "http" | "https"),
+                        Err(_) => false,
+                    }
+                }),
+            )
+        }
+        ContentOrigin::File(path) => {
+            let base_dir = path
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."));
+            pager::LinkPolicy::new(
+                true,
+                Arc::new(move |target: &str| {
+                    let trimmed = target.trim();
+                    if trimmed.is_empty() || is_absolute_url(trimmed) {
+                        return false;
+                    }
+                    let candidate = if Path::new(trimmed).is_absolute() {
+                        PathBuf::from(trimmed)
+                    } else {
+                        base_dir.join(trimmed)
+                    };
+                    match std::fs::canonicalize(&candidate) {
+                        Ok(resolved) => resolved.is_file(),
+                        Err(_) => false,
+                    }
+                }),
+            )
+        }
+        ContentOrigin::Stdin => pager::LinkPolicy::new(true, Arc::new(|_| false)),
+    }
+}
+
+fn navigate_to_target(
+    origin: &ContentOrigin,
+    target: &str,
+    input_override: Option<InputFormat>,
+) -> Result<Option<(Document, ContentOrigin)>, String> {
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
     }
 
-    let program = parts[0];
-    let program_name = Path::new(program)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or(program);
+    match origin {
+        ContentOrigin::Url(current_url) => {
+            if trimmed.starts_with('#') {
+                return Ok(None);
+            }
+            let resolved = match Url::options().base_url(Some(current_url)).parse(trimmed) {
+                Ok(url) => url,
+                Err(_) => return Ok(None),
+            };
+            if !matches!(resolved.scheme(), "http" | "https") {
+                return Ok(None);
+            }
+            if &resolved == current_url {
+                return Ok(None);
+            }
 
-    let mut final_args: Vec<&str> = parts.into_iter().skip(1).collect();
-    if program_name == "less" || program_name == "more" {
-        final_args.push("-R");
+            let input_source = create_reader(Some(resolved.as_str()), input_override)?;
+            let InputSource {
+                format,
+                reader,
+                display_name,
+                origin,
+            } = input_source;
+            let document = parse_document(format, reader, &display_name)?;
+            Ok(Some((document, origin)))
+        }
+        ContentOrigin::File(current_path) => {
+            if is_absolute_url(trimmed) {
+                return Ok(None);
+            }
+            let base_dir = current_path
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("."));
+            let candidate = if Path::new(trimmed).is_absolute() {
+                PathBuf::from(trimmed)
+            } else {
+                base_dir.join(trimmed)
+            };
+            let resolved = match std::fs::canonicalize(&candidate) {
+                Ok(path) => path,
+                Err(_) => return Ok(None),
+            };
+            if !resolved.is_file() {
+                return Ok(None);
+            }
+            let path_string = match resolved.to_str() {
+                Some(value) => value.to_owned(),
+                None => return Ok(None),
+            };
+            let input_source = create_reader(Some(path_string.as_str()), input_override)?;
+            let InputSource {
+                format,
+                reader,
+                display_name,
+                origin,
+            } = input_source;
+            let document = parse_document(format, reader, &display_name)?;
+            Ok(Some((document, origin)))
+        }
+        ContentOrigin::Stdin => Ok(None),
     }
+}
 
-    let mut child = Process::new(program)
-        .args(&final_args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::inherit())
-        .spawn()?;
-
-    let stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| io::Error::other("Unable to open pager stdin"))?;
-
-    Ok((child, stdin))
+fn is_absolute_url(value: &str) -> bool {
+    Url::parse(value).is_ok()
 }
 
 fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {
