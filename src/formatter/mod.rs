@@ -1,12 +1,21 @@
 //! Render documents to formatted plain text suitable for terminals or logs.
 
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::collections::HashMap;
 use std::io::Write;
 
 const DEFAULT_WRAP_WIDTH: usize = 72;
 const DEFAULT_QUOTE_PREFIX: &str = "| ";
 const DEFAULT_UNORDERED_LIST_ITEM_PREFIX: &str = " • ";
+
+static ANSI_ESCAPE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\x1b\[[0-9;]*m").expect("valid ANSI escape regex"));
+static OSC8_TARGET_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\x1b]8;;([^\x1b]*)\x1b\\").expect("valid OSC8 regex"));
+static OSC8_ESCAPE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\x1b]8;;[^\x1b]*\x1b\\").expect("valid OSC8 escape regex"));
 
 #[derive(Clone)]
 /// Opening and closing escape sequences for a particular inline style.
@@ -1119,8 +1128,7 @@ impl<W: Write> Formatter<W> {
     }
 
     fn update_active_styles_from_text(&self, text: &str, active_styles: &mut Vec<InlineStyle>) {
-        let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-        for capture in ansi_regex.find_iter(text) {
+        for capture in ANSI_ESCAPE_REGEX.find_iter(text) {
             let sequence = capture.as_str();
             if let Some(style) = self.find_style_start(sequence) {
                 active_styles.push(style);
@@ -1137,8 +1145,7 @@ impl<W: Write> Formatter<W> {
             return;
         }
 
-        let osc_regex = regex::Regex::new(r"\x1b]8;;([^\x1b]*)\x1b\\").unwrap();
-        for capture in osc_regex.captures_iter(text) {
+        for capture in OSC8_TARGET_REGEX.captures_iter(text) {
             let target = capture.get(1).map(|m| m.as_str()).unwrap_or("");
             if target.is_empty() {
                 let _ = active_osc_links.pop();
@@ -1170,10 +1177,8 @@ impl<W: Write> Formatter<W> {
 
     fn visible_width(&self, text: &str) -> usize {
         // Remove ANSI escape sequences for width calculation
-        let ansi_regex = regex::Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-        let osc_regex = regex::Regex::new(r"\x1b]8;;[^\x1b]*\x1b\\").unwrap();
-        let without_ansi = ansi_regex.replace_all(text, "");
-        let visible_text = osc_regex.replace_all(&without_ansi, "");
+        let without_ansi = ANSI_ESCAPE_REGEX.replace_all(text, "");
+        let visible_text = OSC8_ESCAPE_REGEX.replace_all(&without_ansi, "");
         visible_text.chars().count()
     }
 }
@@ -1181,7 +1186,10 @@ impl<W: Write> Formatter<W> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parse;
     use crate::test_helpers::*;
+    use std::io::Cursor;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn test_ascii_formatting() {
@@ -2072,5 +2080,24 @@ mod tests {
         let blank_count = h3_idx.saturating_sub(h2_underline_idx + 1);
         assert_eq!(blank_count, 2);
         assert!(lines[h3_idx + 1].chars().all(|c| c == '-'));
+    }
+
+    #[test]
+    fn renders_large_document_quickly() {
+        let data = include_str!("../../tests/snapshots/markdown/import/progit1-de.snap.ftml");
+        let doc = parse(Cursor::new(data.as_bytes())).expect("failed to parse FTML fixture");
+
+        let mut output = Vec::new();
+        let start = Instant::now();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .expect("render should succeed");
+        let elapsed = start.elapsed();
+
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "Rendering took {elapsed:?}"
+        );
+        assert!(!output.is_empty());
     }
 }
