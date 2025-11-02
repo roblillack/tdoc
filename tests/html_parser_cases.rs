@@ -168,7 +168,7 @@ fn parsing_and_writing_styles() {
         ),
         (
             "This is a <b> test </b>.",
-            vec![span("This is a "), b__(" test "), span(".")],
+            vec![span("This is a "), b__("test "), span(".")],
         ),
         (
             "This is a <b><i>second</i> test</b>.",
@@ -216,7 +216,7 @@ fn parsing_inline_styles() {
         ),
         (
             "This is a <b> test </b>.",
-            vec![span("This is a "), b__(" test "), span(".")],
+            vec![span("This is a "), b__("test "), span(".")],
         ),
         (
             "This is a <em>test</em>.",
@@ -341,7 +341,7 @@ fn blockquote_with_paragraph_and_space() {
 #[test]
 fn blockquote_with_inline_and_padding() {
     let input = "<blockquote>   <b>   Hello World";
-    let expected = "<blockquote>\n  <p><b> Hello World</b></p>\n</blockquote>";
+    let expected = "<blockquote>\n  <p><b>Hello World</b></p>\n</blockquote>";
 
     let document = parse(input);
     let rendered = render(&document);
