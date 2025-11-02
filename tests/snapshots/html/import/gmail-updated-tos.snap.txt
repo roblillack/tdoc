@@ -1,7 +1,7 @@
 max@example.example
 
-Wir aktualisieren am 22. Mai 2024 unsere Nutzungsbedingungen und möchten
-Sie bereits heute darüber informieren.
+ Wir aktualisieren am 22. Mai 2024 unsere Nutzungsbedingungen und
+möchten Sie bereits heute darüber informieren.
 
 Diese Änderungen werden keine Auswirkungen auf Ihre Nutzung unserer
 Dienste¹ haben. Vielmehr sollen sie deutlicher machen, was Sie bei der

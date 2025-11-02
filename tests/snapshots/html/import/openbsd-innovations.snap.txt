@@ -15,30 +15,30 @@ them are explained in detail in our research papers².
 Concepts
 --------
 
- • ipsec(4): Started by John Ioannidis, Angelos D. Keromytis, Niels
+ • ipsec(4)¹: Started by John Ioannidis, Angelos D. Keromytis, Niels
    Provos, and Niklas Hallqvist, imported February 20, 1997. OpenBSD was
    the first free operating system to provide an IPSec stack.
 
- • inet6(4): First complete integration and adoption of IPv6 led by
+ • inet6(4)²: First complete integration and adoption of IPv6 led by
    "Itojun" (Dr. Junichiro Hagino) [WIDE/KAME], Craig Metz [NRL], and
    Angelos D. Keromytis starting Jan 6, 1999. Almost fully operational
-   Jun 6, 1999 during the first OpenBSD hackathon¹. OpenBSD 2.7.
+   Jun 6, 1999 during the first OpenBSD hackathon³. OpenBSD 2.7.
 
- • Privilege separation: First implemented by Niels Provos² and Markus
+ • Privilege separation: First implemented by Niels Provos⁴ and Markus
    Friedl in OpenSSH in March 2002, released with OpenBSD 3.2. The
-   concept is now used in many OpenBSD programs, for example bgpd(8)³,
-   dhclient(8)⁴, dhcpd(8)⁵, dvmrpd(8)⁶, eigrpd(8)⁷, file(1)⁸, httpd(8)⁹,
-   iked(8)¹⁰, ldapd(8)¹¹, ldpd(8)¹², mountd(8)¹³, npppd(8)¹⁴, ntpd(8)¹⁵,
-   ospfd(8)¹⁶, ospf6d(8)¹⁷, pflogd(8)¹⁸, radiusd(8)¹⁹, relayd(8)²⁰,
-   ripd(8)²¹, script(1)²², smtpd(8)²³, syslogd(8)²⁴, tcpdump(8)²⁵,
-   tmux(1)²⁶, xconsole(1)²⁷, xdm(1)²⁸, Xserver(1)²⁹, ypldap(8)³⁰,
-   pkg_add(1)³¹, etc.
+   concept is now used in many OpenBSD programs, for example bgpd(8)⁵,
+   dhclient(8)⁶, dhcpd(8)⁷, dvmrpd(8)⁸, eigrpd(8)⁹, file(1)¹⁰,
+   httpd(8)¹¹, iked(8)¹², ldapd(8)¹³, ldpd(8)¹⁴, mountd(8)¹⁵,
+   npppd(8)¹⁶, ntpd(8)¹⁷, ospfd(8)¹⁸, ospf6d(8)¹⁹, pflogd(8)²⁰,
+   radiusd(8)²¹, relayd(8)²², ripd(8)²³, script(1)²⁴, smtpd(8)²⁵,
+   syslogd(8)²⁶, tcpdump(8)²⁷, tmux(1)²⁸, xconsole(1)²⁹, xdm(1)³⁰,
+   Xserver(1)³¹, ypldap(8)³², pkg_add(1)³³, etc.
 
  • Privilege revocation: Related to the work on privilege separation,
    some programs were refactored to drop privileges while holding onto a
    tricky resource such as a raw socket, reserved port, or
-   modification-locked bpf(4) descriptor, for example ping(8)³²,
-   traceroute(8)³³, etc.
+   modification-locked bpf(4) descriptor, for example ping(8)³⁴,
+   traceroute(8)³⁵, etc.
 
  • Stack protector: Developed since 2001 as "propolice" by Hiroaki Etoh.
    Integrated, and implemented for additional hardware platforms, by
@@ -48,7 +48,7 @@ Concepts
  • W^X: First used for sparc, sparc64, alpha, and hppa in OpenBSD 3.3.
    Strictly enforced by default since OpenBSD 6.0: a program can only
    violate it if the executable is marked with PT_OPENBSD_WXNEEDED and
-   it is located on a filesystem mounted with the wxallowed mount(8)³⁴
+   it is located on a filesystem mounted with the wxallowed mount(8)³⁶
    option.
 
  • GOT and PLT protection by ld.so: first done as part of the W^X work
@@ -59,19 +59,19 @@ Concepts
  • ASLR: OpenBSD 3.4 was the first widely used operating system to
    provide it by default.
 
- • gcc-local(1) __attribute__((__bounded__)) static analysis annotation
-   and checking mechanism: Started by Anil Madhavapeddy on June 26, 2003
-   and ported to GCC 4 by Nicholas Marriott. First released with OpenBSD
-   3.4.
+ • gcc-local(1)³⁷ __attribute__((__bounded__)) static analysis
+   annotation and checking mechanism: Started by Anil Madhavapeddy on
+   June 26, 2003 and ported to GCC 4 by Nicholas Marriott. First
+   released with OpenBSD 3.4.
 
- • malloc(3) randomization implemented by Thierry Deval. Guard pages and
-   randomized (delayed) free added by Ted Unangst. Reimplemented by Otto
-   Moerbeek³⁵ for OpenBSD 4.4.
+ • malloc(3)³⁸ randomization implemented by Thierry Deval. Guard pages
+   and randomized (delayed) free added by Ted Unangst. Reimplemented by
+   Otto Moerbeek³⁹ for OpenBSD 4.4.
 
  • Position-independent executables (PIE): OpenBSD 5.3 was the first
    widely used operating system to enable it globally by default, on
    seven hardware platforms. Implemented in November 2008 by Kurt
-   Miller³⁶ and enabled by default by Pascal Stumpf³⁷ in August 2012.
+   Miller⁴⁰ and enabled by default by Pascal Stumpf⁴¹ in August 2012.
 
  • Random-data memory: the ability to specify that a variable should be
    initialized at load time with random byte values (placed into a new
@@ -86,18 +86,18 @@ Concepts
    ramdisks. Implemented for OpenBSD 5.7 by Kurt Miller and Mark
    Kettenis.
 
- • SROP (sigreturn(2)³⁸ oriented programming) mitigation: attacks
-   researched by Eric Bosman³⁹ and Herbert Bos in 2014, solution
+ • SROP (sigreturn(2)⁴² oriented programming) mitigation: attacks
+   researched by Eric Bosman⁴³ and Herbert Bos in 2014, solution
    implemented by Theo de Raadt in May 2016, enabled by default since
    OpenBSD 6.0.
 
- • Library order randomization: In rc(8)⁴⁰, re-link libc.so, libcrypto,
+ • Library order randomization: In rc(8)⁴⁴, re-link libc.so, libcrypto,
    and ld.so on startup, placing the objects in a random order. Theo de
    Raadt and Robert Peichaer, May 2016, enabled by default since OpenBSD
    6.0 and 6.2.
 
  • Kernel-assisted lazy-binding for W^X safety in multi-threaded
-   programs. A new syscall kbind(2)⁴¹ permits lazy-binding to be W^X
+   programs. A new syscall kbind(2)⁴⁵ permits lazy-binding to be W^X
    safe in multi-threaded programs. Implemented for OpenBSD 5.9 by
    Philip Guenther in July 2015.
 
@@ -114,8 +114,8 @@ Concepts
  • Use of fork+exec in privilege separated programs. The strategy is to
    give each process a fresh & unique address space for ASLR, stack
    protector -- as protection against address space discovery attacks.
-   Implemented first by Damien Miller (sshd(8)⁴² 2004), Claudio Jeker
-   (bgpd(8)³, 2015), Eric Faurot (smtpd(8)²³, 2016), Rafael Zalamena
+   Implemented first by Damien Miller (sshd(8)⁴⁶ 2004), Claudio Jeker
+   (bgpd(8)⁵, 2015), Eric Faurot (smtpd(8)²⁵, 2016), Rafael Zalamena
    (various, 2016), and others.
 
  • trapsleds: Reduction of incidental NOP instructions/sequences in the
@@ -131,15 +131,15 @@ Concepts
    address space for each kernel boot, similar to the userland fork+exec
    model described above but for the kernel. Theo de Raadt, June 2017.
 
- • Rearranged i386/amd64 register allocator order in clang(1)⁴³ to
+ • Rearranged i386/amd64 register allocator order in clang(1)⁴⁷ to
    reduce polymorphic RET instructions: Todd Mortimer, November 20,
    2017.
 
  • Reencoding of i386/amd64 instruction sequences to avoid embedded
-   polymorphic RET instructions. Enhancements to clang(1)⁴³ Todd
+   polymorphic RET instructions. Enhancements to clang(1)⁴⁷ Todd
    Mortimer, April 28, 2018 and onwards.
 
- • MAP_STACK addition to mmap(2)⁴⁴ allows opportunistic verification
+ • MAP_STACK addition to mmap(2)⁴⁸ allows opportunistic verification
    that the stack-register points at stack memory, therefore catching
    pivots to non-stack memory (sometimes used in ROP attacks). Theo de
    Raadt, April 12, 2018.
@@ -151,7 +151,7 @@ Concepts
    OpenBSD 6.4, for mips64 in OpenBSD 6.7, and powerpc/powerpc64 in
    OpenBSD 6.9. amd64 system call stubs also protected in OpenBSD 7.3.
 
- • MAP_CONCEAL addition to mmap(2)⁴⁴ disallows memory pages to be
+ • MAP_CONCEAL addition to mmap(2)⁴⁸ disallows memory pages to be
    written to core dumps, preventing accidental exposure of private
    information. Theo de Raadt, Mark Kettenis and Scott Soule Cheloha,
    February 2, 2019.
@@ -162,18 +162,18 @@ Concepts
 
  • System calls may only be performed from selected code regions (main
    program, ld.so, libc.so, and sigtramp). The libc.so region is setup
-   by msyscall(2)⁴⁵. Theo de Raadt, November 28, 2019.
+   by msyscall(2)⁴⁹. Theo de Raadt, November 28, 2019.
    This mechanism was removed because later work on immutable memory +
    pinned system calls was even better.
 
  • Permissions (RWX, MAP_STACK, etc) on address space regions can be
-   made immutable, so that mmap(2)⁴⁴, mprotect(2)⁴⁶ or munmap(2)⁴⁷ fail
+   made immutable, so that mmap(2)⁴⁸, mprotect(2)⁵⁰ or munmap(2)⁵¹ fail
    with EPERM. Most of the program static address space is now
    automatically immutable (main program, ld.so, main stack, load-time
    shared libraries, and dlopen()'d libraries mapped without
    RTLD_NODELETE). Programmers can request non-immutable static data
    using the "openbsd.mutable" section, or manually bring immutability
-   to (page aligned heap objects) using mimmutable(2)⁴⁸. Theo de Raadt,
+   to (page aligned heap objects) using mimmutable(2)⁵². Theo de Raadt,
    Dec 4, 2022.
 
  • sshd random relinking at boot. Theo de Raadt. Jan 18, 2023.
@@ -201,10 +201,10 @@ Concepts
    together with library relinking. Architectures switched over include
    loongson. Theo de Raadt, Feb 2023.
 
- • ld.so and crt0 register the location of the execve(2)⁴⁹ libc syscall
-   stub with the kernel using pinsyscall(2)⁵⁰, after which the kernel
+ • ld.so and crt0 register the location of the execve(2)⁵³ libc syscall
+   stub with the kernel using pinsyscall(2)⁵⁴, after which the kernel
    only accepts an execve call from that specific location. Theo de
-   Raadt, Feb 2023. Made redundant by pinsyscalls(2)⁵¹ which handles all
+   Raadt, Feb 2023. Made redundant by pinsyscalls(2)⁵⁵ which handles all
    system calls.
 
  • Mandatory enforcement of indirect branch targets (BTI on arm64, IBT
@@ -214,10 +214,10 @@ Concepts
  • The kernel and ld.so register the precise entry location of every
    system call used by a program, as described in the new ELF section
    .openbsd.syscalls inside ld.so and libc.so. ld.so uses the new
-   syscall pinsyscalls(2)⁵¹ to tell the kernel the precise entry
+   syscall pinsyscalls(2)⁵⁵ to tell the kernel the precise entry
    location of system calls in libc.so. Since all syscall entries are
    now known to the kernel, the pininsyscall(SYS_execve) interface
-   becomes redundant. msyscall(2)⁴⁵ mechanism also becomes redundant
+   becomes redundant. msyscall(2)⁴⁹ mechanism also becomes redundant
    (and is removed a bit later), because immutable memory + pinsyscalls
    together are cheaper and more effective targeting. Theo de Raadt, Jan
    2024.
@@ -228,488 +228,606 @@ Concepts
    reside). The kernel, libc, libcrypto, and ld.so(1) are compiled with
    this option. amd64 only, for now.
 
- ¹ hackathons.html
- ² http://www.citi.umich.edu/u/provos/ssh/privsep.html
- ³ https://man.openbsd.org/bgpd.8
- ⁴ https://man.openbsd.org/dhclient.8
- ⁵ https://man.openbsd.org/dhcpd.8
- ⁶ https://man.openbsd.org/dvmrpd.8
- ⁷ https://man.openbsd.org/eigrpd.8
- ⁸ https://man.openbsd.org/file.1
- ⁹ https://man.openbsd.org/httpd.8
-¹⁰ https://man.openbsd.org/iked.8
-¹¹ https://man.openbsd.org/ldapd.8
-¹² https://man.openbsd.org/ldpd.8
-¹³ https://man.openbsd.org/mountd.8
-¹⁴ https://man.openbsd.org/npppd.8
-¹⁵ https://man.openbsd.org/ntpd.8
-¹⁶ https://man.openbsd.org/ospfd.8
-¹⁷ https://man.openbsd.org/ospf6d.8
-¹⁸ https://man.openbsd.org/pflogd.8
-¹⁹ https://man.openbsd.org/radiusd.8
-²⁰ https://man.openbsd.org/relayd.8
-²¹ https://man.openbsd.org/ripd.8
-²² https://man.openbsd.org/script.1
-²³ https://man.openbsd.org/smtpd.8
-²⁴ https://man.openbsd.org/syslogd.8
-²⁵ https://man.openbsd.org/tcpdump.8
-²⁶ https://man.openbsd.org/tmux.1
-²⁷ https://man.openbsd.org/xconsole.1
-²⁸ https://man.openbsd.org/xdm.1
-²⁹ https://man.openbsd.org/Xserver.1
-³⁰ https://man.openbsd.org/ypldap.8
-³¹ https://man.openbsd.org/pkg_add.1
-³² https://man.openbsd.org/ping.8
-³³ https://man.openbsd.org/traceroute.8
-³⁴ https://man.openbsd.org/mount.8
-³⁵ papers/eurobsdcon2009/otto-malloc.pdf
-³⁶ https://www.openbsd.org/papers/nycbsdcon08-pie/
-³⁷ https://www.openbsd.org/papers/asiabsdcon2015-pie-slides.pdf
-³⁸ https://man.openbsd.org/sigreturn.2
-³⁹ https://www.cs.vu.nl/~herbertb/papers/srop_sp14.pdf
-⁴⁰ https://man.openbsd.org/rc.8
-⁴¹ https://man.openbsd.org/kbind.2
-⁴² https://man.openbsd.org/sshd.8
-⁴³ https://man.openbsd.org/clang.1
-⁴⁴ https://man.openbsd.org/mmap.2
-⁴⁵ https://man.openbsd.org/msyscall.2
-⁴⁶ https://man.openbsd.org/mprotect.2
-⁴⁷ https://man.openbsd.org/munmap.2
-⁴⁸ https://man.openbsd.org/mimmutable.2
-⁴⁹ https://man.openbsd.org/execve.2
-⁵⁰ https://man.openbsd.org/pinsyscall.2
-⁵¹ https://man.openbsd.org/pinsyscalls.2
+ ¹ https://man.openbsd.org/ipsec.4
+ ² https://man.openbsd.org/inet6.4
+ ³ hackathons.html
+ ⁴ http://www.citi.umich.edu/u/provos/ssh/privsep.html
+ ⁵ https://man.openbsd.org/bgpd.8
+ ⁶ https://man.openbsd.org/dhclient.8
+ ⁷ https://man.openbsd.org/dhcpd.8
+ ⁸ https://man.openbsd.org/dvmrpd.8
+ ⁹ https://man.openbsd.org/eigrpd.8
+¹⁰ https://man.openbsd.org/file.1
+¹¹ https://man.openbsd.org/httpd.8
+¹² https://man.openbsd.org/iked.8
+¹³ https://man.openbsd.org/ldapd.8
+¹⁴ https://man.openbsd.org/ldpd.8
+¹⁵ https://man.openbsd.org/mountd.8
+¹⁶ https://man.openbsd.org/npppd.8
+¹⁷ https://man.openbsd.org/ntpd.8
+¹⁸ https://man.openbsd.org/ospfd.8
+¹⁹ https://man.openbsd.org/ospf6d.8
+²⁰ https://man.openbsd.org/pflogd.8
+²¹ https://man.openbsd.org/radiusd.8
+²² https://man.openbsd.org/relayd.8
+²³ https://man.openbsd.org/ripd.8
+²⁴ https://man.openbsd.org/script.1
+²⁵ https://man.openbsd.org/smtpd.8
+²⁶ https://man.openbsd.org/syslogd.8
+²⁷ https://man.openbsd.org/tcpdump.8
+²⁸ https://man.openbsd.org/tmux.1
+²⁹ https://man.openbsd.org/xconsole.1
+³⁰ https://man.openbsd.org/xdm.1
+³¹ https://man.openbsd.org/Xserver.1
+³² https://man.openbsd.org/ypldap.8
+³³ https://man.openbsd.org/pkg_add.1
+³⁴ https://man.openbsd.org/ping.8
+³⁵ https://man.openbsd.org/traceroute.8
+³⁶ https://man.openbsd.org/mount.8
+³⁷ https://man.openbsd.org/gcc-local.1
+³⁸ https://man.openbsd.org/malloc.3
+³⁹ papers/eurobsdcon2009/otto-malloc.pdf
+⁴⁰ https://www.openbsd.org/papers/nycbsdcon08-pie/
+⁴¹ https://www.openbsd.org/papers/asiabsdcon2015-pie-slides.pdf
+⁴² https://man.openbsd.org/sigreturn.2
+⁴³ https://www.cs.vu.nl/~herbertb/papers/srop_sp14.pdf
+⁴⁴ https://man.openbsd.org/rc.8
+⁴⁵ https://man.openbsd.org/kbind.2
+⁴⁶ https://man.openbsd.org/sshd.8
+⁴⁷ https://man.openbsd.org/clang.1
+⁴⁸ https://man.openbsd.org/mmap.2
+⁴⁹ https://man.openbsd.org/msyscall.2
+⁵⁰ https://man.openbsd.org/mprotect.2
+⁵¹ https://man.openbsd.org/munmap.2
+⁵² https://man.openbsd.org/mimmutable.2
+⁵³ https://man.openbsd.org/execve.2
+⁵⁴ https://man.openbsd.org/pinsyscall.2
+⁵⁵ https://man.openbsd.org/pinsyscalls.2
 
 Functions
 ---------
 
- • issetugid(2): Theo de Raadt, August 25, 1996, OpenBSD 2.0
+ • issetugid(2)¹: Theo de Raadt, August 25, 1996, OpenBSD 2.0
 
- • arc4random(3): David Mazieres, December 28, 1996, OpenBSD 2.1
+ • arc4random(3)²: David Mazieres, December 28, 1996, OpenBSD 2.1
 
- • bcrypt(3): Implemented by Niels Provos and David Mazieres¹ Imported
+ • bcrypt(3)³: Implemented by Niels Provos and David Mazieres⁴ Imported
    February 13, 1997 and first released with OpenBSD 2.1.
 
- • strlcpy(3), strlcat(3)²: Todd Miller and Theo de Raadt, July 1, 1998,
-   OpenBSD 2.4
+ • strlcpy(3)⁵, strlcat(3)⁶: Todd Miller and Theo de Raadt, July 1,
+   1998, OpenBSD 2.4
 
- • strtonum(3): Ted Unangst, Todd Miller, and Theo de Raadt, May 3,
+ • strtonum(3)⁷: Ted Unangst, Todd Miller, and Theo de Raadt, May 3,
    2004, OpenBSD 3.6
 
- • imsg: Message passing API, written by Henning Brauer. In libutil
+ • imsg⁸: Message passing API, written by Henning Brauer. In libutil
    since May 26, 2010, OpenBSD 4.8; used by various daemons before that.
 
- • timingsafe_bcmp(3): Damien Miller, July 13, 2010, OpenBSD 4.9
+ • timingsafe_bcmp(3)⁹: Damien Miller, July 13, 2010, OpenBSD 4.9
 
- • explicit_bzero(3): Ted Unangst and Matthew Dempsky, January 22, 2014,
-   OpenBSD 5.5
+ • explicit_bzero(3)¹⁰: Ted Unangst and Matthew Dempsky, January 22,
+   2014, OpenBSD 5.5
 
- • ohash: Written and maintained by Marc Espie. In libutil since May 12,
-   2014, OpenBSD 5.6; used by make(1) and m4(1) before that.
+ • ohash¹¹: Written and maintained by Marc Espie. In libutil since May
+   12, 2014, OpenBSD 5.6; used by make(1) and m4(1) before that.
 
- • asr: Replacement resolver written and maintained by Eric Faurot.
+ • asr¹²: Replacement resolver written and maintained by Eric Faurot.
    Imported April 14, 2012; activated on March 26, 2014, OpenBSD 5.6.
 
- • reallocarray(3): Theo de Raadt and Ted Unangst, April 22, 2014,
+ • reallocarray(3)¹³: Theo de Raadt and Ted Unangst, April 22, 2014,
    OpenBSD 5.6
 
- • getentropy(2): Matthew Dempsky and Theo de Raadt, June 13, 2014,
+ • getentropy(2)¹⁴: Matthew Dempsky and Theo de Raadt, June 13, 2014,
    OpenBSD 5.6
 
- • sendsyslog(2): Theo de Raadt, July 10, 2014, OpenBSD 5.6
+ • sendsyslog(2)¹⁵: Theo de Raadt, July 10, 2014, OpenBSD 5.6
 
- • timingsafe_memcmp(3): Matthew Dempsky, July 13, 2014, OpenBSD 5.6
+ • timingsafe_memcmp(3)¹⁶: Matthew Dempsky, July 13, 2014, OpenBSD 5.6
 
- • pledge(2): Theo de Raadt, July 19, 2015, OpenBSD 5.9
+ • pledge(2)¹⁷: Theo de Raadt, July 19, 2015, OpenBSD 5.9
 
- • getpwnam_shadow(3), getpwuid_shadow(3)³: Ted Unangst and Theo de
+ • getpwnam_shadow(3)¹⁸, getpwuid_shadow(3)¹⁹: Ted Unangst and Theo de
    Raadt, November 18, 2015, OpenBSD 5.9
 
- • recallocarray(3): Otto Moerbeek, Joel Sing and Theo de Raadt, March
+ • recallocarray(3)²⁰: Otto Moerbeek, Joel Sing and Theo de Raadt, March
    6, 2017, OpenBSD 6.1
 
- • freezero(3): Otto Moerbeek, April 10, 2017, OpenBSD 6.2
+ • freezero(3)²¹: Otto Moerbeek, April 10, 2017, OpenBSD 6.2
 
- • unveil(2): Theo de Raadt and Bob Beck, July 13, 2018, OpenBSD 6.4
+ • unveil(2)²²: Theo de Raadt and Bob Beck, July 13, 2018, OpenBSD 6.4
 
- • malloc_conceal(3) and calloc_conceal(3)⁴: Otto Moerbeek, May 10,
+ • malloc_conceal(3)²³ and calloc_conceal(3)²⁴: Otto Moerbeek, May 10,
    2019, OpenBSD 6.5
 
- • ober: ASN.1 basic encoding rules API, written by Claudio Jeker and
+ • ober²⁵: ASN.1 basic encoding rules API, written by Claudio Jeker and
    Reyk Flöter, maintained by Rob Pierce and Martijn van Duren; started
    in 2006/07, moved to libutil on May 11, 2019, OpenBSD 6.6
 
-¹ https://www.usenix.org/legacy/events/usenix99/provos/provos_html/node1.html
-² https://man.openbsd.org/strlcat.3
-³ https://man.openbsd.org/getpwuid_shadow.3
-⁴ https://man.openbsd.org/calloc_conceal.3
+ ¹ https://man.openbsd.org/issetugid.2
+ ² https://man.openbsd.org/arc4random.3
+ ³ https://man.openbsd.org/bcrypt.3
+ ⁴ https://www.usenix.org/legacy/events/usenix99/provos/provos_html/node1.html
+ ⁵ https://man.openbsd.org/strlcpy.3
+ ⁶ https://man.openbsd.org/strlcat.3
+ ⁷ https://man.openbsd.org/strtonum.3
+ ⁸ https://man.openbsd.org/imsg_init.3
+ ⁹ https://man.openbsd.org/timingsafe_bcmp.3
+¹⁰ https://man.openbsd.org/explicit_bzero.3
+¹¹ https://man.openbsd.org/ohash_init.3
+¹² https://man.openbsd.org/asr_run.3
+¹³ https://man.openbsd.org/reallocarray.3
+¹⁴ https://man.openbsd.org/getentropy.2
+¹⁵ https://man.openbsd.org/sendsyslog.2
+¹⁶ https://man.openbsd.org/timingsafe_memcmp.3
+¹⁷ https://man.openbsd.org/pledge.2
+¹⁸ https://man.openbsd.org/getpwnam_shadow.3
+¹⁹ https://man.openbsd.org/getpwuid_shadow.3
+²⁰ https://man.openbsd.org/recallocarray.3
+²¹ https://man.openbsd.org/freezero.3
+²² https://man.openbsd.org/unveil.2
+²³ https://man.openbsd.org/malloc_conceal.3
+²⁴ https://man.openbsd.org/calloc_conceal.3
+²⁵ https://man.openbsd.org/ober_read_elements.3
 
 Programs and subsystems
 -----------------------
 
- • ypbind(8), ypset(8)¹, ypcat(1)², ypmatch(1)³, ypwhich(1)⁴, and libc
+ • ypbind(8)¹, ypset(8)², ypcat(1)³, ypmatch(1)⁴, ypwhich(1)⁵, and libc
    support: Started by Theo de Raadt. Imported April 26, 1993 and first
    released with NetBSD 0.9.
 
- • ypserv(8): Started by Mats O. Jansson in 1994. Imported October 23,
+ • ypserv(8)⁶: Started by Mats O. Jansson in 1994. Imported October 23,
    1995 and first released with OpenBSD 2.0.
 
- • mopd(8): Started by Mats O. Jansson in 1993. Imported September 21,
+ • mopd(8)⁷: Started by Mats O. Jansson in 1993. Imported September 21,
    1996 and first released with OpenBSD 2.0.
 
- • AnonCVS: Designed and implemented by Chuck Cranor and Theo de Raadt
-   in 1995 (paper⁵, slides⁶)
+ • AnonCVS⁸: Designed and implemented by Chuck Cranor and Theo de Raadt
+   in 1995 (paper⁹, slides¹⁰)
 
- • aucat(1): Started by Kenneth Stailey. Imported January 2, 1997 and
+ • aucat(1)¹¹: Started by Kenneth Stailey. Imported January 2, 1997 and
    first released with OpenBSD 2.1. Now maintained by Alexandre Ratchov.
 
- • OpenSSH including ssh(1)⁷, scp(1)⁸, sftp(1)⁹, ssh-add(1)¹⁰,
-   ssh-agent(1)¹¹, ssh-keygen(1)¹², sshd(8)¹³, sftp-server(8)¹⁴: Started
+ • OpenSSH¹² including ssh(1)¹³, scp(1)¹⁴, sftp(1)¹⁵, ssh-add(1)¹⁶,
+   ssh-agent(1)¹⁷, ssh-keygen(1)¹⁸, sshd(8)¹⁹, sftp-server(8)²⁰: Started
    by Aaron Campbell, Bob Beck, Dug Song, Markus Friedl, Niels Provos,
    and Theo de Raadt as a fork of SSH 1.2.12 by Tatu Ylonen. Imported
    September 26, 1999 and first released with OpenBSD 2.6. Now
    maintained by Markus Friedl, Damien Miller, Darren Tucker, and Theo
    de Raadt.
 
- • mg(1): Started by Dave Conroy in November 1986. Imported February 25,
-   2000 and first released with OpenBSD 2.7. Now maintained by Mark
+ • mg(1)²¹: Started by Dave Conroy in November 1986. Imported February
+   25, 2000 and first released with OpenBSD 2.7. Now maintained by Mark
    Lumsden.
 
- • m4(1): Originally implemented by Ozan Yigit and Richard A. O'Keefe
+ • m4(1)²²: Originally implemented by Ozan Yigit and Richard A. O'Keefe
    for 4.3BSD-Reno. Considerably extended and maintained by Marc Espie
    since 1999.
 
- • pf(4), pfctl(8)¹⁵, pflogd(8)¹⁶, authpf(8)¹⁷, ftp-proxy(8)¹⁸: Started
-   by Daniel Hartmeier as a replacement for the non-free ipf by Darren
-   Reed. Imported June 24, 2001 and first released with OpenBSD 3.0. Now
-   maintained by Henning Brauer.
+ • pf(4)²³, pfctl(8)²⁴, pflogd(8)²⁵, authpf(8)²⁶, ftp-proxy(8)²⁷:
+   Started by Daniel Hartmeier as a replacement for the non-free ipf by
+   Darren Reed. Imported June 24, 2001 and first released with OpenBSD
+   3.0. Now maintained by Henning Brauer.
 
- • systrace(4), systrace(1)¹⁹: Started by Niels Provos. Imported June 4,
-   2002 and first released with OpenBSD 3.2. Deleted after OpenBSD 5.9
-   because pledge(2)²⁰ is even better.
+ • systrace(4)²⁸, systrace(1)²⁹: Started by Niels Provos. Imported June
+   4, 2002 and first released with OpenBSD 3.2. Deleted after OpenBSD
+   5.9 because pledge(2)³⁰ is even better.
 
- • spamd(8): Written by Bob Beck. Imported December 21, 2002 and first
+ • spamd(8)³¹: Written by Bob Beck. Imported December 21, 2002 and first
    released with OpenBSD 3.3.
 
- • dc(1): Written and maintained by Otto Moerbeek. Imported September
+ • dc(1)³²: Written and maintained by Otto Moerbeek. Imported September
    19, 2003 and first released with OpenBSD 3.5.
 
- • bc(1): Written and maintained by Otto Moerbeek. Imported September
+ • bc(1)³³: Written and maintained by Otto Moerbeek. Imported September
    25, 2003 and first released with OpenBSD 3.5.
 
- • sensorsd(8): Started by Henning Brauer. Imported September 24, 2003
+ • sensorsd(8)³⁴: Started by Henning Brauer. Imported September 24, 2003
    and first released with OpenBSD 3.5. Reworked by Constantine A.
    Murenin.
 
- • pkg_add(1): Written and maintained by Marc Espie. Imported October
+ • pkg_add(1)³⁵: Written and maintained by Marc Espie. Imported October
    16, 2003 and first released with OpenBSD 3.5.
 
- • carp(4): Written by Mickey Shalayeff, Markus Friedl, Marco
+ • carp(4)³⁶: Written by Mickey Shalayeff, Markus Friedl, Marco
    Pfatschbacher, and Ryan McBride. Imported October 17, 2003 and first
    released with OpenBSD 3.5.
 
- • OpenBGPD including bgpd(8)²¹ and bgpctl(8)²²: Written and maintained
-   by Henning Brauer and Claudio Jeker, and also maintained by Peter
-   Hessler. Imported December 17, 2003 and first released with OpenBSD
-   3.5.
+ • OpenBGPD³⁷ including bgpd(8)³⁸ and bgpctl(8)³⁹: Written and
+   maintained by Henning Brauer and Claudio Jeker, and also maintained
+   by Peter Hessler. Imported December 17, 2003 and first released with
+   OpenBSD 3.5.
 
- • dhclient(8): Started by Ted Lemon and Elliot Poger in 1996. Imported
-   January 18, 2004 and first released with OpenBSD 3.5. Reworked by
-   Henning Brauer. Now maintained by Kenneth Westerback.
+ • dhclient(8)⁴⁰: Started by Ted Lemon and Elliot Poger in 1996.
+   Imported January 18, 2004 and first released with OpenBSD 3.5.
+   Reworked by Henning Brauer. Now maintained by Kenneth Westerback.
 
- • dhcpd(8): Started by Ted Lemon in 1995. Imported April 13, 2004 and
+ • dhcpd(8)⁴¹: Started by Ted Lemon in 1995. Imported April 13, 2004 and
    first released with OpenBSD 3.6. Reworked by Henning Brauer. Now
    maintained by Kenneth Westerback.
 
- • hotplugd(8): Started by Alexander Yurchenko. Imported May 30, 2004
+ • hotplugd(8)⁴²: Started by Alexander Yurchenko. Imported May 30, 2004
    and first released with OpenBSD 3.6.
 
- • OpenNTPD including ntpd(8)²³ and ntpctl(8)²⁴: Written and maintained
-   by Henning Brauer. Imported May 31, 2004 and first released with
-   OpenBSD 3.6. Portable version maintained by Brent Cook.
+ • OpenNTPD⁴³ including ntpd(8)⁴⁴ and ntpctl(8)⁴⁵: Written and
+   maintained by Henning Brauer. Imported May 31, 2004 and first
+   released with OpenBSD 3.6. Portable version maintained by Brent Cook.
 
- • dpb(1): Started by Nikolay Sturm on August 10, 2004; first available
-   for OpenBSD 3.6. Rewritten and maintained by Marc Espie since August
-   20, 2010.
+ • dpb(1)⁴⁶: Started by Nikolay Sturm on August 10, 2004; first
+   available for OpenBSD 3.6. Rewritten and maintained by Marc Espie
+   since August 20, 2010.
 
- • ospfd(8), ospfctl(8)²⁵: Started by Esben Norby and Claudio Jeker.
+ • ospfd(8)⁴⁷, ospfctl(8)⁴⁸: Started by Esben Norby and Claudio Jeker.
    Imported January 28, 2005 and first released with OpenBSD 3.7.
 
- • ifstated(8): Started by Marco Pfatschbacher and Ryan McBride.
+ • ifstated(8)⁴⁹: Started by Marco Pfatschbacher and Ryan McBride.
    Imported January 23, 2004 and first released with OpenBSD 3.8.
 
- • bioctl(8): Started by Marco Peereboom. Imported March 29, 2005 and
+ • bioctl(8)⁵⁰: Started by Marco Peereboom. Imported March 29, 2005 and
    first released with OpenBSD 3.8.
 
- • hostapd(8): Written by Reyk Flöter. Imported May 26, 2005 and first
+ • hostapd(8)⁵¹: Written by Reyk Flöter. Imported May 26, 2005 and first
    released with OpenBSD 3.8.
 
- • watchdogd(8): Started by Marc Balmer. Imported August 8, 2005 and
+ • watchdogd(8)⁵²: Started by Marc Balmer. Imported August 8, 2005 and
    first released with OpenBSD 3.8.
 
- • sdiff(1): Written by Ray Lai. Imported December 27, 2005 and first
+ • sdiff(1)⁵³: Written by Ray Lai. Imported December 27, 2005 and first
    released with OpenBSD 3.9.
 
- • dvmrpd(8), dvmrpctl(8)²⁶: Started by Esben Norby. Imported June 1,
+ • dvmrpd(8)⁵⁴, dvmrpctl(8)⁵⁵: Started by Esben Norby. Imported June 1,
    2006 and first released with OpenBSD 4.0.
 
- • ripd(8), ripctl(8)²⁷: Started by Michele Marchetto. Imported October
-   18, 2006 and first released with OpenBSD 4.1.
+ • ripd(8)⁵⁶, ripctl(8)⁵⁷: Started by Michele Marchetto. Imported
+   October 18, 2006 and first released with OpenBSD 4.1.
 
- • pkg-config(1): Started by Chris Kuethe and Marc Espie. Imported
+ • pkg-config(1)⁵⁸: Started by Chris Kuethe and Marc Espie. Imported
    November 27, 2006 and first released with OpenBSD 4.1. Now maintained
    by Jasper Lievisse Adriaanse.
 
- • relayd(8) with relayctl(8)²⁸: Started by Pierre-Yves Ritschard and
+ • relayd(8)⁵⁹ with relayctl(8)⁶⁰: Started by Pierre-Yves Ritschard and
    Reyk Flöter. Imported December 16, 2006 and first released with
    OpenBSD 4.1. Now maintained by Sebastian Benoit.
    
 
- • cwm(1): Started by Marius Aamodt Eriksen²⁹ in 2004. Imported April
+ • cwm(1)⁶¹: Started by Marius Aamodt Eriksen⁶² in 2004. Imported April
    27, 2007 and first released with OpenBSD 4.2. Now maintained by Okan
-   Demirmen. Portable version³⁰ maintained by Leah Neukirchen.
+   Demirmen. Portable version⁶³ maintained by Leah Neukirchen.
 
- • ospf6d(8), ospf6ctl(8)³¹: Started by Esben Norby and Claudio Jeker.
+ • ospf6d(8)⁶⁴, ospf6ctl(8)⁶⁵: Started by Esben Norby and Claudio Jeker.
    Imported October 8, 2007 and first released with OpenBSD 4.2.
 
- • libtool(1): Written by Steven Mestdagh and Marc Espie. Imported
+ • libtool(1)⁶⁶: Written by Steven Mestdagh and Marc Espie. Imported
    October 28, 2007 and first available for OpenBSD 4.3. Now maintained
    by Marc Espie, Jasper Lievisse Adriaanse, and Antoine Jacoutot.
 
- • snmpd(8): Started by Reyk Flöter. Imported December 5, 2007 and first
-   released with OpenBSD 4.3. Now maintained by Martijn van Duren.
+ • snmpd(8)⁶⁷: Started by Reyk Flöter. Imported December 5, 2007 and
+   first released with OpenBSD 4.3. Now maintained by Martijn van Duren.
 
- • sysmerge(8): Written and maintained by Antoine Jacoutot, originally
+ • sysmerge(8)⁶⁸: Written and maintained by Antoine Jacoutot, originally
    forked from mergemaster by Douglas Barton. Imported April 22, 2008,
    first released with OpenBSD 4.4.
 
- • ypldap(8): Started by Pierre-Yves Ritschard. Imported June 26, 2008
+ • ypldap(8)⁶⁹: Started by Pierre-Yves Ritschard. Imported June 26, 2008
    and first released with OpenBSD 4.4.
 
- • OpenSMTPD including smtpd(8)³², smtpctl(8)³³, makemap(8)³⁴: Started
+ • OpenSMTPD⁷⁰ including smtpd(8)⁷¹, smtpctl(8)⁷², makemap(8)⁷³: Started
    by Gilles Chehade. Imported November 1, 2008 and first released with
    OpenBSD 4.6. Now maintained by Gilles Chehade and Eric Faurot.
 
- • tmux, tmux(1)³⁵: Started in 2007 and maintained by Nicholas Marriott.
-   Imported June 1, 2009, first released with OpenBSD 4.6.
+ • tmux⁷⁴, tmux(1)⁷⁵: Started in 2007 and maintained by Nicholas
+   Marriott. Imported June 1, 2009, first released with OpenBSD 4.6.
 
- • ldpd(8), ldpctl(8)³⁶: Started by Michele Marchetto. Imported June 1,
-   2009 and first released with OpenBSD 4.6. Now maintained by Claudio
-   Jeker.
+ • ldpd(8)⁷⁶, ldpctl(8)⁷⁷: Started by Michele Marchetto. Imported June
+   1, 2009 and first released with OpenBSD 4.6. Now maintained by
+   Claudio Jeker.
 
- • mandoc including mandoc(1)³⁷, man(1)³⁸, apropos(1)³⁹,
-   makewhatis(8)⁴⁰, man.cgi(8)⁴¹: Started by Kristaps Dzonsons in
+ • mandoc⁷⁸ including mandoc(1)⁷⁹, man(1)⁸⁰, apropos(1)⁸¹,
+   makewhatis(8)⁸², man.cgi(8)⁸³: Started by Kristaps Dzonsons in
    November 2008. Imported April 6, 2009, first released with OpenBSD
    4.8. Now maintained by Ingo Schwarze.
 
- • ldapd(8), ldapctl(8)⁴²: Written by Martin Hedenfalk. Imported May 31,
-   2010 and first released with OpenBSD 4.8.
+ • ldapd(8)⁸⁴, ldapctl(8)⁸⁵: Written by Martin Hedenfalk. Imported May
+   31, 2010 and first released with OpenBSD 4.8.
 
- • OpenIKED including iked(8)⁴³ and ikectl(8)⁴⁴: Started by Reyk Flöter.
-   Imported June 3, 2010 and first released with OpenBSD 4.8. Now
-   maintained by Tobias Heider.
+ • OpenIKED⁸⁶ including iked(8)⁸⁷ and ikectl(8)⁸⁸: Started by Reyk
+   Flöter. Imported June 3, 2010 and first released with OpenBSD 4.8.
+   Now maintained by Tobias Heider.
 
- • iscsid(8), iscsictl(8)⁴⁵: Written and maintained by Claudio Jeker.
+ • iscsid(8)⁸⁹, iscsictl(8)⁹⁰: Written and maintained by Claudio Jeker.
    Imported September 24, 2010 and first released with OpenBSD 4.9.
 
- • rc.d(8), rc.subr(8)⁴⁶: Written and maintained by Robert Nagy and
+ • rc.d(8)⁹¹, rc.subr(8)⁹²: Written and maintained by Robert Nagy and
    Antoine Jacoutot. Imported October 26, 2010 and first released with
    OpenBSD 4.9.
 
- • tftpd(8): Written and maintained by David Gwynne. Imported March 2,
+ • tftpd(8)⁹³: Written and maintained by David Gwynne. Imported March 2,
    2012 and first released with OpenBSD 5.2.
 
- • npppd(8), npppctl(8)⁴⁷: Started by Internet Initiative Japan Inc.
+ • npppd(8)⁹⁴, npppctl(8)⁹⁵: Started by Internet Initiative Japan Inc.
    Imported January 11, 2010, first released with OpenBSD 5.3.
    Maintained by YASUOKA Masahiko.
 
- • ldomd(8), ldomctl(8)⁴⁸: Written and maintained by Mark Kettenis.
+ • ldomd(8)⁹⁶, ldomctl(8)⁹⁷: Written and maintained by Mark Kettenis.
    Imported October 26, 2012 and first released with OpenBSD 5.3.
 
- • sndiod(8): Written and maintained by Alexandre Ratchov. Imported
+ • sndiod(8)⁹⁸: Written and maintained by Alexandre Ratchov. Imported
    November 23, 2012 and first released with OpenBSD 5.3.
 
- • cu(1): Written and maintained by Nicholas Marriott. Imported July 10,
-   2012 and first released with OpenBSD 5.4.
+ • cu(1)⁹⁹: Written and maintained by Nicholas Marriott. Imported July
+   10, 2012 and first released with OpenBSD 5.4.
 
- • identd(8): Written and maintained by David Gwynne. Imported March 18,
-   2013 and first released with OpenBSD 5.4.
+ • identd(8)¹⁰⁰: Written and maintained by David Gwynne. Imported March
+   18, 2013 and first released with OpenBSD 5.4.
 
- • slowcgi(8): Written and maintained by Florian Obser. Imported May 23,
-   2013 and first released with OpenBSD 5.4.
+ • slowcgi(8)¹⁰¹: Written and maintained by Florian Obser. Imported May
+   23, 2013 and first released with OpenBSD 5.4.
 
- • signify(1): Written and maintained by Ted Unangst⁴⁹. Imported
+ • signify(1)¹⁰²: Written and maintained by Ted Unangst¹⁰³. Imported
    December 31, 2013 and first released with OpenBSD 5.5.
 
- • htpasswd(1): Written and maintained by Florian Obser. Imported March
-   17, 2014 and first released with OpenBSD 5.6.
+ • htpasswd(1)¹⁰⁴: Written and maintained by Florian Obser. Imported
+   March 17, 2014 and first released with OpenBSD 5.6.
 
- • LibreSSL: Started by Ted Unangst, Bob Beck, Joel Sing, Miod Vallat,
-   Philip Guenther, and Theo de Raadt on April 13, 2014, as a fork of
-   OpenSSL 1.0.1g. First released with OpenBSD 5.6. Portable version
-   maintained by Brent Cook.
+ • LibreSSL¹⁰⁵: Started by Ted Unangst, Bob Beck, Joel Sing, Miod
+   Vallat, Philip Guenther, and Theo de Raadt on April 13, 2014, as a
+   fork of OpenSSL 1.0.1g. First released with OpenBSD 5.6. Portable
+   version maintained by Brent Cook.
 
- • httpd(8): Started by Reyk Flöter. Imported July 12, 2014 and first
+ • httpd(8)¹⁰⁶: Started by Reyk Flöter. Imported July 12, 2014 and first
    released with OpenBSD 5.6.
 
- • rcctl(8): Written and maintained by Antoine Jacoutot. Imported August
-   19, 2014 and first released with OpenBSD 5.7.
+ • rcctl(8)¹⁰⁷: Written and maintained by Antoine Jacoutot. Imported
+   August 19, 2014 and first released with OpenBSD 5.7.
 
- • file(1): Rewritten from scratch and maintained by Nicholas Marriott.
-   Imported April 24, 2015 and first released with OpenBSD 5.8.
+ • file(1)¹⁰⁸: Rewritten from scratch and maintained by Nicholas
+   Marriott. Imported April 24, 2015 and first released with OpenBSD
+   5.8.
 
- • doas(1): Written and maintained by Ted Unangst. Imported July 16,
+ • doas(1)¹⁰⁹: Written and maintained by Ted Unangst. Imported July 16,
    2015 and first released with OpenBSD 5.8.
 
- • radiusd(8): Written and maintained by YASUOKA Masahiko. Imported July
-   21, 2015 and first released with OpenBSD 5.8.
+ • radiusd(8)¹¹⁰: Written and maintained by YASUOKA Masahiko. Imported
+   July 21, 2015 and first released with OpenBSD 5.8.
 
- • eigrpd(8), eigrpctl(8)⁵⁰: Written and maintained by Renato Westphal.
-   Imported October 2, 2015 and first released with OpenBSD 5.9.
+ • eigrpd(8)¹¹¹, eigrpctl(8)¹¹²: Written and maintained by Renato
+   Westphal. Imported October 2, 2015 and first released with OpenBSD
+   5.9.
 
- • vmm(4), vmd(8)⁵¹, vmctl(8)⁵²: Written by Mike Larkin and Reyk Flöter.
-   Imported November 13, 2015 and first released with OpenBSD 5.9.
+ • vmm(4)¹¹³, vmd(8)¹¹⁴, vmctl(8)¹¹⁵: Written by Mike Larkin and Reyk
+   Flöter. Imported November 13, 2015 and first released with OpenBSD
+   5.9.
 
- • pdisk(8): Originally written by Eryk Vershen in 1996-1998, rewritten
-   and maintained by Kenneth Westerback since January 11, 2016 and first
-   released with OpenBSD 5.9.
+ • pdisk(8)¹¹⁶: Originally written by Eryk Vershen in 1996-1998,
+   rewritten and maintained by Kenneth Westerback since January 11, 2016
+   and first released with OpenBSD 5.9.
 
- • mknod(8): Original version from Version 6 AT&T UNIX (1975), last
+ • mknod(8)¹¹⁷: Original version from Version 6 AT&T UNIX (1975), last
    rewritten by Marc Espie on March 5, 2016 and first released with
    OpenBSD 6.0.
 
- • audioctl(1): Originally written by Lennart Augustsson in 1997,
+ • audioctl(1)¹¹⁸: Originally written by Lennart Augustsson in 1997,
    rewritten and maintained by Alexandre Ratchov since June 21, 2016 and
    first released with OpenBSD 6.0.
 
- • acme-client(1): Written by Kristaps Dzonsons, imported August 31,
+ • acme-client(1)¹¹⁹: Written by Kristaps Dzonsons, imported August 31,
    2016; released with OpenBSD 6.1.
 
- • syspatch(8): Written and maintained by Antoine Jacoutot. Imported
+ • syspatch(8)¹²⁰: Written and maintained by Antoine Jacoutot. Imported
    September 5, 2016; released with OpenBSD 6.1.
 
- • ping(8): Restructured to include IPv6 functionality and maintained by
-   Florian Obser. The separate ping6(8)⁵³ was superseded on September
-   17, 2016, and the new, combined version was released with OpenBSD
-   6.1.
+ • ping(8)¹²¹: Restructured to include IPv6 functionality and maintained
+   by Florian Obser. The separate ping6(8)¹²² was superseded on
+   September 17, 2016, and the new, combined version was released with
+   OpenBSD 6.1.
 
- • xenodm(1): Cleaned-up fork of xdm(1)⁵⁴ maintained by Matthieu Herrb.
-   Imported October 23, 2016; released with OpenBSD 6.1.
+ • xenodm(1)¹²³: Cleaned-up fork of xdm(1)¹²⁴ maintained by Matthieu
+   Herrb. Imported October 23, 2016; released with OpenBSD 6.1.
 
- • ocspcheck(8): Written and maintained by Bob Beck. Imported January
+ • ocspcheck(8)¹²⁵: Written and maintained by Bob Beck. Imported January
    24, 2017; released with OpenBSD 6.1.
 
- • slaacd(8): Written and maintained by Florian Obser. Imported March
+ • slaacd(8)¹²⁶: Written and maintained by Florian Obser. Imported March
    18, 2017; released with OpenBSD 6.2.
 
- • rad(8): Written and maintained by Florian Obser. Imported July 10,
+ • rad(8)¹²⁷: Written and maintained by Florian Obser. Imported July 10,
    2018; released with OpenBSD 6.4.
 
- • unwind(8): Written and maintained by Florian Obser. Imported January
-   23, 2019; released with OpenBSD 6.5.
+ • unwind(8)¹²⁸: Written and maintained by Florian Obser. Imported
+   January 23, 2019; released with OpenBSD 6.5.
 
- • openrsync(1): Written by Kristaps Dzonsons. Imported February 10,
+ • openrsync(1)¹²⁹: Written by Kristaps Dzonsons. Imported February 10,
    2019; released with OpenBSD 6.5.
 
- • sysupgrade(8): Written by Christian Weisgerber, Florian Obser, and
+ • sysupgrade(8)¹³⁰: Written by Christian Weisgerber, Florian Obser, and
    Theo de Raadt. Imported April 25, 2019; released with OpenBSD 6.6.
 
- • snmp(1): Written and maintained by Martijn van Duren. Imported August
-   9, 2019; released with OpenBSD 6.6.
+ • snmp(1)¹³¹: Written and maintained by Martijn van Duren. Imported
+   August 9, 2019; released with OpenBSD 6.6.
 
- • rpki-client(8): Written by Kristaps Dzonsons; maintained by Claudio
-   Jeker, Theo Buehler, and Job Snijders. Imported June 17, 2019;
-   released with OpenBSD 6.7.
+ • rpki-client(8)¹³²: Written by Kristaps Dzonsons; maintained by
+   Claudio Jeker, Theo Buehler, and Job Snijders. Imported June 17,
+   2019; released with OpenBSD 6.7.
 
- • resolvd(8): Written and maintained by Florian Obser and Theo de
+ • resolvd(8)¹³³: Written and maintained by Florian Obser and Theo de
    Raadt. Imported February 24, 2021; released with OpenBSD 6.9.
 
- • dhcpleased(8): Written and maintained by Florian Obser. Imported
+ • dhcpleased(8)¹³⁴: Written and maintained by Florian Obser. Imported
    February 26, 2021; released with OpenBSD 6.9.
 
- ¹ https://man.openbsd.org/ypset.8
- ² https://man.openbsd.org/ypcat.1
- ³ https://man.openbsd.org/ypmatch.1
- ⁴ https://man.openbsd.org/ypwhich.1
- ⁵ papers/anoncvs-paper.pdf
- ⁶ papers/anoncvs-slides.pdf
- ⁷ https://man.openbsd.org/ssh.1
- ⁸ https://man.openbsd.org/scp.1
- ⁹ https://man.openbsd.org/sftp.1
-¹⁰ https://man.openbsd.org/ssh-add.1
-¹¹ https://man.openbsd.org/ssh-agent.1
-¹² https://man.openbsd.org/ssh-keygen.1
-¹³ https://man.openbsd.org/sshd.8
-¹⁴ https://man.openbsd.org/sftp-server.8
-¹⁵ https://man.openbsd.org/pfctl.8
-¹⁶ https://man.openbsd.org/pflogd.8
-¹⁷ https://man.openbsd.org/authpf.8
-¹⁸ https://man.openbsd.org/ftp-proxy.8
-¹⁹ https://man.openbsd.org/OpenBSD-5.9/systrace.1
-²⁰ https://man.openbsd.org/pledge.2
-²¹ https://man.openbsd.org/bgpd.8
-²² https://man.openbsd.org/bgpctl.8
-²³ https://man.openbsd.org/ntpd.8
-²⁴ https://man.openbsd.org/ntpctl.8
-²⁵ https://man.openbsd.org/ospfctl.8
-²⁶ https://man.openbsd.org/dvmrpctl.8
-²⁷ https://man.openbsd.org/ripctl.8
-²⁸ https://man.openbsd.org/relayctl.8
-²⁹ https://monkey.org/~marius/cwm/README
-³⁰ https://github.com/chneukirchen/cwm
-³¹ https://man.openbsd.org/ospf6ctl.8
-³² https://man.openbsd.org/smtpd.8
-³³ https://man.openbsd.org/smtpctl.8
-³⁴ https://man.openbsd.org/makemap.8
-³⁵ https://man.openbsd.org/tmux.1
-³⁶ https://man.openbsd.org/ldpctl.8
-³⁷ https://man.openbsd.org/mandoc.1
-³⁸ https://man.openbsd.org/man.1
-³⁹ https://man.openbsd.org/apropos.1
-⁴⁰ https://man.openbsd.org/makewhatis.8
-⁴¹ https://man.openbsd.org/man.cgi.8
-⁴² https://man.openbsd.org/ldapctl.8
-⁴³ https://man.openbsd.org/iked.8
-⁴⁴ https://man.openbsd.org/ikectl.8
-⁴⁵ https://man.openbsd.org/iscsictl.8
-⁴⁶ https://man.openbsd.org/rc.subr.8
-⁴⁷ https://man.openbsd.org/npppctl.8
-⁴⁸ https://man.openbsd.org/ldomctl.8
-⁴⁹ https://www.tedunangst.com/flak/post/signify
-⁵⁰ https://man.openbsd.org/eigrpctl.8
-⁵¹ https://man.openbsd.org/vmd.8
-⁵² https://man.openbsd.org/vmctl.8
-⁵³ https://man.openbsd.org/OpenBSD-6.0/ping6.8
-⁵⁴ https://man.openbsd.org/OpenBSD-6.0/xdm.1
+  ¹ https://man.openbsd.org/ypbind.8
+  ² https://man.openbsd.org/ypset.8
+  ³ https://man.openbsd.org/ypcat.1
+  ⁴ https://man.openbsd.org/ypmatch.1
+  ⁵ https://man.openbsd.org/ypwhich.1
+  ⁶ https://man.openbsd.org/ypserv.8
+  ⁷ https://man.openbsd.org/mopd.8
+  ⁸ anoncvs.html
+  ⁹ papers/anoncvs-paper.pdf
+ ¹⁰ papers/anoncvs-slides.pdf
+ ¹¹ https://man.openbsd.org/aucat.1
+ ¹² https://www.openssh.com/
+ ¹³ https://man.openbsd.org/ssh.1
+ ¹⁴ https://man.openbsd.org/scp.1
+ ¹⁵ https://man.openbsd.org/sftp.1
+ ¹⁶ https://man.openbsd.org/ssh-add.1
+ ¹⁷ https://man.openbsd.org/ssh-agent.1
+ ¹⁸ https://man.openbsd.org/ssh-keygen.1
+ ¹⁹ https://man.openbsd.org/sshd.8
+ ²⁰ https://man.openbsd.org/sftp-server.8
+ ²¹ https://man.openbsd.org/mg.1
+ ²² https://man.openbsd.org/m4.1
+ ²³ https://man.openbsd.org/pf.4
+ ²⁴ https://man.openbsd.org/pfctl.8
+ ²⁵ https://man.openbsd.org/pflogd.8
+ ²⁶ https://man.openbsd.org/authpf.8
+ ²⁷ https://man.openbsd.org/ftp-proxy.8
+ ²⁸ https://man.openbsd.org/OpenBSD-5.9/systrace.4
+ ²⁹ https://man.openbsd.org/OpenBSD-5.9/systrace.1
+ ³⁰ https://man.openbsd.org/pledge.2
+ ³¹ https://man.openbsd.org/spamd.8
+ ³² https://man.openbsd.org/dc.1
+ ³³ https://man.openbsd.org/bc.1
+ ³⁴ https://man.openbsd.org/sensorsd.8
+ ³⁵ https://man.openbsd.org/pkg_add.1
+ ³⁶ https://man.openbsd.org/carp.4
+ ³⁷ https://www.openbgpd.org/
+ ³⁸ https://man.openbsd.org/bgpd.8
+ ³⁹ https://man.openbsd.org/bgpctl.8
+ ⁴⁰ https://man.openbsd.org/dhclient.8
+ ⁴¹ https://man.openbsd.org/dhcpd.8
+ ⁴² https://man.openbsd.org/hotplugd.8
+ ⁴³ https://www.openntpd.org/
+ ⁴⁴ https://man.openbsd.org/ntpd.8
+ ⁴⁵ https://man.openbsd.org/ntpctl.8
+ ⁴⁶ https://man.openbsd.org/dpb.1
+ ⁴⁷ https://man.openbsd.org/ospfd.8
+ ⁴⁸ https://man.openbsd.org/ospfctl.8
+ ⁴⁹ https://man.openbsd.org/ifstated.8
+ ⁵⁰ https://man.openbsd.org/bioctl.8
+ ⁵¹ https://man.openbsd.org/hostapd.8
+ ⁵² https://man.openbsd.org/watchdogd.8
+ ⁵³ https://man.openbsd.org/sdiff.1
+ ⁵⁴ https://man.openbsd.org/dvmrpd.8
+ ⁵⁵ https://man.openbsd.org/dvmrpctl.8
+ ⁵⁶ https://man.openbsd.org/ripd.8
+ ⁵⁷ https://man.openbsd.org/ripctl.8
+ ⁵⁸ https://man.openbsd.org/pkg-config.1
+ ⁵⁹ https://man.openbsd.org/relayd.8
+ ⁶⁰ https://man.openbsd.org/relayctl.8
+ ⁶¹ https://man.openbsd.org/cwm.1
+ ⁶² https://monkey.org/~marius/cwm/README
+ ⁶³ https://github.com/chneukirchen/cwm
+ ⁶⁴ https://man.openbsd.org/ospf6d.8
+ ⁶⁵ https://man.openbsd.org/ospf6ctl.8
+ ⁶⁶ https://man.openbsd.org/libtool.1
+ ⁶⁷ https://man.openbsd.org/snmpd.8
+ ⁶⁸ https://man.openbsd.org/sysmerge.8
+ ⁶⁹ https://man.openbsd.org/ypldap.8
+ ⁷⁰ https://www.opensmtpd.org/
+ ⁷¹ https://man.openbsd.org/smtpd.8
+ ⁷² https://man.openbsd.org/smtpctl.8
+ ⁷³ https://man.openbsd.org/makemap.8
+ ⁷⁴ https://tmux.github.io/
+ ⁷⁵ https://man.openbsd.org/tmux.1
+ ⁷⁶ https://man.openbsd.org/ldpd.8
+ ⁷⁷ https://man.openbsd.org/ldpctl.8
+ ⁷⁸ https://mdocml.bsd.lv/
+ ⁷⁹ https://man.openbsd.org/mandoc.1
+ ⁸⁰ https://man.openbsd.org/man.1
+ ⁸¹ https://man.openbsd.org/apropos.1
+ ⁸² https://man.openbsd.org/makewhatis.8
+ ⁸³ https://man.openbsd.org/man.cgi.8
+ ⁸⁴ https://man.openbsd.org/ldapd.8
+ ⁸⁵ https://man.openbsd.org/ldapctl.8
+ ⁸⁶ https://www.openiked.org/
+ ⁸⁷ https://man.openbsd.org/iked.8
+ ⁸⁸ https://man.openbsd.org/ikectl.8
+ ⁸⁹ https://man.openbsd.org/iscsid.8
+ ⁹⁰ https://man.openbsd.org/iscsictl.8
+ ⁹¹ https://man.openbsd.org/rc.d.8
+ ⁹² https://man.openbsd.org/rc.subr.8
+ ⁹³ https://man.openbsd.org/tftpd.8
+ ⁹⁴ https://man.openbsd.org/npppd.8
+ ⁹⁵ https://man.openbsd.org/npppctl.8
+ ⁹⁶ https://man.openbsd.org/ldomd.8
+ ⁹⁷ https://man.openbsd.org/ldomctl.8
+ ⁹⁸ https://man.openbsd.org/sndiod.8
+ ⁹⁹ https://man.openbsd.org/cu.1
+¹⁰⁰ https://man.openbsd.org/identd.8
+¹⁰¹ https://man.openbsd.org/slowcgi.8
+¹⁰² https://man.openbsd.org/signify.1
+¹⁰³ https://www.tedunangst.com/flak/post/signify
+¹⁰⁴ https://man.openbsd.org/htpasswd.1
+¹⁰⁵ https://www.libressl.org/
+¹⁰⁶ https://man.openbsd.org/httpd.8
+¹⁰⁷ https://man.openbsd.org/rcctl.8
+¹⁰⁸ https://man.openbsd.org/file.1
+¹⁰⁹ https://man.openbsd.org/doas.1
+¹¹⁰ https://man.openbsd.org/radiusd.8
+¹¹¹ https://man.openbsd.org/eigrpd.8
+¹¹² https://man.openbsd.org/eigrpctl.8
+¹¹³ https://man.openbsd.org/vmm.4
+¹¹⁴ https://man.openbsd.org/vmd.8
+¹¹⁵ https://man.openbsd.org/vmctl.8
+¹¹⁶ https://man.openbsd.org/pdisk.8
+¹¹⁷ https://man.openbsd.org/mknod.8
+¹¹⁸ https://man.openbsd.org/audioctl.1
+¹¹⁹ https://man.openbsd.org/acme-client.1
+¹²⁰ https://man.openbsd.org/syspatch.8
+¹²¹ https://man.openbsd.org/ping.8
+¹²² https://man.openbsd.org/OpenBSD-6.0/ping6.8
+¹²³ https://man.openbsd.org/xenodm.1
+¹²⁴ https://man.openbsd.org/OpenBSD-6.0/xdm.1
+¹²⁵ https://man.openbsd.org/ocspcheck.8
+¹²⁶ https://man.openbsd.org/slaacd.8
+¹²⁷ https://man.openbsd.org/rad.8
+¹²⁸ https://man.openbsd.org/unwind.8
+¹²⁹ https://man.openbsd.org/openrsync.1
+¹³⁰ https://man.openbsd.org/sysupgrade.8
+¹³¹ https://man.openbsd.org/snmp.1
+¹³² https://man.openbsd.org/rpki-client.8
+¹³³ https://man.openbsd.org/resolvd.8
+¹³⁴ https://man.openbsd.org/dhcpleased.8
 
 Projects maintained by OpenBSD developers outside OpenBSD
 ---------------------------------------------------------
 
- • sudo: Started by Bob Coggeshall and Cliff Spencer around 1980.
+ • sudo¹: Started by Bob Coggeshall and Cliff Spencer around 1980.
    Imported November 18, 1999, first released with OpenBSD 2.7. Now
    maintained by Todd Miller.
 
- • femail: Written and maintained by Henning Brauer. Started in 2005,
+ • femail²: Written and maintained by Henning Brauer. Started in 2005,
    port available since September 22, 2005.
 
- • midish: Written and maintained by Alexandre Ratchov. Started in 2003,
-   port available since November 4, 2005.
+ • midish³: Written and maintained by Alexandre Ratchov. Started in
+   2003, port available since November 4, 2005.
 
- • fdm: Written and maintained by Nicholas Marriott. Started in 2006,
+ • fdm⁴: Written and maintained by Nicholas Marriott. Started in 2006,
    port available since January 18, 2007.
 
- • toad: Written and maintained by Antoine Jacoutot. Started in 2013,
+ • toad⁵: Written and maintained by Antoine Jacoutot. Started in 2013,
    port available since October 8, 2013.
 
- • docbook2mdoc: Started by Kristaps Dzonsons in 2014, maintained by
+ • docbook2mdoc⁶: Started by Kristaps Dzonsons in 2014, maintained by
    Ingo Schwarze. Port available since April 3, 2014.
 
- • portroach: Written and maintained by Jasper Lievisse Adriaanse,
+ • portroach⁷: Written and maintained by Jasper Lievisse Adriaanse,
    originally forked from FreeBSD's portscout. Started in 2014, port
    available since September 5, 2014.
 
- • cvs2gitdump: Written and maintained by YASUOKA Masahiko. Started in
+ • cvs2gitdump⁸: Written and maintained by YASUOKA Masahiko. Started in
    2012, port available since August 1, 2016.
 
- • Game of Trees: Written and maintained by Stefan Sperling. Started in
+ • Game of Trees⁹: Written and maintained by Stefan Sperling. Started in
    2017, port available since August 9, 2019.
+
+¹ https://www.sudo.ws/
+² http://bulabula.org/femail/
+³ https://www.midish.org/
+⁴ https://github.com/nicm/fdm
+⁵ https://github.com/ajacoutot/toad/
+⁶ https://mandoc.bsd.lv/docbook2mdoc/
+⁷ https://jasperla.github.io/portroach/
+⁸ https://github.com/yasuoka/cvs2gitdump
+⁹ https://gameoftrees.org

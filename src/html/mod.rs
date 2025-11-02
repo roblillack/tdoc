@@ -46,6 +46,7 @@ struct Parser<'a> {
     breadcrumbs: Vec<ParagraphNode>,
     list_item_level: usize,
     skip_stack: Vec<String>,
+    pending_token: Option<Token>,
 }
 
 impl<'a> Parser<'a> {
@@ -56,6 +57,7 @@ impl<'a> Parser<'a> {
             breadcrumbs: Vec::new(),
             list_item_level: 0,
             skip_stack: Vec::new(),
+            pending_token: None,
         }
     }
 
@@ -106,6 +108,11 @@ impl<'a> Parser<'a> {
 
                 if let Some(para_type) = paragraph_type_for(&tag) {
                     return self.read_paragraph(para_type, Some(tag), None);
+                }
+
+                if inline_style_for(&tag).is_some() {
+                    self.pending_token = Some(Token::StartElement(start));
+                    return self.read_paragraph(ParagraphType::Text, None, None);
                 }
             }
             Token::EndElement(end) => {
@@ -465,9 +472,13 @@ impl<'a> Parser<'a> {
         let mut buffer = String::new();
 
         loop {
-            let token = match self.tokenizer.next_token() {
-                Ok(token) => token,
-                Err(TokenizerError::Eof) => return Ok((buffer, None)),
+            let token = if let Some(token) = self.pending_token.take() {
+                token
+            } else {
+                match self.tokenizer.next_token() {
+                    Ok(token) => token,
+                    Err(TokenizerError::Eof) => return Ok((buffer, None)),
+                }
             };
 
             if self.process_skipped_tags(&token) {
@@ -1051,5 +1062,73 @@ mod tests {
         assert_eq!(span.style, InlineStyle::None);
         assert!(span.link_target.is_none());
         assert_eq!(span.text, "Anchor label");
+    }
+
+    #[test]
+    fn parses_links_inside_navigation_container() {
+        let input = r#"
+<div class="nav_container">
+  <div class="nav_title">
+    <a href="/">roblog.</a>
+  </div>
+  <div class="site_nav" id="site_nav">
+    <ul>
+      <li>
+        <a href="/" class="active">
+          home
+        </a>
+      </li>
+      <li>
+        <a href="/articles" class>
+          articles
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+"#;
+
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let mut tokenizer = Tokenizer::new(input);
+        let mut seen_links = Vec::new();
+        while let Ok(token) = tokenizer.next_token() {
+            if let Token::StartElement(start) = token {
+                if start.name().eq_ignore_ascii_case("a") {
+                    seen_links.push(start.attribute("href"));
+                }
+            }
+        }
+
+        assert_eq!(
+            seen_links,
+            vec![
+                Some("/".to_string()),
+                Some("/".to_string()),
+                Some("/articles".to_string())
+            ]
+        );
+
+        let list = document
+            .paragraphs
+            .iter()
+            .find(|paragraph| paragraph.paragraph_type == ParagraphType::UnorderedList)
+            .expect("expected a list paragraph");
+
+        assert_eq!(list.entries.len(), 2);
+
+        for (entry, expected_href) in list.entries.iter().zip(["/", "/articles"]) {
+            assert_eq!(entry.len(), 1);
+            let text_paragraph = &entry[0];
+            assert_eq!(text_paragraph.paragraph_type, ParagraphType::Text);
+            assert!(
+                text_paragraph.content.iter().any(|span| {
+                    span.style == InlineStyle::Link
+                        && span.link_target.as_deref() == Some(expected_href)
+                }),
+                "expected list item to contain a link span for href '{expected_href}', got {:?}",
+                text_paragraph.content
+            );
+        }
     }
 }

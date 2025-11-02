@@ -13,18 +13,20 @@ for your GitHub account.
 
 For more information on securing your account, visit the following:
 
- • Creating a strong password
+ • Creating a strong password¹
 
- • Best practices for securing accounts
+ • Best practices for securing accounts²
 
 To see this and other security events for your account, visit your
-account security audit log.¹
+account security audit log.³
 
 If you run into problems, please contact support by visiting the GitHub
-support page.²
+support page.⁴
 
 Thanks,
 The GitHub Team
 
-¹ https://github.com/settings/security-log
-² https://github.com/contact
+¹ https://docs.github.com/articles/creating-a-strong-password/
+² https://docs.github.com/code-security/supply-chain-security/end-to-end-supply-chain/securing-accounts/
+³ https://github.com/settings/security-log
+⁴ https://github.com/contact

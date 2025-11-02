@@ -5,7 +5,7 @@ freigegebenen Ordners eingeladen:
 
 Folder Name
 
-Öffnen
+Öffnen¹
 
 Wenn Sie keine Dateien von dieser Person erhalten möchten, blockieren
 Sie den Absender¹ in Drive

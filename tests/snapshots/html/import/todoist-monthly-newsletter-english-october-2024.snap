@@ -1,6 +1,5 @@
 ---
 source: tests/html_import.rs
-assertion_line: 61
 expression: rendered
 extension: txt
 snapshot_kind: binary

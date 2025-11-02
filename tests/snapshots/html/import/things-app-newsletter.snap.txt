@@ -1,10 +1,14 @@
 
 
+
+
 Hi there,
 
 Things has been updated with support for macOS Sonoma, iOS 17, and
 watchOS 10. The update also includes a variety of great improvements for
 widgets.
+
+
 
 
 The widgets are now interactive, which means you can complete to-dos
@@ -18,9 +22,9 @@ You can learn more about all the new features on our blog:
 
 
 
-What’s New for iOS
+ What’s New for iOS ¹
 
-What’s New for Mac
+ What’s New for Mac ¹
 
 
 

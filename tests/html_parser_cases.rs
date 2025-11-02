@@ -350,9 +350,9 @@ fn blockquote_with_inline_and_padding() {
 }
 
 #[test]
-fn parsing_links_become_text() {
+fn parsing_links_are_preserved() {
     let input = "<ul><li><a href=\"xxx\">Hello</a> World";
-    let expected = "<ul>\n  <li>\n    <p>Hello World</p>\n  </li>\n</ul>";
+    let expected = "<ul>\n  <li>\n    <p><a href=\"xxx\">Hello</a> World</p>\n  </li>\n</ul>";
 
     let document = parse(input);
     let rendered = render(&document);

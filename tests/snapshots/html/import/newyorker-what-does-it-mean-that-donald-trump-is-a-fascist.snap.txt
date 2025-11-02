@@ -1,11 +1,18 @@
-Skip to main content
+Skip to main content¹
 
-Search
+
+
+Search²
 
 Open Navigation Menu
 
-Dispatches
 
+
+Dispatches³
+
+¹ #main-content
+² /search
+³ /magazine/dispatches
 
 
            What Does It Mean That Donald Trump Is a Fascist?
@@ -20,10 +27,15 @@ By Timothy Snyder¹
 
 November 8, 2024
 
+ • 
 
+ • 
 
+ • 
 
+ • 
 
+ • 
 
 Photograph by Mark Peterson / Redux
 
@@ -32,7 +44,7 @@ Save this story
 Save this story
 
 This article is part of a series of reflections responding to the 2024
-election. Read more »
+election. Read more »²
 
 It was wrong to treat Donald Trump as a series of absences. The standard
 critique has always been that he lacks something that we imagine to be a
@@ -47,7 +59,7 @@ this is our shortcoming more than his. Trump has always been a presence,
 not an absence: the presence of fascism. What does this mean?
 
 When the Soviets called their enemies “fascists,” they turned the word
-into a meaningless insult. Putinist Russia² has preserved the habit: a
+into a meaningless insult. Putinist Russia³ has preserved the habit: a
 “fascist” is anyone who opposes the wishes of a Russian dictator. So
 Ukrainians defending their country from Russian invaders are “fascists.”
 This is a trick that Trump has copied. He, like Vladimir Putin, refers
@@ -124,13 +136,15 @@ Trump’s presence has always been a co-creation: his and ours. From the
 moment when he first came down the Trump Tower escalator in 2015, he was
 treated as a source of spectacle. Because he was good for television, he
 was accepted as a legitimate candidate. In the print media, he grew
-through the doctrine of both-sides-ism³: no matter how awful his deeds,
+through the doctrine of both-sides-ism⁴: no matter how awful his deeds,
 his opponent had to be presented as equally bad. This empowered him to
 be both wicked and normal. During every campaign’s final months, polling
-had a similar effect⁴. By displacing policy differences and reducing
+had a similar effect⁵. By displacing policy differences and reducing
 politics to two faces or two colors, polls reinforce the notion that
 Trump belonged where he was, and that politics was just a matter of us
 or them.
+
+
 
 “Only real New Yorkers take the sewer system.”
 
@@ -145,12 +159,12 @@ Shop
 What amplifies Trump’s presence more than any other medium is the
 Internet. He is a natural with its quirky rhythms. And its algorithms
 make the rest of us open to exactly his sort of talky fascism. On social
-media⁵, we are drawn away from people of complexity and toward blunt
+media⁶, we are drawn away from people of complexity and toward blunt
 stereotypes. We ourselves are categorized, and are then fed content that
 brings out, in Václav Havel’s term, our “most probable states.” The
 Internet does not just spread specific conspiracy theories; it primes
-our minds⁶ for them. This was already true before Elon Musk reshaped
-Twitter⁷ in Trump’s image.
+our minds⁷ for them. This was already true before Elon Musk reshaped
+Twitter⁸ in Trump’s image.
 
 Our engagement with the machine illuminates a difference between the
 fascists of the twenty-twenties and the fascists of the
@@ -218,7 +232,7 @@ Fascism is now in the algorithms, the neural pathways, the social
 interactions. How did we fail to see all this? Part of it was our belief
 that history is over, that the great rivals to liberalism were dead or
 exhausted. Part of it was American exceptionalism: “it can’t happen
-here⁸” and so on. But most of it was simple self-absorption: we wanted
+here⁹” and so on. But most of it was simple self-absorption: we wanted
 to see Trump in terms of his absences, so that our way of seeing the
 world would go unchallenged. So we failed to see his fascist presence.
 And, because we ignored the fascism, we were unable to make the easy
@@ -226,8 +240,8 @@ predictions of what he would do next. Or, worse, we learned to thrill at
 our own mistakes, because he always did something more outrageous than
 we expected.
 
-It was predictable that Trump would deny⁹ the results of the 2020
-election. It was predictable that his Big Lie would change¹⁰ American
+It was predictable that Trump would deny¹⁰ the results of the 2020
+election. It was predictable that his Big Lie would change¹¹ American
 politics. It is predictable, today, that he will give free rein to the
 oligarchs who, he knows, will continue to generate the social and
 digital bases of a politics of us and them. It is predictable that, in
@@ -238,7 +252,7 @@ accomplices of us. It is predictable that he will create a cult out of
 the martyrs of January 6th. It is predictable that he will coöperate
 with similarly minded rulers abroad.
 
-When the historian Robert Paxton was asked¹¹ about Trump and fascism a
+When the historian Robert Paxton was asked¹² about Trump and fascism a
 few weeks ago, he made an important point. Of course, Trump is a
 fascist, Paxton concluded. It was fine to compare him to Mussolini and
 Hitler, but there was a larger point. It took some luck for those two to
@@ -248,8 +262,8 @@ have had.”
 
 Fascism is a phenomenon, not a person. Just as Trump was always a
 presence, so is the movement he has created. It is not just a matter of
-the actual fascists in his movement, who are scarcely hiding¹², nor of
-his own friendly references to Hitler or his use of Hitlerian language¹³
+the actual fascists in his movement, who are scarcely hiding¹³, nor of
+his own friendly references to Hitler or his use of Hitlerian language¹⁴
 (“vermin,” “enemy within”). He bears responsibility for what comes next,
 as do his allies and supporters.
 
@@ -259,23 +273,24 @@ judiciary, have amplified Trump’s presence; again and again, we have
 failed to name the consequences. Fascism can be defeated, but not when
 we are on its side. ♦
 
-Published in the print edition of the November 18, 2024¹⁴, issue, with
+Published in the print edition of the November 18, 2024¹⁵, issue, with
 the headline “American Fascist.”
 
  ¹ /contributors/timothy-snyder
- ² https://www.amazon.com/Road-Unfreedom-Russia-Europe-America/dp/0525574468
- ³ https://snyder.substack.com/p/both-sides
- ⁴ https://www.theguardian.com/commentisfree/2024/oct/27/polling-has-turned-the-us-election-into-a-game-we-need-to-take-a-reality-check
- ⁵ https://www.newyorker.com/magazine/2024/11/11/the-artificial-state
- ⁶ https://www.salon.com/2024/11/08/americas-political-discordance-the-want-progressivism/
- ⁷ https://www.theatlantic.com/technology/archive/2023/05/elon-musk-ron-desantis-2024-twitter/674149/
- ⁸ https://www.nybooks.com/online/2020/06/22/american-fascism-it-has-happened-here
- ⁹ https://www.commonwealmagazine.org/not-normal-election
-¹⁰ https://www.nytimes.com/2021/01/09/magazine/trump-coup.html
-¹¹ https://www.nytimes.com/2024/10/23/magazine/robert-paxton-facism.html
-¹² https://www.theguardian.com/us-news/2024/nov/05/trump-staffer-fired-from-republican-party-for-being-a-white-supremacist
-¹³ https://www.theatlantic.com/politics/archive/2024/10/trump-authoritarian-rhetoric-hitler-mussolini/680296/
-¹⁴ /magazine/2024/11/18
+ ² https://www.newyorker.com/magazine/dispatches/2024-trump-beats-harris-writers-reflect
+ ³ https://www.amazon.com/Road-Unfreedom-Russia-Europe-America/dp/0525574468
+ ⁴ https://snyder.substack.com/p/both-sides
+ ⁵ https://www.theguardian.com/commentisfree/2024/oct/27/polling-has-turned-the-us-election-into-a-game-we-need-to-take-a-reality-check
+ ⁶ https://www.newyorker.com/magazine/2024/11/11/the-artificial-state
+ ⁷ https://www.salon.com/2024/11/08/americas-political-discordance-the-want-progressivism/
+ ⁸ https://www.theatlantic.com/technology/archive/2023/05/elon-musk-ron-desantis-2024-twitter/674149/
+ ⁹ https://www.nybooks.com/online/2020/06/22/american-fascism-it-has-happened-here
+¹⁰ https://www.commonwealmagazine.org/not-normal-election
+¹¹ https://www.nytimes.com/2021/01/09/magazine/trump-coup.html
+¹² https://www.nytimes.com/2024/10/23/magazine/robert-paxton-facism.html
+¹³ https://www.theguardian.com/us-news/2024/nov/05/trump-staffer-fired-from-republican-party-for-being-a-white-supremacist
+¹⁴ https://www.theatlantic.com/politics/archive/2024/10/trump-authoritarian-rhetoric-hitler-mussolini/680296/
+¹⁵ /magazine/2024/11/18
 
 
 New Yorker Favorites
@@ -299,25 +314,33 @@ New Yorker Favorites
 Sign up⁸ for our daily newsletter to receive the best stories from The
 New Yorker.
 
-Timothy Snyder is a professor of history at Yale. His books include “On
-Freedom⁹.”
+Timothy Snyder⁹ is a professor of history at Yale. His books include “On
+Freedom¹⁰.”
 
-More:Election 2024¹⁰
+More:Election 2024¹¹
 
 Read More
+
+
 
 Open Questions
 
 Do They Really Believe That Stuff?
+
+
 
 According to a new book, America’s political derangement has
 psychological roots.
 
 By Joshua Rothman
 
+
+
 Comment
 
 Standing Up to Trump
+
+
 
 Jeff Bezos endorsed a Trump-era slogan—“Democracy Dies in Darkness”—for
 his newspaper, the Washington Post. Why wouldn’t he let it endorse a
@@ -325,9 +348,13 @@ candidate?
 
 By David Remnick
 
+
+
 The Political Scene
 
 Trump’s Final Days on the Campaign Trail
+
+
 
 Under assault from all sides, in the last weeks of his campaign, the
 former President speaks often of enemies from within, including those
@@ -335,64 +362,92 @@ trying to take his life.
 
 By Antonia Hitchens
 
+
+
 Dispatches
 
 A Fourth-Rate Entertainer, a Third-Rate Businessman, and a Two-Time
 President
+
+
 
 The 2024 election, like the one in 2016, had the same nutty and vapid
 Donald Trump, the same retrograde gender politics, and the same result.
 
 By Lorrie Moore
 
+
+
 The Weekend Essay
 
 Ukraine’s Waiting Game
+
+
 
 In and around Kyiv, war has become part of daily life, even as the
 public grows weary of its costs.
 
 By Keith Gessen
 
+
+
 Dispatch
 
 Donald Trump’s West Palm Beach Victory Celebration
+
+
 
 Surrounded by an ever-expanding cast of MAGA characters, the perpetual
 candidate becomes President-elect again.
 
 By Antonia Hitchens
 
+
+
 The Lede
 
 Donald Trump’s Revenge
+
+
 
 The former President will return to the White House older, less
 inhibited, and far more dangerous than ever before.
 
 By Susan B. Glasser
 
+
+
 Dispatches
 
 How America Embraced Gender War
+
+
 
 Both Trump’s and Harris’s campaigns framed the Presidential election as
 a contest between men and women. Did the results prove them right?
 
 By Jia Tolentino
 
+
+
 Letter from Biden’s Washington
 
 Garbage Time at the 2024 Finish Line
+
+
 
 Nine years in, Trump is in reach of another term as the technocrats
 struggle to contain him.
 
 By Susan B. Glasser
 
+
+
 The Lede
 
 Kamala Harris Makes Her Closing Argument at the Ellipse
+
+
 
 At a rally whose location evoked January 6th, Harris sounded the alarm
 about Trump’s authoritarian tendencies but refused to linger in the
@@ -400,9 +455,13 @@ national shame spiral that has formed around him.
 
 By Katy Waldman
 
+
+
 Podcast Dept.
 
 The Mystery of Three Hundred Bodies in the Woods
+
+
 
 The podcast “Noble,” about severe malpractice at a Georgia crematorium,
 shows that even the most shocking of horror stories can be sensitively
@@ -410,10 +469,14 @@ told.
 
 By Sarah Larson
 
+
+
 Dispatches
 
 Democrats Tried to Counter Donald Trump’s Viciousness Toward Women with
 Condescension
+
+
 
 The Harris campaign felt the need to remind women voters that they can
 vote for whomever they want. Women understood this. The campaign failed
@@ -421,17 +484,24 @@ to.
 
 By Jill Lepore
 
+
+
 © 2024 Condé Nast. All rights reserved. The New Yorker may earn a
 portion of sales from products that are purchased through our site as
 part of our Affiliate Partnerships with retailers. The material on this
 site may not be reproduced, distributed, transmitted, cached or
 otherwise used, except with the prior written permission of Condé Nast.
-Ad Choices¹¹
+Ad Choices¹²
 
+ • 
 
+ • 
 
+ • 
 
+ • 
 
+ • 
 
  ¹ /culture/cultural-comment/can-reading-make-you-happier
  ² /tech/annals-of-technology/walking-helps-us-think
@@ -441,6 +511,7 @@ Ad Choices¹¹
  ⁶ /magazine/2016/11/28/the-resurgent-appeal-of-stevie-nicks
  ⁷ /magazine/2017/02/27/ladies-lunch-lore-segal
  ⁸ https://www.newyorker.com/newsletter/daily
- ⁹ https://www.amazon.com/Freedom-Timothy-Snyder/dp/0593728726/
-¹⁰ /tag/election-2024
-¹¹ http://www.aboutads.info
+ ⁹ /contributors/timothy-snyder
+¹⁰ https://www.amazon.com/Freedom-Timothy-Snyder/dp/0593728726/
+¹¹ /tag/election-2024
+¹² http://www.aboutads.info
