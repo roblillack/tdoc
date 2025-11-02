@@ -361,6 +361,18 @@ fn test_markdown_nested_lists_in_blockquote() {
 }
 
 #[test]
+fn test_markdown_ignores_html_comments() {
+    let input = "Before\n\n<!-- comment line 1\nline 2\n-->\n\nAfter\n";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    let expected = ftml! {
+        p { "Before" }
+        p { "After" }
+    };
+
+    assert_eq!(parsed, expected);
+}
+
+#[test]
 fn test_formatter_checklist_output() {
     let doc = ftml! {
         checklist {

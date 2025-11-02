@@ -623,8 +623,11 @@ impl Parser {
                                 || parent.paragraph_type == ParagraphType::OrderedList
                                 || parent.paragraph_type == ParagraphType::Checklist
                             {
-                                let (list_content, remaining_token, item_is_checklist) =
-                                    self.read_list_content(tokenizer, parent.paragraph_type == ParagraphType::Checklist)?;
+                                let (list_content, remaining_token, item_is_checklist) = self
+                                    .read_list_content(
+                                        tokenizer,
+                                        parent.paragraph_type == ParagraphType::Checklist,
+                                    )?;
                                 if item_is_checklist {
                                     parent.paragraph_type = ParagraphType::Checklist;
                                 }
@@ -685,11 +688,8 @@ impl Parser {
                     }
 
                     if checklist_state.is_some() || parent_is_checklist {
-                        let collapsed = self.collapse_whitespace(
-                            &text,
-                            inline_spans.is_empty(),
-                            false,
-                        );
+                        let collapsed =
+                            self.collapse_whitespace(&text, inline_spans.is_empty(), false);
                         let decoded = self.decode_entities(&collapsed);
                         if !decoded.is_empty() {
                             inline_spans.push(Span::new_text(decoded));
@@ -1094,7 +1094,10 @@ impl Parser {
 
 fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
     while let Some(last) = spans.last_mut() {
-        if last.style != InlineStyle::None || !last.children.is_empty() || last.link_target.is_some() {
+        if last.style != InlineStyle::None
+            || !last.children.is_empty()
+            || last.link_target.is_some()
+        {
             break;
         }
 
