@@ -258,8 +258,8 @@ This Rust implementation is a work in progress. Here's how it compares to the [G
 ## Building from Source
 
 ```bash
-# Ensure the OpenSSL/LibreSSL headers are available, i.e.
-apt install libssl-dev
+# Ensure the OpenSSL/LibreSSL headers are available, for example:
+sudo apt install libssl-dev
 
 # Build the library and all tools
 cargo build --release
