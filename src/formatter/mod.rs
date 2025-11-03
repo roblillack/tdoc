@@ -12,10 +12,10 @@ const DEFAULT_UNORDERED_LIST_ITEM_PREFIX: &str = " • ";
 
 static ANSI_ESCAPE_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\x1b\[[0-9;]*m").expect("valid ANSI escape regex"));
-static OSC8_TARGET_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\x1b]8;;([^\x1b]*)\x1b\\").expect("valid OSC8 regex"));
+static OSC8_SEQUENCE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\x1b]8;([^;]*);([^\x1b]*)\x1b\\").expect("valid OSC8 regex"));
 static OSC8_ESCAPE_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\x1b]8;;[^\x1b]*\x1b\\").expect("valid OSC8 escape regex"));
+    Lazy::new(|| Regex::new(r"\x1b]8;[^\x1b]*\x1b\\").expect("valid OSC8 escape regex"));
 
 #[derive(Clone)]
 /// Opening and closing escape sequences for a particular inline style.
@@ -129,12 +129,28 @@ pub struct Formatter<W: Write> {
     pending_links: Vec<LinkReference>,
     link_indices: HashMap<String, usize>,
     next_link_index: usize,
+    next_hyperlink_id: usize,
 }
 
 #[derive(Clone, Debug)]
 struct LinkReference {
     index: usize,
     target: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Osc8Link {
+    id: Option<String>,
+    target: String,
+}
+
+impl Osc8Link {
+    fn new(id: Option<String>, target: impl Into<String>) -> Self {
+        Self {
+            id,
+            target: target.into(),
+        }
+    }
 }
 
 impl<W: Write> Formatter<W> {
@@ -146,6 +162,7 @@ impl<W: Write> Formatter<W> {
             pending_links: Vec::new(),
             link_indices: HashMap::new(),
             next_link_index: 1,
+            next_hyperlink_id: 1,
         }
     }
 
@@ -161,6 +178,7 @@ impl<W: Write> Formatter<W> {
 
     /// Writes the entire document into the wrapped writer.
     pub fn write_document(&mut self, document: &Document) -> std::io::Result<()> {
+        self.next_hyperlink_id = 1;
         let indent = " ".repeat(self.style.left_padding);
         self.write_paragraphs(&document.paragraphs, &indent, &indent, &indent)?;
         let _ = self.flush_pending_links(&indent)?;
@@ -266,7 +284,8 @@ impl<W: Write> Formatter<W> {
             let first_prefix = format!("{}{}", prefix, label);
             let continuation_prefix = format!("{}{}", prefix, " ".repeat(label.chars().count()));
             let footnote_text = if self.style.enable_osc8_hyperlinks {
-                self.osc8_wrap(&link.target, &link.target)
+                let hyperlink = self.next_osc8_link(&link.target);
+                self.osc8_wrap(&hyperlink, &link.target)
             } else {
                 link.target.clone()
             };
@@ -766,9 +785,15 @@ impl<W: Write> Formatter<W> {
             return Ok(());
         };
 
+        let hyperlink = if self.style.enable_osc8_hyperlinks {
+            Some(self.next_osc8_link(target))
+        } else {
+            None
+        };
+
         if !span.has_content() {
-            let display = if self.style.enable_osc8_hyperlinks {
-                self.osc8_wrap(target, target)
+            let display = if let Some(link) = &hyperlink {
+                self.osc8_wrap(link, target)
             } else {
                 target.clone()
             };
@@ -777,8 +802,8 @@ impl<W: Write> Formatter<W> {
         }
 
         if Self::is_mailto_with_matching_description(span, target) {
-            if self.style.enable_osc8_hyperlinks {
-                parts.push(self.osc8_start(target));
+            if let Some(link) = &hyperlink {
+                parts.push(self.osc8_start(link));
             }
 
             if !span.text.is_empty() {
@@ -789,7 +814,7 @@ impl<W: Write> Formatter<W> {
                 self.collect_formatted_text(child, parts)?;
             }
 
-            if self.style.enable_osc8_hyperlinks {
+            if hyperlink.is_some() {
                 parts.push(self.osc8_end());
             }
 
@@ -798,8 +823,8 @@ impl<W: Write> Formatter<W> {
 
         let index = self.register_numbered_link(target);
 
-        if self.style.enable_osc8_hyperlinks {
-            parts.push(self.osc8_start(target));
+        if let Some(link) = &hyperlink {
+            parts.push(self.osc8_start(link));
         }
 
         if !span.text.is_empty() {
@@ -810,7 +835,7 @@ impl<W: Write> Formatter<W> {
             self.collect_formatted_text(child, parts)?;
         }
 
-        if self.style.enable_osc8_hyperlinks {
+        if hyperlink.is_some() {
             parts.push(self.osc8_end());
         }
 
@@ -862,6 +887,12 @@ impl<W: Write> Formatter<W> {
         }
     }
 
+    fn next_osc8_link(&mut self, target: &str) -> Osc8Link {
+        let id = self.next_hyperlink_id.to_string();
+        self.next_hyperlink_id += 1;
+        Osc8Link::new(Some(id), target.to_string())
+    }
+
     fn register_numbered_link(&mut self, target: &str) -> usize {
         if let Some(&index) = self.link_indices.get(target) {
             return index;
@@ -877,17 +908,22 @@ impl<W: Write> Formatter<W> {
         index
     }
 
-    fn osc8_start(&self, target: &str) -> String {
-        format!("\x1b]8;;{}\x1b\\", target)
+    fn osc8_start(&self, link: &Osc8Link) -> String {
+        let params = link
+            .id
+            .as_ref()
+            .map(|id| format!("id={}", id))
+            .unwrap_or_default();
+        format!("\x1b]8;{};{}\x1b\\", params, link.target)
     }
 
     fn osc8_end(&self) -> String {
         "\x1b]8;;\x1b\\".to_string()
     }
 
-    fn osc8_wrap(&self, target: &str, text: &str) -> String {
+    fn osc8_wrap(&self, link: &Osc8Link, text: &str) -> String {
         if self.style.enable_osc8_hyperlinks {
-            format!("\x1b]8;;{}\x1b\\{}\x1b]8;;\x1b\\", target, text)
+            format!("{}{}{}", self.osc8_start(link), text, self.osc8_end())
         } else {
             text.to_string()
         }
@@ -948,7 +984,7 @@ impl<W: Write> Formatter<W> {
         }
 
         let mut active_styles: Vec<InlineStyle> = Vec::new();
-        let mut active_osc_links: Vec<String> = Vec::new();
+        let mut active_osc_links: Vec<Osc8Link> = Vec::new();
 
         if has_forced_breaks {
             let lines: Vec<&str> = full_text.split('\n').collect();
@@ -1152,7 +1188,7 @@ impl<W: Write> Formatter<W> {
         initial_width: usize,
         continuation_prefix: &str,
         active_styles: &mut Vec<InlineStyle>,
-        active_osc_links: &mut Vec<String>,
+        active_osc_links: &mut Vec<Osc8Link>,
     ) -> std::io::Result<()> {
         if text.is_empty() {
             return Ok(());
@@ -1231,7 +1267,7 @@ impl<W: Write> Formatter<W> {
         &mut self,
         continuation_prefix: &str,
         active_styles: &[InlineStyle],
-        active_osc_links: &[String],
+        active_osc_links: &[Osc8Link],
     ) -> std::io::Result<()> {
         self.write_style_resets(active_styles)?;
         self.write_osc8_resets(active_osc_links)?;
@@ -1251,7 +1287,7 @@ impl<W: Write> Formatter<W> {
         Ok(())
     }
 
-    fn write_osc8_resets(&mut self, active_osc_links: &[String]) -> std::io::Result<()> {
+    fn write_osc8_resets(&mut self, active_osc_links: &[Osc8Link]) -> std::io::Result<()> {
         if self.style.enable_osc8_hyperlinks {
             for _ in active_osc_links.iter().rev() {
                 write!(self.writer, "{}", self.osc8_end())?;
@@ -1269,10 +1305,10 @@ impl<W: Write> Formatter<W> {
         Ok(())
     }
 
-    fn reapply_osc8_links(&mut self, active_osc_links: &[String]) -> std::io::Result<()> {
+    fn reapply_osc8_links(&mut self, active_osc_links: &[Osc8Link]) -> std::io::Result<()> {
         if self.style.enable_osc8_hyperlinks {
-            for target in active_osc_links {
-                write!(self.writer, "{}", self.osc8_start(target))?;
+            for link in active_osc_links {
+                write!(self.writer, "{}", self.osc8_start(link))?;
             }
         }
         Ok(())
@@ -1291,17 +1327,22 @@ impl<W: Write> Formatter<W> {
         }
     }
 
-    fn update_active_osc_links_from_text(&self, text: &str, active_osc_links: &mut Vec<String>) {
+    fn update_active_osc_links_from_text(&self, text: &str, active_osc_links: &mut Vec<Osc8Link>) {
         if !self.style.enable_osc8_hyperlinks {
             return;
         }
 
-        for capture in OSC8_TARGET_REGEX.captures_iter(text) {
-            let target = capture.get(1).map(|m| m.as_str()).unwrap_or("");
+        for capture in OSC8_SEQUENCE_REGEX.captures_iter(text) {
+            let params = capture.get(1).map(|m| m.as_str()).unwrap_or("");
+            let target = capture.get(2).map(|m| m.as_str()).unwrap_or("");
             if target.is_empty() {
                 let _ = active_osc_links.pop();
             } else {
-                active_osc_links.push(target.to_string());
+                let id = params
+                    .split(':')
+                    .find_map(|param| param.strip_prefix("id="))
+                    .map(|value| value.to_string());
+                active_osc_links.push(Osc8Link::new(id, target.to_string()));
             }
         }
     }
@@ -1486,7 +1527,7 @@ mod tests {
             .unwrap();
         let result = String::from_utf8(output).unwrap();
 
-        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains("\x1b]8;id=1;https://example.com/docs\x1b\\Docs"));
         let docs_pos = result.find("Docs").unwrap();
         let index_marker = "\x1b]8;;\x1b\\¹";
         let index_pos = result
@@ -1494,10 +1535,10 @@ mod tests {
             .expect("superscript index marker missing");
         assert!(docs_pos < index_pos);
         assert!(result.contains(
-            "\x1b]8;;https://example.com/plain\x1b\\https://example.com/plain\x1b]8;;\x1b\\"
+            "\x1b]8;id=2;https://example.com/plain\x1b\\https://example.com/plain\x1b]8;;\x1b\\"
         ));
         assert!(result.contains(
-            "¹ \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+            "¹ \x1b]8;id=3;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
         ));
         assert!(result.ends_with("\x1b[0m"));
     }
@@ -1599,15 +1640,15 @@ mod tests {
         let result = String::from_utf8(output).unwrap();
 
         let mailto_sequence =
-            "\x1b]8;;mailto:support@example.com\x1b\\support@example.com\x1b]8;;\x1b\\";
+            "\x1b]8;id=1;mailto:support@example.com\x1b\\support@example.com\x1b]8;;\x1b\\";
         assert!(
             result.contains(mailto_sequence),
             "expected OSC 8 wrapped mailto link"
         );
         assert!(!result.contains("support@example.com\x1b]8;;\x1b\\¹"));
-        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains("\x1b]8;id=2;https://example.com/docs\x1b\\Docs"));
         assert!(result.contains(
-            "¹ \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+            "¹ \x1b]8;id=3;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
         ));
         assert!(result.ends_with("\x1b[0m"));
     }
@@ -1633,10 +1674,10 @@ mod tests {
             .unwrap();
         let result = String::from_utf8(output).unwrap();
 
-        assert!(result.contains("\x1b]8;;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains("\x1b]8;id=1;https://example.com/docs\x1b\\Docs"));
         assert!(result.contains("\x1b]8;;\x1b\\[1]"));
         assert!(result.contains(
-            "[1] \x1b]8;;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
+            "[1] \x1b]8;id=3;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
         ));
     }
 
@@ -1661,11 +1702,11 @@ mod tests {
         let result = String::from_utf8(output).unwrap();
 
         assert!(
-            result.contains("\x1b]8;;https://example.com\x1b\\this"),
+            result.contains("\x1b]8;id=1;https://example.com\x1b\\this"),
             "expected OSC 8 hyperlink start before link text"
         );
         assert!(
-            result.contains("\x1b]8;;\x1b\\\n\x1b]8;;https://example.com\x1b\\"),
+            result.contains("\x1b]8;;\x1b\\\n\x1b]8;id=1;https://example.com\x1b\\"),
             "expected OSC 8 hyperlink to close before wrap newline and reopen afterwards:\n{}",
             result
         );

@@ -29,13 +29,30 @@ struct ParsedLineSegment {
     text: String,
     range: Range<usize>,
     style: AnsiStyle,
-    hyperlink: Option<String>,
+    hyperlink: Option<ParsedHyperlink>,
 }
 
 #[derive(Clone, Debug)]
 struct ParsedLine {
     segments: Vec<ParsedLineSegment>,
     plain: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ParsedHyperlink {
+    params: Option<String>,
+    id: Option<String>,
+    url: String,
+}
+
+impl ParsedHyperlink {
+    fn new(params: Option<String>, id: Option<String>, url: String) -> Self {
+        Self { params, id, url }
+    }
+
+    fn params_fragment(&self) -> &str {
+        self.params.as_deref().unwrap_or("")
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -94,7 +111,7 @@ struct AnsiStyleState {
     fg: Option<Color>,
     bg: Option<Color>,
     attributes: TextAttributes,
-    hyperlink: Option<String>,
+    hyperlink: Option<ParsedHyperlink>,
 }
 
 impl AnsiStyleState {
@@ -168,7 +185,7 @@ impl AnsiStyle {
 struct RenderChunk {
     text: String,
     style: AnsiStyle,
-    hyperlink: Option<String>,
+    hyperlink: Option<ParsedHyperlink>,
 }
 
 #[derive(Clone)]
@@ -247,15 +264,57 @@ impl Default for LinkPolicy {
     }
 }
 
-#[derive(Clone)]
-struct LinkInfo {
-    url: String,
+#[derive(Clone, Debug)]
+struct LinkSpan {
     line_idx: usize,
     start_char: usize,
     end_char: usize,
     start_col: usize,
     end_col: usize,
+}
+
+#[derive(Clone)]
+struct LinkInfo {
+    id: Option<String>,
+    url: String,
+    spans: Vec<LinkSpan>,
     activates: bool,
+}
+
+impl LinkInfo {
+    fn primary_span(&self) -> &LinkSpan {
+        &self.spans[0]
+    }
+
+    fn line_idx(&self) -> usize {
+        self.primary_span().line_idx
+    }
+
+    fn start_char(&self) -> usize {
+        self.primary_span().start_char
+    }
+
+    fn spans_on_line(&self, line_idx: usize) -> impl Iterator<Item = &LinkSpan> {
+        self.spans
+            .iter()
+            .filter(move |span| span.line_idx == line_idx)
+    }
+
+    fn contains_column(&self, line_idx: usize, column: usize) -> bool {
+        self.spans_on_line(line_idx)
+            .any(|span| column >= span.start_col && column < span.end_col.max(span.start_col + 1))
+    }
+
+    fn intersects_chars(&self, line_idx: usize, start: usize, end: usize) -> bool {
+        self.spans_on_line(line_idx)
+            .any(|span| span.start_char < end && span.end_char > start)
+    }
+
+    fn visible_in_range(&self, start_line: usize, end_line: usize) -> bool {
+        self.spans
+            .iter()
+            .any(|span| span.line_idx >= start_line && span.line_idx < end_line)
+    }
 }
 
 pub trait LinkCallback: Send + Sync {
@@ -588,20 +647,32 @@ impl PagerState {
             .and_then(|idx| self.links.get(idx).cloned());
         self.links = collect_links(content, &self.link_policy);
         if let Some(prev_link) = previous_focus {
-            self.focused_link = self.links.iter().position(|link| {
-                link.url == prev_link.url
-                    && link.line_idx == prev_link.line_idx
-                    && link.start_char == prev_link.start_char
-            });
+            self.focused_link =
+                self.links
+                    .iter()
+                    .position(|link| match (&link.id, &prev_link.id) {
+                        (Some(a), Some(b)) => a == b,
+                        _ => {
+                            link.url == prev_link.url
+                                && link.line_idx() == prev_link.line_idx()
+                                && link.start_char() == prev_link.start_char()
+                        }
+                    });
         } else {
             self.focused_link = None;
         }
         if let Some(prev_link) = previous_hover {
-            self.hovered_link = self.links.iter().position(|link| {
-                link.url == prev_link.url
-                    && link.line_idx == prev_link.line_idx
-                    && link.start_char == prev_link.start_char
-            });
+            self.hovered_link =
+                self.links
+                    .iter()
+                    .position(|link| match (&link.id, &prev_link.id) {
+                        (Some(a), Some(b)) => a == b,
+                        _ => {
+                            link.url == prev_link.url
+                                && link.line_idx() == prev_link.line_idx()
+                                && link.start_char() == prev_link.start_char()
+                        }
+                    });
         } else {
             self.hovered_link = None;
         }
@@ -620,17 +691,16 @@ impl PagerState {
     fn focused_link_visible(&self) -> bool {
         self.focused_link
             .and_then(|idx| self.links.get(idx))
-            .map(|link| self.is_line_visible(link.line_idx))
+            .map(|link| {
+                if self.viewport_height == 0 {
+                    false
+                } else {
+                    let start = self.scroll_offset;
+                    let end = start.saturating_add(self.viewport_height);
+                    link.visible_in_range(start, end)
+                }
+            })
             .unwrap_or(false)
-    }
-
-    fn is_line_visible(&self, line_idx: usize) -> bool {
-        if self.viewport_height == 0 {
-            return false;
-        }
-        let start = self.scroll_offset;
-        let end = start.saturating_add(self.viewport_height);
-        line_idx >= start && line_idx < end
     }
 
     fn first_visible_active_link(&self) -> Option<usize> {
@@ -642,7 +712,7 @@ impl PagerState {
         self.links
             .iter()
             .enumerate()
-            .find(|(_, link)| link.activates && link.line_idx >= start && link.line_idx < end)
+            .find(|(_, link)| link.activates && link.visible_in_range(start, end))
             .map(|(idx, _)| idx)
     }
 
@@ -656,7 +726,7 @@ impl PagerState {
             .iter()
             .enumerate()
             .rev()
-            .find(|(_, link)| link.activates && link.line_idx >= start && link.line_idx < end)
+            .find(|(_, link)| link.activates && link.visible_in_range(start, end))
             .map(|(idx, _)| idx)
     }
 
@@ -737,14 +807,13 @@ impl PagerState {
 
     fn ensure_link_visible(&mut self, index: usize) {
         if let Some(link) = self.links.get(index) {
-            if link.line_idx < self.scroll_offset {
-                self.scroll_offset = link.line_idx;
+            let line_idx = link.line_idx();
+            if line_idx < self.scroll_offset {
+                self.scroll_offset = line_idx;
             } else if self.viewport_height > 0
-                && link.line_idx >= self.scroll_offset + self.viewport_height
+                && line_idx >= self.scroll_offset + self.viewport_height
             {
-                let desired = link
-                    .line_idx
-                    .saturating_sub(self.viewport_height.saturating_sub(1));
+                let desired = line_idx.saturating_sub(self.viewport_height.saturating_sub(1));
                 self.scroll_offset = desired;
             }
             self.clamp_scroll();
@@ -752,11 +821,12 @@ impl PagerState {
     }
 
     fn focus_link_at(&mut self, line_idx: usize, column: usize) -> Option<usize> {
-        if let Some((idx, link)) = self.links.iter().enumerate().find(|(_, link)| {
-            link.line_idx == line_idx
-                && column >= link.start_col
-                && column < link.end_col.max(link.start_col + 1)
-        }) {
+        if let Some((idx, link)) = self
+            .links
+            .iter()
+            .enumerate()
+            .find(|(_, link)| link.contains_column(line_idx, column))
+        {
             if !link.activates {
                 return None;
             }
@@ -788,11 +858,10 @@ impl PagerState {
     }
 
     fn hover_link_at(&mut self, line_idx: usize, column: usize) -> bool {
-        let new_hover = self.links.iter().position(|link| {
-            link.line_idx == line_idx
-                && column >= link.start_col
-                && column < link.end_col.max(link.start_col + 1)
-        });
+        let new_hover = self
+            .links
+            .iter()
+            .position(|link| link.contains_column(line_idx, column));
         if new_hover != self.hovered_link {
             self.hovered_link = new_hover;
             return true;
@@ -988,10 +1057,11 @@ fn find_search_matches(query: &str, content: &[ParsedLine]) -> Vec<SearchMatch> 
 }
 
 fn collect_links(content: &[ParsedLine], policy: &LinkPolicy) -> Vec<LinkInfo> {
-    let mut links = Vec::new();
+    let mut links: Vec<LinkInfo> = Vec::new();
+    let mut links_by_id: HashMap<String, usize> = HashMap::new();
 
     for (line_idx, line) in content.iter().enumerate() {
-        let mut current: Option<LinkInfo> = None;
+        let mut current_without_id: Option<usize> = None;
         let mut char_index = 0usize;
         let mut col_index = 0usize;
 
@@ -999,47 +1069,66 @@ fn collect_links(content: &[ParsedLine], policy: &LinkPolicy) -> Vec<LinkInfo> {
             for ch in segment.text.chars() {
                 let width = UnicodeWidthChar::width(ch).unwrap_or(0);
 
-                if let Some(url) = &segment.hyperlink {
-                    let is_continuation = current
-                        .as_ref()
-                        .map(|link| {
-                            link.url == *url
-                                && link.line_idx == line_idx
-                                && link.end_char == char_index
-                        })
-                        .unwrap_or(false);
+                if let Some(hyperlink) = &segment.hyperlink {
+                    if let Some(idx) = current_without_id.take() {
+                        // Close any id-less link before switching to an id-based hyperlink.
+                        ensure_span_width(&mut links[idx]);
+                    }
 
-                    if !is_continuation {
-                        if let Some(mut link) = current.take() {
-                            if link.end_col == link.start_col {
-                                link.end_col = link.start_col + 1;
-                            }
-                            links.push(link);
-                        }
-                        current = Some(LinkInfo {
-                            url: url.clone(),
-                            line_idx,
-                            start_char: char_index,
-                            end_char: char_index,
-                            start_col: col_index,
-                            end_col: col_index,
-                            activates: policy.activates(url),
+                    if let Some(id) = &hyperlink.id {
+                        let entry = links_by_id.entry(id.clone()).or_insert_with(|| {
+                            let activates = policy.activates(&hyperlink.url);
+                            links.push(LinkInfo {
+                                id: Some(id.clone()),
+                                url: hyperlink.url.clone(),
+                                spans: Vec::new(),
+                                activates,
+                            });
+                            links.len() - 1
                         });
-                    }
+                        add_char_to_link(
+                            &mut links[*entry],
+                            line_idx,
+                            char_index,
+                            col_index,
+                            width,
+                        );
+                    } else {
+                        let continuation = current_without_id
+                            .and_then(|idx| links.get(idx))
+                            .map(|link| {
+                                link.url == hyperlink.url
+                                    && link
+                                        .spans
+                                        .last()
+                                        .map(|span| {
+                                            span.line_idx == line_idx && span.end_char == char_index
+                                        })
+                                        .unwrap_or(false)
+                            })
+                            .unwrap_or(false);
 
-                    if let Some(link) = current.as_mut() {
-                        link.end_char = char_index + 1;
-                        if width > 0 {
-                            link.end_col = col_index + width;
-                        } else if link.end_col == link.start_col {
-                            link.end_col = link.start_col + 1;
-                        }
+                        let idx = if continuation {
+                            current_without_id.unwrap()
+                        } else {
+                            if let Some(idx) = current_without_id.take() {
+                                ensure_span_width(&mut links[idx]);
+                            }
+                            let activates = policy.activates(&hyperlink.url);
+                            links.push(LinkInfo {
+                                id: None,
+                                url: hyperlink.url.clone(),
+                                spans: Vec::new(),
+                                activates,
+                            });
+                            links.len() - 1
+                        };
+
+                        add_char_to_link(&mut links[idx], line_idx, char_index, col_index, width);
+                        current_without_id = Some(idx);
                     }
-                } else if let Some(mut link) = current.take() {
-                    if link.end_col == link.start_col {
-                        link.end_col = link.start_col + 1;
-                    }
-                    links.push(link);
+                } else if let Some(idx) = current_without_id.take() {
+                    ensure_span_width(&mut links[idx]);
                 }
 
                 col_index += width;
@@ -1047,25 +1136,59 @@ fn collect_links(content: &[ParsedLine], policy: &LinkPolicy) -> Vec<LinkInfo> {
             }
 
             if segment.hyperlink.is_none() {
-                if let Some(mut link) = current.take() {
-                    if link.end_col == link.start_col {
-                        link.end_col = link.start_col + 1;
-                    }
-                    links.push(link);
+                if let Some(idx) = current_without_id.take() {
+                    ensure_span_width(&mut links[idx]);
                 }
             }
         }
 
-        if let Some(mut link) = current.take() {
-            if link.end_col == link.start_col {
-                link.end_col = link.start_col + 1;
-            }
-            link.activates = policy.activates(&link.url);
-            links.push(link);
+        if let Some(idx) = current_without_id.take() {
+            ensure_span_width(&mut links[idx]);
         }
     }
 
     links
+}
+
+fn add_char_to_link(
+    link: &mut LinkInfo,
+    line_idx: usize,
+    char_index: usize,
+    col_index: usize,
+    width: usize,
+) {
+    if let Some(span) = link.spans.last_mut() {
+        if span.line_idx == line_idx && span.end_char == char_index {
+            span.end_char = char_index + 1;
+            if width > 0 {
+                span.end_col = col_index + width;
+            } else if span.end_col == span.start_col {
+                span.end_col = span.start_col + 1;
+            }
+            return;
+        }
+    }
+
+    let end_col = if width > 0 {
+        col_index + width
+    } else {
+        col_index + 1
+    };
+    link.spans.push(LinkSpan {
+        line_idx,
+        start_char: char_index,
+        end_char: char_index + 1,
+        start_col: col_index,
+        end_col,
+    });
+}
+
+fn ensure_span_width(link: &mut LinkInfo) {
+    if let Some(span) = link.spans.last_mut() {
+        if span.end_col == span.start_col {
+            span.end_col = span.start_col + 1;
+        }
+    }
 }
 
 impl ParsedLine {
@@ -1205,7 +1328,7 @@ fn flush_segment(
     current_style: &AnsiStyle,
     segment_start: &mut usize,
     plain_len: usize,
-    hyperlink: Option<String>,
+    hyperlink: Option<ParsedHyperlink>,
 ) {
     if current_text.is_empty() {
         return;
@@ -1264,12 +1387,22 @@ fn apply_osc(content: &str, style_state: &mut AnsiStyleState) {
     if let Some(rest) = content.strip_prefix('8') {
         let rest = rest.strip_prefix(';').unwrap_or(rest);
         let mut parts = rest.splitn(2, ';');
-        let _params = parts.next();
+        let params = parts.next().unwrap_or("");
         if let Some(url) = parts.next() {
             if url.is_empty() {
                 style_state.hyperlink = None;
             } else {
-                style_state.hyperlink = Some(url.to_string());
+                let params_string = if params.is_empty() {
+                    None
+                } else {
+                    Some(params.to_string())
+                };
+                let id = params
+                    .split(':')
+                    .find_map(|part| part.strip_prefix("id="))
+                    .map(|value| value.to_string());
+                style_state.hyperlink =
+                    Some(ParsedHyperlink::new(params_string, id, url.to_string()));
             }
         }
     }
@@ -1429,20 +1562,18 @@ fn render_pager(
         queue!(stdout, MoveTo(0, row as u16), Clear(ClearType::CurrentLine))?;
         if let Some(line) = content.get(line_idx) {
             let highlights = highlight_map.get(&line_idx).cloned().unwrap_or_default();
-            let focused_link = state
-                .focused_link()
-                .filter(|link| link.line_idx == line_idx);
-            let hovered_link = state
-                .hovered_link()
-                .filter(|link| link.line_idx == line_idx);
+            let link_context = LinkRenderContext {
+                focused: state.focused_link(),
+                hovered: state.hovered_link(),
+                policy: &state.link_policy,
+            };
             render_line(
                 stdout,
                 line,
+                line_idx,
                 &highlights,
                 content_width,
-                focused_link,
-                hovered_link,
-                &state.link_policy,
+                link_context,
             )?;
         }
     }
@@ -1469,14 +1600,20 @@ fn render_pager(
     stdout.flush()
 }
 
+#[derive(Copy, Clone)]
+struct LinkRenderContext<'a> {
+    focused: Option<&'a LinkInfo>,
+    hovered: Option<&'a LinkInfo>,
+    policy: &'a LinkPolicy,
+}
+
 fn render_line(
     stdout: &mut Stdout,
     line: &ParsedLine,
+    line_idx: usize,
     highlights: &[(usize, usize, bool)],
     width: usize,
-    focused_link: Option<&LinkInfo>,
-    hovered_link: Option<&LinkInfo>,
-    link_policy: &LinkPolicy,
+    link_context: LinkRenderContext<'_>,
 ) -> io::Result<()> {
     if width == 0 {
         return Ok(());
@@ -1502,21 +1639,31 @@ fn render_line(
         let chunk_end_char = char_cursor + render_char_count;
 
         let mut style = chunk.style.clone();
-        if chunk.hyperlink.is_some() {
-            let is_focused = focused_link
-                .map(|link| link.start_char < chunk_end_char && link.end_char > chunk_start_char)
+        let hyperlink_info = chunk.hyperlink.as_ref();
+        if hyperlink_info.is_some() {
+            let is_focused = link_context
+                .focused
+                .map(|link| link.intersects_chars(line_idx, chunk_start_char, chunk_end_char))
                 .unwrap_or(false);
-            let is_hovered = hovered_link
-                .map(|link| link.start_char < chunk_end_char && link.end_char > chunk_start_char)
+            let is_hovered = link_context
+                .hovered
+                .map(|link| link.intersects_chars(line_idx, chunk_start_char, chunk_end_char))
                 .unwrap_or(false);
             style = style.with_link_style(is_focused, is_hovered && !is_focused);
         }
 
         style.apply(stdout)?;
-        if let Some(url) = &chunk.hyperlink {
-            let preserve = should_preserve_external_link(link_policy, url);
+        if let Some(hyperlink) = hyperlink_info {
+            let preserve = should_preserve_external_link(link_context.policy, &hyperlink.url);
             if preserve {
-                queue!(stdout, Print(format!("\x1b]8;;{}\x07", url)))?;
+                queue!(
+                    stdout,
+                    Print(format!(
+                        "\x1b]8;{};{}\x07",
+                        hyperlink.params_fragment(),
+                        hyperlink.url
+                    ))
+                )?;
             }
             queue!(stdout, Print(render_text.as_str()))?;
             if preserve {
