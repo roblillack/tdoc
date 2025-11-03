@@ -1746,8 +1746,7 @@ $ git log --after="2014-04-29 00:00:00" --before="2014-04-29 23:59:59" \
 <p>
   As the output will be different according to the timezone where it will be
   run, it's recommended to always use an absolute time such as ISO 8601 format
-  (which includes timezone information) as argument to <code>--after</code> and <code>--before</code>, so that everone running the command will get the same repeatable
-  results.&emsp14;
+  (which includes timezone information) as argument to <code>--after</code> and <code>--before</code>, so that everone running the command will get the same repeatable results.
 </p>
 
 <p>
@@ -13443,11 +13442,10 @@ $ irb
   a null byte:
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>header = "blob #{content.length}\0" => "blob 16\000"</p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; header = "blob #{content.length}\0"
+=&gt; "blob 16\000"
+</pre>
 
 <p>
   Git concatenates the header and the original content and then calculates the
@@ -13455,29 +13453,26 @@ $ irb
   string in Ruby by including the SHA1 digest library with the <code>require</code> command and then calling <code>Digest::SHA1.hexdigest()</code> with the string:
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>
-      store = header + content => "blob 16\000what is up, doc?" require
-      'digest/sha1' => true sha1 = Digest::SHA1.hexdigest(store) =>
-      "bd9dbf5aae1a3862dd1526723246b20206e5fc37"
-    </p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; store = header + content
+=&gt; "blob 16\000what is up, doc?"
+&gt;&gt; require 'digest/sha1'
+=&gt; true
+&gt;&gt; sha1 = Digest::SHA1.hexdigest(store)
+=&gt; "bd9dbf5aae1a3862dd1526723246b20206e5fc37"
+</pre>
 
 <p>
   Git compresses the new content with zlib, which you can do in Ruby with the
   zlib library. First, you need to require the library and then run <code>Zlib::Deflate.deflate()</code> on the content:
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>
-      require 'zlib' => true zlib_content = Zlib::Deflate.deflate(store) =>
-      "x\234K\312\311OR04c(\317H,Q\310,V(-\320QH\311O\266\a\000_\034\a\235"
-    </p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; require 'zlib'
+=&gt; true
+&gt;&gt; zlib_content = Zlib::Deflate.deflate(store)
+=&gt; "x\234K\312\311OR04c(\317H,Q\310,V(-\320QH\311O\266\a\000_\034\a\235"
+</pre>
 
 <p>
   Finally, you’ll write your zlib-deflated content to an object on disk. You’ll
@@ -13488,16 +13483,16 @@ $ irb
   with <code>File.open()</code> and write out the previously zlib-compressed content to the file with a <code>write()</code> call on the resulting file handle:
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>
-      path = '.git/objects/' + sha1[0,2] + '/' + sha1[2,38] =>
-      ".git/objects/bd/9dbf5aae1a3862dd1526723246b20206e5fc37" require
-      'fileutils' => true FileUtils.mkdir_p(File.dirname(path)) =>
-      ".git/objects/bd" File.open(path, 'w') { |f| f.write zlib_content } => 32
-    </p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; path = '.git/objects/' + sha1[0,2] + '/' + sha1[2,38]
+=&gt; ".git/objects/bd/9dbf5aae1a3862dd1526723246b20206e5fc37"
+&gt;&gt; require 'fileutils'
+=&gt; true
+&gt;&gt; FileUtils.mkdir_p(File.dirname(path))
+=&gt; ".git/objects/bd"
+&gt;&gt; File.open(path, 'w') { |f| f.write zlib_content }
+=&gt; 32
+</pre>
 
 <p>
   That’s it — you’ve created a valid Git blob object. All Git objects are

@@ -14507,11 +14507,10 @@ $ irb
   und schließlich ein Nullbyte.
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>header = "blob #{content.length}\0" => "blob 16\000"</p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; header = "blob #{content.length}\0"
+=&gt; "blob 16\000"
+</pre>
 
 <p>
   Git fügt diesen Header mit dem ursprünglichen Inhalt zusammen und kalkuliert
@@ -14519,15 +14518,14 @@ $ irb
   berechnen, indem Du die SHA1-Digest-Bibliothek mit <code>require</code> einbindest und dann <code>Digest::SHA1.hexdigest()</code> mit der Zeichenkette ausführst:
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>
-      store = header + content => "blob 16\000what is up, doc?" require
-      'digest/sha1' => true sha1 = Digest::SHA1.hexdigest(store) =>
-      "bd9dbf5aae1a3862dd1526723246b20206e5fc37"
-    </p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; store = header + content
+=&gt; "blob 16\000what is up, doc?"
+&gt;&gt; require 'digest/sha1'
+=&gt; true
+&gt;&gt; sha1 = Digest::SHA1.hexdigest(store)
+=&gt; "bd9dbf5aae1a3862dd1526723246b20206e5fc37"
+</pre>
 
 <p>
   Git komprimiert den neuen Inhalt (d.h. inklusive des Headers) mit zlib. In
@@ -14535,14 +14533,12 @@ $ irb
   die Bibliothek mit <code>require</code> einbindest und dann <code>Zlib::Deflate.deflate()</code> mit dem Inhalt aufrufst:
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>
-      require 'zlib' => true zlib_content = Zlib::Deflate.deflate(store) =>
-      "x\234K\312\311OR04c(\317H,Q\310,V(-\320QH\311O\266\a\000_\034\a\235"
-    </p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; require 'zlib'
+=&gt; true
+&gt;&gt; zlib_content = Zlib::Deflate.deflate(store)
+=&gt; "x\234K\312\311OR04c(\317H,Q\310,V(-\320QH\311O\266\a\000_\034\a\235"
+</pre>
 
 <p>
   Schließlich schreibst Du den zlib-komprimierten Inhalt in eine Datei auf der
@@ -14552,16 +14548,16 @@ $ irb
   öffnest Du die Datei mit <code>File.open()</code> und schreibst den komprimierten Inhalt mit <code>write()</code> in die Datei:
 </p>
 
-<blockquote>
-  <blockquote>
-    <p>
-      path = '.git/objects/' + sha1[0,2] + '/' + sha1[2,38] =>
-      ".git/objects/bd/9dbf5aae1a3862dd1526723246b20206e5fc37" require
-      'fileutils' => true FileUtils.mkdir_p(File.dirname(path)) =>
-      ".git/objects/bd" File.open(path, 'w') { |f| f.write zlib_content } => 32
-    </p>
-  </blockquote>
-</blockquote>
+<pre>
+&gt;&gt; path = '.git/objects/' + sha1[0,2] + '/' + sha1[2,38]
+=&gt; ".git/objects/bd/9dbf5aae1a3862dd1526723246b20206e5fc37"
+&gt;&gt; require 'fileutils'
+=&gt; true
+&gt;&gt; FileUtils.mkdir_p(File.dirname(path))
+=&gt; ".git/objects/bd"
+&gt;&gt; File.open(path, 'w') { |f| f.write zlib_content }
+=&gt; 32
+</pre>
 
 <p>
   Das ist alles – Du hast jetzt ein gültiges Blob-Objekt geschrieben.
