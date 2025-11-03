@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum, ValueHint};
 use crossterm::terminal;
 use reqwest::blocking::Client;
+use reqwest::header::USER_AGENT;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -134,6 +135,14 @@ fn create_reader(
                         .map_err(|err| format!("Unable to initialize HTTP client: {err}"))?;
                     let response = client
                         .get(value)
+                        .header(
+                            USER_AGENT,
+                            concat!(
+                                "tdoc/",
+                                env!("CARGO_PKG_VERSION"),
+                                " (https://github.com/roblillack/tdoc)"
+                            ),
+                        )
                         .send()
                         .map_err(|err| format!("Unable to fetch {value}: {err}"))?;
                     let extension = Path::new(url.path())
