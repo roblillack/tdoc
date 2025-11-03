@@ -125,6 +125,10 @@ impl Span {
             return;
         };
 
+        if !target.contains(':') {
+            return;
+        }
+
         let mut description = String::new();
         self.collect_visible_text(&mut description);
 

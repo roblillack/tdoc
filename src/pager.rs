@@ -259,11 +259,7 @@ struct LinkInfo {
 }
 
 pub trait LinkCallback: Send + Sync {
-    fn on_link(
-        &self,
-        target: &str,
-        context: &mut LinkCallbackContext<'_>,
-    ) -> Result<(), String>;
+    fn on_link(&self, target: &str, context: &mut LinkCallbackContext<'_>) -> Result<(), String>;
 }
 
 #[derive(Clone)]
@@ -889,14 +885,8 @@ impl<'a> LinkCallbackContext<'a> {
     }
 
     pub fn terminal_size(&self) -> (u16, u16) {
-        let width = self
-            .state
-            .last_terminal_width
-            .min(u16::MAX as usize) as u16;
-        let height = self
-            .state
-            .last_terminal_height
-            .min(u16::MAX as usize) as u16;
+        let width = self.state.last_terminal_width.min(u16::MAX as usize) as u16;
+        let height = self.state.last_terminal_height.min(u16::MAX as usize) as u16;
         (width, height)
     }
 
@@ -945,10 +935,7 @@ impl<'a> LinkCallbackContext<'a> {
         if self.state.last_terminal_width == 0 {
             return Ok(());
         }
-        let width = self
-            .state
-            .last_terminal_width
-            .min(u16::MAX as usize) as u16;
+        let width = self.state.last_terminal_width.min(u16::MAX as usize) as u16;
         let row = self.state.viewport_height.min(u16::MAX as usize) as u16;
         draw_status_line(self.stdout, self.state, width, row)?;
         self.stdout.flush()
@@ -958,11 +945,7 @@ impl<'a> LinkCallbackContext<'a> {
 struct DefaultLinkCallback;
 
 impl LinkCallback for DefaultLinkCallback {
-    fn on_link(
-        &self,
-        target: &str,
-        context: &mut LinkCallbackContext<'_>,
-    ) -> Result<(), String> {
+    fn on_link(&self, target: &str, context: &mut LinkCallbackContext<'_>) -> Result<(), String> {
         let target = target.to_string();
         context.request_exit();
         context.on_exit(move || {
@@ -2128,8 +2111,7 @@ fn run_interactive_pager(
 
                 let mut new_total_lines = prev_total_lines;
                 if let Some(regen) = regenerator.as_mut() {
-                    let regenerated = regen(new_width, new_height)
-                        .map_err(io::Error::other)?;
+                    let regenerated = regen(new_width, new_height).map_err(io::Error::other)?;
                     let regenerated_lines = parse_content_to_lines(&regenerated);
                     new_total_lines = regenerated_lines.len();
                     state.rebuild_search_results(&regenerated_lines, active_match_line);

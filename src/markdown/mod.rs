@@ -1,7 +1,7 @@
 //! Convert between Markdown text and FTML [`Document`](crate::Document) trees.
 
 use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
-use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag};
+use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::borrow::Cow;
 use std::io::{Read, Write};
 
@@ -23,6 +23,7 @@ pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
+    options.insert(Options::ENABLE_WIKILINKS);
 
     let parser = Parser::new_ext(&input, options);
     let mut builder = MarkdownBuilder::new();
@@ -108,13 +109,17 @@ impl MarkdownBuilder {
     fn handle_event(&mut self, event: Event<'_>) {
         match event {
             Event::Start(tag) => self.handle_start_tag(tag),
-            Event::End(tag) => self.handle_end_tag(tag),
+            Event::End(tag_end) => self.handle_end_tag(tag_end),
             Event::Text(text) => self.handle_text(text.as_ref()),
             Event::Html(html) => self.handle_html(html.as_ref()),
+            Event::InlineHtml(html) => self.handle_html(html.as_ref()),
             Event::Code(text) => self.push_code(text.as_ref()),
             Event::FootnoteReference(reference) => {
                 let marker = format!("[^{}]", reference);
                 self.push_text(&marker);
+            }
+            Event::InlineMath(math) | Event::DisplayMath(math) => {
+                self.push_text(math.as_ref());
             }
             Event::SoftBreak => self.push_soft_break(),
             Event::HardBreak => self.push_hard_break(),
@@ -128,7 +133,7 @@ impl MarkdownBuilder {
             Tag::Paragraph => {
                 self.start_paragraph(ParagraphType::Text);
             }
-            Tag::Heading(level, _, _) => {
+            Tag::Heading { level, .. } => {
                 let paragraph_type = match level {
                     HeadingLevel::H1 => ParagraphType::Header1,
                     HeadingLevel::H2 => ParagraphType::Header2,
@@ -137,7 +142,7 @@ impl MarkdownBuilder {
                 };
                 self.start_paragraph(paragraph_type);
             }
-            Tag::BlockQuote => {
+            Tag::BlockQuote(_) => {
                 self.close_open_paragraphs();
                 self.stack.push(BlockContext::Quote {
                     children: Vec::new(),
@@ -170,12 +175,14 @@ impl MarkdownBuilder {
                 self.ensure_paragraph()
                     .start_inline(Span::new_styled(InlineStyle::Strike));
             }
-            Tag::Link(_link_type, dest, _) => {
-                let span = Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
+            Tag::Link { dest_url, .. } => {
+                let span =
+                    Span::new_styled(InlineStyle::Link).with_link_target(dest_url.into_string());
                 self.ensure_paragraph().start_inline(span);
             }
-            Tag::Image(_link_type, dest, _) => {
-                let span = Span::new_styled(InlineStyle::Link).with_link_target(dest.into_string());
+            Tag::Image { dest_url, .. } => {
+                let span =
+                    Span::new_styled(InlineStyle::Link).with_link_target(dest_url.into_string());
                 self.ensure_paragraph().start_inline(span);
             }
             Tag::CodeBlock(_) => {
@@ -188,22 +195,31 @@ impl MarkdownBuilder {
             Tag::Table(_) | Tag::TableHead | Tag::TableRow | Tag::TableCell => {
                 // Tables are flattened into text paragraphs.
             }
+            Tag::HtmlBlock
+            | Tag::DefinitionList
+            | Tag::DefinitionListTitle
+            | Tag::DefinitionListDefinition
+            | Tag::Superscript
+            | Tag::Subscript
+            | Tag::MetadataBlock(_) => {
+                // Currently unsupported tags.
+            }
         }
     }
 
-    fn handle_end_tag(&mut self, tag: Tag<'_>) {
+    fn handle_end_tag(&mut self, tag: TagEnd) {
         match tag {
-            Tag::Paragraph | Tag::Heading(_, _, _) => {
+            TagEnd::Paragraph | TagEnd::Heading(_) => {
                 self.finish_paragraph();
             }
-            Tag::BlockQuote => {
+            TagEnd::BlockQuote(_) => {
                 self.close_open_paragraphs();
                 if let Some(BlockContext::Quote { children }) = self.stack.pop() {
                     let paragraph = Paragraph::new_quote().with_children(children);
                     self.add_paragraph_to_parent(paragraph);
                 }
             }
-            Tag::List(_) => {
+            TagEnd::List(_) => {
                 self.close_open_paragraphs();
                 if let Some(BlockContext::List {
                     ordered,
@@ -222,7 +238,7 @@ impl MarkdownBuilder {
                     self.add_paragraph_to_parent(paragraph);
                 }
             }
-            Tag::Item => {
+            TagEnd::Item => {
                 self.close_open_paragraphs();
                 if let Some(BlockContext::ListItem {
                     paragraphs,
@@ -245,26 +261,35 @@ impl MarkdownBuilder {
                     }
                 }
             }
-            Tag::Emphasis => {
+            TagEnd::Emphasis => {
                 self.current_paragraph_inline_end(InlineStyle::Italic);
             }
-            Tag::Strong => {
+            TagEnd::Strong => {
                 self.current_paragraph_inline_end(InlineStyle::Bold);
             }
-            Tag::Strikethrough => {
+            TagEnd::Strikethrough => {
                 self.current_paragraph_inline_end(InlineStyle::Strike);
             }
-            Tag::Link(_, _, _) | Tag::Image(_, _, _) => {
+            TagEnd::Link | TagEnd::Image => {
                 self.current_paragraph_inline_end(InlineStyle::Link);
             }
-            Tag::CodeBlock(_) => {
+            TagEnd::CodeBlock => {
                 self.finish_paragraph();
             }
-            Tag::FootnoteDefinition(_) => {
+            TagEnd::FootnoteDefinition => {
                 self.finish_paragraph();
             }
-            Tag::Table(_) | Tag::TableHead | Tag::TableRow | Tag::TableCell => {
+            TagEnd::Table | TagEnd::TableHead | TagEnd::TableRow | TagEnd::TableCell => {
                 self.close_open_paragraphs();
+            }
+            TagEnd::HtmlBlock
+            | TagEnd::DefinitionList
+            | TagEnd::DefinitionListTitle
+            | TagEnd::DefinitionListDefinition
+            | TagEnd::MetadataBlock(_)
+            | TagEnd::Superscript
+            | TagEnd::Subscript => {
+                // Currently unsupported block types; ignore closures.
             }
         }
     }
@@ -614,6 +639,11 @@ impl ParagraphContext {
         if let Some(mut span) = self.inline_stack.pop() {
             if span.style == InlineStyle::Link {
                 span.strip_redundant_link_description();
+                if let Some(target) = span.link_target.clone() {
+                    if span.is_content_empty() && !target.contains(':') {
+                        span.text = target;
+                    }
+                }
             }
             if span.style != style
                 && !(span.style == InlineStyle::Link && style == InlineStyle::Link)

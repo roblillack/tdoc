@@ -295,6 +295,40 @@ fn test_markdown_checklist_roundtrip() {
 }
 
 #[test]
+fn test_markdown_wikilink_roundtrip() {
+    let input = "[[WikiLink]]";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+
+    let expected_doc = ftml! {
+        p { link { "WikiLink" "WikiLink" } }
+    };
+
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    markdown::write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    assert_eq!(output, "[WikiLink](WikiLink)\n");
+}
+
+#[test]
+fn test_markdown_wikilink_with_label_roundtrip() {
+    let input = "[[WikiLink|Custom label]]";
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+
+    let expected_doc = ftml! {
+        p { link { "WikiLink" "Custom label" } }
+    };
+
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    markdown::write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    assert_eq!(output, "[Custom label](WikiLink)\n");
+}
+
+#[test]
 fn test_markdown_nested_unordered_lists() {
     let input = "- top level\n  - second level\n";
     let parsed = markdown::parse(Cursor::new(input)).unwrap();

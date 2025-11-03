@@ -337,8 +337,7 @@ impl pager::LinkCallback for LinkCallbackState {
             guard.origin.clone()
         };
 
-        context
-            .set_status(format!("Loading {trimmed} ..."))?;
+        context.set_status(format!("Loading {trimmed} ..."))?;
 
         match navigate_to_target(&origin, trimmed, self.input_override) {
             Ok(Some((document, new_origin))) => {
