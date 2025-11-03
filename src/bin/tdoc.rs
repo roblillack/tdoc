@@ -235,10 +235,7 @@ fn view_document(
         origin: origin.clone(),
     }));
 
-    let initial = render_document_for_terminal(
-        &document,
-        matches!(origin, ContentOrigin::Url(_)),
-    )?;
+    let initial = render_document_for_terminal(&document, matches!(origin, ContentOrigin::Url(_)))?;
     let regen_state = shared_state.clone();
     let regenerator = move |new_width: u16, _new_height: u16| -> Result<String, String> {
         let guard = regen_state
@@ -260,11 +257,14 @@ fn view_document(
         ))),
     };
 
-    let options = pager::PagerOptions {
+    let mut options = pager::PagerOptions {
         link_policy,
         link_callback,
         ..pager::PagerOptions::default()
     };
+    if matches!(origin, ContentOrigin::Url(_)) && stdout_is_tty {
+        options.force_page = true;
+    }
 
     pager::page_output_with_options_and_regenerator(&initial, Some(regenerator), options)
 }

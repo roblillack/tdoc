@@ -1586,9 +1586,9 @@ mod tests {
         let result = String::from_utf8(output).unwrap();
 
         assert!(result.contains("\x1b]8;id=1;https://example.com/docs\x1b\\Docs"));
-        assert!(result.contains(
-            "\x1b]8;id=2;https://example.com/plain\x1b\\https://example.com/plain"
-        ));
+        assert!(
+            result.contains("\x1b]8;id=2;https://example.com/plain\x1b\\https://example.com/plain")
+        );
         assert!(result.contains("Next section"));
         assert!(!result.contains("\x1b]8;;\x1b\\¹"));
         assert!(!result.contains("\n¹ "));

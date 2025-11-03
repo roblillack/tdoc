@@ -326,6 +326,7 @@ pub struct PagerOptions {
     pub enable_mouse_capture: bool,
     pub link_callback: Option<Arc<dyn LinkCallback>>,
     pub link_policy: LinkPolicy,
+    pub force_page: bool,
 }
 
 impl Default for PagerOptions {
@@ -334,6 +335,7 @@ impl Default for PagerOptions {
             enable_mouse_capture: true,
             link_callback: Some(default_link_callback()),
             link_policy: LinkPolicy::default(),
+            force_page: false,
         }
     }
 }
@@ -2135,6 +2137,7 @@ fn run_interactive_pager(
         enable_mouse_capture,
         link_callback,
         link_policy,
+        force_page: _force_page,
     } = options;
 
     enable_raw_mode()?;
@@ -2337,9 +2340,13 @@ where
     F: FnMut(u16, u16) -> Result<String, String> + 'static,
 {
     let line_count = content.lines().count();
+    let force_page = options.force_page;
+    let interactive = is_interactive_terminal();
 
-    let should_page = if !is_interactive_terminal() {
+    let should_page = if !interactive {
         false
+    } else if force_page {
+        true
     } else if let Ok((_, height)) = terminal::size() {
         let viewport_height = (height as usize).saturating_sub(3);
         line_count > viewport_height
