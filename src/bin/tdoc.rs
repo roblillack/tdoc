@@ -235,13 +235,20 @@ fn view_document(
         origin: origin.clone(),
     }));
 
-    let initial = render_document_for_terminal(&document)?;
+    let initial = render_document_for_terminal(
+        &document,
+        matches!(origin, ContentOrigin::Url(_)),
+    )?;
     let regen_state = shared_state.clone();
     let regenerator = move |new_width: u16, _new_height: u16| -> Result<String, String> {
         let guard = regen_state
             .lock()
             .map_err(|_| "Failed to access document for resize".to_string())?;
-        render_document_for_width(&guard.document, new_width as usize)
+        render_document_for_width(
+            &guard.document,
+            new_width as usize,
+            matches!(guard.origin, ContentOrigin::Url(_)),
+        )
     };
 
     let link_policy = build_link_policy(&origin);
@@ -282,10 +289,16 @@ fn configure_style_for_width(style: &mut FormattingStyle, width: usize) {
     }
 }
 
-fn render_document_for_terminal(document: &Document) -> Result<String, String> {
+fn render_document_for_terminal(
+    document: &Document,
+    disable_link_footnotes: bool,
+) -> Result<String, String> {
     let mut buf = Vec::new();
     let mut style = FormattingStyle::ansi();
     configure_style_for_terminal(&mut style);
+    if disable_link_footnotes {
+        style.link_footnotes = false;
+    }
     {
         let mut formatter = Formatter::new(&mut buf, style);
         formatter
@@ -295,10 +308,17 @@ fn render_document_for_terminal(document: &Document) -> Result<String, String> {
     String::from_utf8(buf).map_err(|err| format!("UTF-8 error: {err}"))
 }
 
-fn render_document_for_width(document: &Document, width: usize) -> Result<String, String> {
+fn render_document_for_width(
+    document: &Document,
+    width: usize,
+    disable_link_footnotes: bool,
+) -> Result<String, String> {
     let mut buf = Vec::new();
     let mut style = FormattingStyle::ansi();
     configure_style_for_width(&mut style, width);
+    if disable_link_footnotes {
+        style.link_footnotes = false;
+    }
     {
         let mut formatter = Formatter::new(&mut buf, style);
         formatter
@@ -351,7 +371,11 @@ impl pager::LinkCallback for LinkCallbackState {
         match navigate_to_target(&origin, trimmed, self.input_override) {
             Ok(Some((document, new_origin))) => {
                 let render_width = context.content_width().max(1);
-                let rendered = render_document_for_width(&document, render_width)?;
+                let rendered = render_document_for_width(
+                    &document,
+                    render_width,
+                    matches!(new_origin, ContentOrigin::Url(_)),
+                )?;
                 context.replace_content(&rendered)?;
                 context.set_link_policy(build_link_policy(&new_origin));
                 {

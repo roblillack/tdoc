@@ -56,6 +56,8 @@ pub struct FormattingStyle {
     pub enable_osc8_hyperlinks: bool,
     /// Selects the text marker style used for numbering links when hyperlinks require an inline index.
     pub link_index_format: LinkIndexFormat,
+    /// When true, numbered link references are emitted after each section.
+    pub link_footnotes: bool,
 }
 
 impl Default for FormattingStyle {
@@ -69,6 +71,7 @@ impl Default for FormattingStyle {
             left_padding: 0,
             enable_osc8_hyperlinks: false,
             link_index_format: LinkIndexFormat::default(),
+            link_footnotes: true,
         }
     }
 }
@@ -103,6 +106,7 @@ impl FormattingStyle {
             left_padding: 0,
             enable_osc8_hyperlinks: true,
             link_index_format: LinkIndexFormat::default(),
+            link_footnotes: true,
         }
     }
 }
@@ -260,6 +264,17 @@ impl<W: Write> Formatter<W> {
     }
 
     fn flush_pending_links(&mut self, prefix: &str) -> std::io::Result<bool> {
+        if !self.style.link_footnotes {
+            if !self.pending_links.is_empty() {
+                self.pending_links.clear();
+            }
+            if !self.link_indices.is_empty() {
+                self.link_indices.clear();
+            }
+            self.next_link_index = 1;
+            return Ok(false);
+        }
+
         if self.pending_links.is_empty() {
             self.link_indices.clear();
             self.next_link_index = 1;
@@ -821,7 +836,11 @@ impl<W: Write> Formatter<W> {
             return Ok(());
         }
 
-        let index = self.register_numbered_link(target);
+        let footnote_index = if self.style.link_footnotes {
+            Some(self.register_numbered_link(target))
+        } else {
+            None
+        };
 
         if let Some(link) = &hyperlink {
             parts.push(self.osc8_start(link));
@@ -839,7 +858,9 @@ impl<W: Write> Formatter<W> {
             parts.push(self.osc8_end());
         }
 
-        parts.push(self.inline_link_index(index));
+        if let Some(index) = footnote_index {
+            parts.push(self.inline_link_index(index));
+        }
         Ok(())
     }
 
@@ -1540,6 +1561,37 @@ mod tests {
         assert!(result.contains(
             "¹ \x1b]8;id=3;https://example.com/docs\x1b\\https://example.com/docs\x1b]8;;\x1b\\"
         ));
+        assert!(result.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn test_ansi_links_without_footnotes_when_disabled() {
+        let doc = doc(vec![
+            p_(vec![
+                span("Visit "),
+                link_text__("https://example.com/docs", "Docs"),
+                span(" and "),
+                link__("https://example.com/plain"),
+                span("."),
+            ]),
+            h2_("Next section"),
+        ]);
+
+        let mut output = Vec::new();
+        let mut style = FormattingStyle::ansi();
+        style.link_footnotes = false;
+        Formatter::new(&mut output, style)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        assert!(result.contains("\x1b]8;id=1;https://example.com/docs\x1b\\Docs"));
+        assert!(result.contains(
+            "\x1b]8;id=2;https://example.com/plain\x1b\\https://example.com/plain"
+        ));
+        assert!(result.contains("Next section"));
+        assert!(!result.contains("\x1b]8;;\x1b\\¹"));
+        assert!(!result.contains("\n¹ "));
         assert!(result.ends_with("\x1b[0m"));
     }
 
