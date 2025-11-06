@@ -1,6 +1,6 @@
 ---
 source: tests/html_import.rs
 expression: rendered
-extension: ftml
+extension: md
 snapshot_kind: binary
 ---
