@@ -692,8 +692,7 @@
     <p>
       <a href="https://man.openbsd.org/relayd.8">relayd(8)</a> with <a href="https://man.openbsd.org/relayctl.8">relayctl(8)</a>: Started by Pierre-Yves Ritschard and Reyk Flöter. Imported December 16,
       2006 and first released with OpenBSD 4.1. Now maintained by Sebastian
-      Benoit.<br />
-      
+      Benoit.
     </p>
   </li>
 

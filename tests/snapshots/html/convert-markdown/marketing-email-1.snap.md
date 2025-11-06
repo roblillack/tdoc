@@ -1,12 +1,8 @@
 Save up to 30% and experience holiday magic at Example Example Example Example          
 
-
-
 **SAVE UP TO 30% OFF TICKETS TO THE _CHRISTMAS SPECTACULAR_!\***
 
-\*Valid on select seats &amp; performances.\
-\
-
+\*Valid on select seats &amp; performances.
 
 It’s almost showtime! The **_Christmas Spectacular Starring the Example Example
 Example_** opens next week, and now's your chance to experience the timeless
@@ -17,17 +13,11 @@ making it the perfect season to see the **_Christmas Spectacular_** at
 **_Example Example Example Example_**.\
 \
 Unwrap our special offer and receive up to 30%\* off your tickets with code:\
-**EXAMPLE123**\
+**EXAMPLE123**
 
+Upon arrival to Example.com, hit the 🔒 button and enter the code: **EXAMPLE123**
 
-
-
-Upon arrival to Example.com, hit the 🔒 button and enter the code:
-**EXAMPLE123**\
-
-
-**EXPERIENCE EVEN MORE SPECTACULAR**\
-
+**EXPERIENCE EVEN MORE SPECTACULAR**
 
 Add a little extra sparkle to your showtime with one of our exclusive experience
 packages.
@@ -49,15 +39,9 @@ reserved.\
 \
 Trademarks used with permission of Example Example Example, LLC.
 
-
-
 If you do not want to receive any more newsletters, to unsubscribe [click
 here](https://www.example.com/gd.cfm?email=john@example.com)
 
-
-
 Example Media\
 123 Example Street, 123rd Floor \#1234\
-Example City, EX 12345\
-\
-
+Example City, EX 12345

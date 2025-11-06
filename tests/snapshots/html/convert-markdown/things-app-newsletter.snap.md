@@ -1,14 +1,9 @@
-
-
  
 
 Hi there,\
 \
 Things has been updated with support for macOS Sonoma, iOS 17, and watchOS 10.
-The update also includes a variety of **great improvements for widgets**.\
-
-
-
+The update also includes a variety of **great improvements for widgets**.
 
 The widgets are now interactive, which means you can complete to\-dos right from
 the Home Screen on your iPhone or iPad. You can also place widgets on your
@@ -39,8 +34,7 @@ _– The Things Team_
 
  
 
-**We’re hiring!**\
-
+**We’re hiring!**
 
 👩🏻‍💻🧑🏽‍💻👨🏿‍💻 There’s a lot of exciting work ahead and we have an open position
 for a _Cloud Platform Engineer_. If that sounds like you, or someone you know,

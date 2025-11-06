@@ -12,8 +12,6 @@ Plan realistically with your to\-dos and events all in one place.
 [Display in your
 browser](https://todoist.doist-emails.com/en/emails/todoist/cms/TDMonthly1024)
 
-
-
 The Todoist Monthly
 
 All that’s new in the Todoist\-verse – October 2024
@@ -31,10 +29,6 @@ got going on. This’ll help you make realistic plans and avoid overcommitting
 yourself \(music to all our _adulting_ ears, right?\).
 
 Let    Francesca show you how to start syncing:
-
-
-
-
 
 How it works
 
@@ -89,8 +83,6 @@ Todoist.
 See you next month! 👋
 
 Productively,
-
-
 
 [Inspiration
 Hub](https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)

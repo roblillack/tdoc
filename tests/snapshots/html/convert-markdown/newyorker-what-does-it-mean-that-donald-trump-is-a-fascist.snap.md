@@ -1,12 +1,8 @@
 [Skip to main content](#main-content)
 
-
-
 [Search](/search)
 
 Open Navigation Menu
-
-
 
 [Dispatches](/magazine/dispatches)
 
@@ -20,11 +16,6 @@ By [Timothy Snyder](/contributors/timothy-snyder)
 
 November 8, 2024
 
-- 
-- 
-- 
-- 
-- 
 
 Photograph by Mark Peterson / Redux
 
@@ -129,8 +120,6 @@ effect](https://www.theguardian.com/commentisfree/2024/oct/27/polling-has-turned
 By displacing policy differences and reducing politics to two faces or two
 colors, polls reinforce the notion that Trump belonged where he was, and that
 politics was just a matter of us or them.
-
-
 
 “Only real New Yorkers take the sewer system.”
 
@@ -290,39 +279,27 @@ More:[Election 2024](/tag/election-2024)
 
 Read More
 
-
-
 Open Questions
 
 Do They Really Believe That Stuff?
-
-
 
 According to a new book, America’s political derangement has psychological
 roots.
 
 By Joshua Rothman
 
-
-
 Comment
 
 Standing Up to Trump
-
-
 
 Jeff Bezos endorsed a Trump\-era slogan—“Democracy Dies in Darkness”—for his
 newspaper, the Washington _Post_. Why wouldn’t he let it endorse a candidate?
 
 By David Remnick
 
-
-
 The Political Scene
 
 Trump’s Final Days on the Campaign Trail
-
-
 
 Under assault from all sides, in the last weeks of his campaign, the former
 President speaks often of enemies from within, including those trying to take
@@ -330,91 +307,63 @@ his life.
 
 By Antonia Hitchens
 
-
-
 Dispatches
 
 A Fourth\-Rate Entertainer, a Third\-Rate Businessman, and a Two\-Time President
-
-
 
 The 2024 election, like the one in 2016, had the same nutty and vapid Donald
 Trump, the same retrograde gender politics, and the same result.
 
 By Lorrie Moore
 
-
-
 The Weekend Essay
 
 Ukraine’s Waiting Game
-
-
 
 In and around Kyiv, war has become part of daily life, even as the public grows
 weary of its costs.
 
 By Keith Gessen
 
-
-
 Dispatch
 
 Donald Trump’s West Palm Beach Victory Celebration
-
-
 
 Surrounded by an ever\-expanding cast of MAGA characters, the perpetual
 candidate becomes President\-elect again.
 
 By Antonia Hitchens
 
-
-
 The Lede
 
 Donald Trump’s Revenge
-
-
 
 The former President will return to the White House older, less inhibited, and
 far more dangerous than ever before.
 
 By Susan B. Glasser
 
-
-
 Dispatches
 
 How America Embraced Gender War
-
-
 
 Both Trump’s and Harris’s campaigns framed the Presidential election as a
 contest between men and women. Did the results prove them right?
 
 By Jia Tolentino
 
-
-
 Letter from Biden’s Washington
 
 Garbage Time at the 2024 Finish Line
-
-
 
 Nine years in, Trump is in reach of another term as the technocrats struggle to
 contain him.
 
 By Susan B. Glasser
 
-
-
 The Lede
 
 Kamala Harris Makes Her Closing Argument at the Ellipse
-
-
 
 At a rally whose location evoked January 6th, Harris sounded the alarm about
 Trump’s authoritarian tendencies but refused to linger in the national shame
@@ -422,34 +371,24 @@ spiral that has formed around him.
 
 By Katy Waldman
 
-
-
 Podcast Dept.
 
 The Mystery of Three Hundred Bodies in the Woods
-
-
 
 The podcast “Noble,” about severe malpractice at a Georgia crematorium, shows
 that even the most shocking of horror stories can be sensitively told.
 
 By Sarah Larson
 
-
-
 Dispatches
 
 Democrats Tried to Counter Donald Trump’s Viciousness Toward Women with
 Condescension
 
-
-
 The Harris campaign felt the need to remind women voters that they can vote for
 whomever they want. Women understood this. The campaign failed to.
 
 By Jill Lepore
-
-
 
 © 2024 Condé Nast. All rights reserved. _The New Yorker_ may earn a portion of
 sales from products that are purchased through our site as part of our Affiliate
@@ -457,8 +396,3 @@ Partnerships with retailers. The material on this site may not be reproduced,
 distributed, transmitted, cached or otherwise used, except with the prior
 written permission of Condé Nast. [Ad Choices](http://www.aboutads.info)
 
-- 
-- 
-- 
-- 
-- 

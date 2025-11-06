@@ -381,8 +381,7 @@ in detail in our [research papers](events.html).
 - [relayd\(8\)](https://man.openbsd.org/relayd.8) with
   [relayctl\(8\)](https://man.openbsd.org/relayctl.8): Started by Pierre\-Yves
   Ritschard and Reyk Flöter. Imported December 16, 2006 and first released with
-  OpenBSD 4.1. Now maintained by Sebastian Benoit.\
-  
+  OpenBSD 4.1. Now maintained by Sebastian Benoit.
 - [cwm\(1\)](https://man.openbsd.org/cwm.1): Started by [Marius Aamodt
   Eriksen](https://monkey.org/~marius/cwm/README) in 2004. Imported April 27,
   2007 and first released with OpenBSD 4.2. Now maintained by Okan Demirmen.

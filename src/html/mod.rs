@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
     ) -> Result<(), HtmlError> {
         let node = self.down(para_type)?;
 
-        let (content, extra_token, closed) = if para_type == ParagraphType::CodeBlock {
+        let (mut content, extra_token, closed) = if para_type == ParagraphType::CodeBlock {
             let (text, token, closed) =
                 self.read_preformatted_content(end_tag.as_deref(), start_text)?;
             let spans = if text.is_empty() {
@@ -165,6 +165,10 @@ impl<'a> Parser<'a> {
         } else {
             self.read_content(end_tag.as_deref(), start_text)?
         };
+
+        if para_type != ParagraphType::CodeBlock {
+            trim_trailing_line_breaks(&mut content);
+        }
 
         if para_type == ParagraphType::Quote && has_meaningful_content(&content) {
             let text_para = self.down(ParagraphType::Text)?;
@@ -188,9 +192,6 @@ impl<'a> Parser<'a> {
                 && borrowed.children.is_empty()
                 && borrowed.entries.is_empty();
             empty
-                && end_tag
-                    .as_deref()
-                    .is_some_and(is_transparent_container_element)
         } else {
             false
         };
@@ -205,6 +206,10 @@ impl<'a> Parser<'a> {
 
         if closed && !para_type.is_leaf() {
             self.up(para_type)?;
+        }
+
+        if should_remove_empty {
+            self.remove_leaf(&node);
         }
 
         Ok(())
@@ -759,6 +764,7 @@ impl ParagraphBuilder {
                         content.extend(child.content.into_iter());
                     }
 
+                    trim_trailing_line_breaks(&mut content);
                     trim_trailing_inline_whitespace(&mut content);
 
                     item.content = content;
@@ -982,8 +988,44 @@ fn is_line_break_element(tag: &str) -> bool {
     tag == LINE_BREAK_ELEMENT_NAME
 }
 
-fn is_transparent_container_element(tag: &str) -> bool {
-    matches!(tag, "div")
+fn trim_trailing_line_breaks(spans: &mut Vec<Span>) {
+    trim_trailing_line_breaks_impl(spans);
+}
+
+fn trim_trailing_line_breaks_impl(spans: &mut Vec<Span>) -> bool {
+    let mut trimmed_any = false;
+
+    while let Some(last) = spans.last_mut() {
+        let mut trimmed = false;
+
+        if !last.children.is_empty() {
+            trimmed |= trim_trailing_line_breaks_impl(&mut last.children);
+        }
+
+        while last.text.ends_with('\n') {
+            last.text.pop();
+            trimmed = true;
+        }
+
+        if last.is_content_empty() {
+            if last.link_target.is_none() {
+                spans.pop();
+                trimmed_any = true;
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        if trimmed {
+            trimmed_any = true;
+            continue;
+        }
+
+        break;
+    }
+
+    trimmed_any
 }
 
 fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
@@ -1019,10 +1061,7 @@ mod tests {
         let input = "<p><a href=\"https://example.com\"></a></p>";
         let document = parse(Cursor::new(input)).unwrap();
 
-        assert_eq!(document.paragraphs.len(), 1);
-        let paragraph = &document.paragraphs[0];
-        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
-        assert!(paragraph.content.is_empty());
+        assert!(document.paragraphs.is_empty());
     }
 
     #[test]
@@ -1068,6 +1107,30 @@ mod tests {
         assert_eq!(span.style, InlineStyle::None);
         assert!(span.link_target.is_none());
         assert_eq!(span.text, "Anchor label");
+    }
+
+    #[test]
+    fn trims_trailing_line_breaks_from_text_paragraphs() {
+        let input = "<p>Hello<br></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
+        assert_eq!(paragraph.content.len(), 1);
+        assert_eq!(paragraph.content[0].text, "Hello");
+    }
+
+    #[test]
+    fn drops_empty_paragraphs_created_by_line_breaks() {
+        let input = "<p><br></p><p>World</p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
+        assert_eq!(paragraph.content.len(), 1);
+        assert_eq!(paragraph.content[0].text, "World");
     }
 
     #[test]

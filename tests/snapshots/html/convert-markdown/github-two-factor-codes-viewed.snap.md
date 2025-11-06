@@ -1,7 +1,5 @@
 Hey GITHUBUSERNAME!
 
-
-
 Your two\-factor authentication recovery codes were viewed on June 26, 2024 at
 08:28 UTC.
 

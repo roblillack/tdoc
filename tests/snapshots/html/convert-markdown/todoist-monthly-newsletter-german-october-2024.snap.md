@@ -12,8 +12,6 @@ Mache realistische Pläne mit deinen Aufgaben und Terminen an einem Ort.
 [Im Browser
 anzeigen](https://todoist.doist-emails.com/de/emails/todoist/cms/TDMonthly1024)
 
-
-
 Die Todoist\-Monatsübersicht
 
 Das Neueste aus dem Todoist\-Versum – Oktober 2024
@@ -28,13 +26,9 @@ Deine To\-dos und Termine an einem Ort
 Jetzt kannst du deine Todoist\-Aufgaben neben deinen Zahnarztterminen,
 Vorstandssitzungen, Spieleabenden und allen anderen geplanten Aktivitäten sehen.
 So kannst du realistische Pläne erstellen und vermeiden, dass du zu vielen
-Verpflichtungen eingehst.__
+Verpflichtungen eingehst.
 
   Francesca zeigt dir, wie du mit der Synchronisierung beginnst:
-
-
-
-
 
 So funktioniert’s
 
@@ -95,8 +89,6 @@ weiter verbessern.
 Bis nächsten Monat! 👋
 
 Mit produktiven Grüßen
-
-
 
 [Inspiration
 Hub](https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
