@@ -947,7 +947,8 @@ impl Parser {
         let mut span = Span::new_styled(style);
         if style == InlineStyle::Link {
             if let Some(target) = start_tag.attributes.get("href") {
-                span = span.with_link_target(target.clone());
+                let decoded = self.decode_entities(target);
+                span = span.with_link_target(decoded);
             }
         }
 
@@ -1295,5 +1296,32 @@ mod tests {
         );
         assert!(link_span.children.is_empty());
         assert!(link_span.text.is_empty());
+    }
+
+    #[test]
+    fn test_link_href_decodes_entities() {
+        let input = "<p><a href=\"https://example.com/path?foo=1&amp;bar=2\">Example</a></p>";
+        let doc = parse(Cursor::new(input)).unwrap();
+
+        let paragraph = &doc.paragraphs[0];
+        let link_span = &paragraph.content[0];
+        assert_eq!(
+            link_span.link_target.as_deref(),
+            Some("https://example.com/path?foo=1&bar=2")
+        );
+    }
+
+    #[test]
+    fn test_space_before_link_is_preserved() {
+        let input = "<p>Zugriff auf <a href=\"https://example.com\">Dienste</a></p>";
+        let doc = parse(Cursor::new(input)).unwrap();
+
+        let paragraph = &doc.paragraphs[0];
+        assert_eq!(paragraph.content.len(), 2);
+        assert_eq!(paragraph.content[0].text, "Zugriff auf ");
+        assert_eq!(
+            paragraph.content[1].link_target.as_deref(),
+            Some("https://example.com")
+        );
     }
 }

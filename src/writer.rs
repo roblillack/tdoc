@@ -637,6 +637,23 @@ mod tests {
     }
 
     #[test]
+    fn test_link_attribute_escaping() {
+        let link_span = Span::new_styled(InlineStyle::Link)
+            .with_link_target("https://example.com/?foo=1&bar=2")
+            .with_children(vec![Span::new_text("Example")]);
+        let paragraph = Paragraph::new_text().with_content(vec![link_span]);
+        let doc = Document::new().with_paragraphs(vec![paragraph]);
+
+        let writer = Writer::new();
+        let result = writer.write_to_string(&doc).unwrap();
+
+        assert!(
+            result.contains("href=\"https://example.com/?foo=1&amp;bar=2\""),
+            "unexpected writer output: {result}"
+        );
+    }
+
+    #[test]
     fn test_header() {
         let paragraph = Paragraph::new_header1().with_content(vec![Span::new_text("Header")]);
         let doc = Document::new().with_paragraphs(vec![paragraph]);

@@ -57,10 +57,6 @@ pub fn should_skip_roundtrip(path: &Path) -> bool {
             // Same nested-list flattening problem as test_full_doc.ftml.
             true
         }
-        Some("gmail-updated-tos.snap.ftml") => {
-            // Google account chooser links acquire a double-escaped `&amp;`, so the roundtripped URL no longer matches.
-            true
-        }
         Some("lite-cnn-com.snap.ftml") => {
             // Markdown collapses the double-spaced separators around the footer pipes, altering the inline text.
             true
@@ -73,12 +69,8 @@ pub fn should_skip_roundtrip(path: &Path) -> bool {
             // The footer contains nested anchors; Markdown export/import unwraps them differently, changing the span structure.
             true
         }
-        Some("todoist-monthly-newsletter-english-october-2024.snap.ftml") => {
-            // Calendar settings link picks up double-escaped query parameters, so the target URL differs after the loop.
-            true
-        }
         Some("todoist-monthly-newsletter-german-october-2024.snap.ftml") => {
-            // Loses the leading figure-space in one paragraph and double-escapes the calendar link query parameters.
+            // Loses the leading figure-space in one paragraph during FTML rendering, so the structure no longer matches.
             true
         }
         _ => false,
