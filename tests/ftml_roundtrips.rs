@@ -47,20 +47,6 @@ pub fn load_ftml_document(path: &Path) -> Option<tdoc::Document> {
     }
 }
 
-pub fn should_skip_roundtrip(path: &Path) -> bool {
-    match path.file_name().and_then(|name| name.to_str()) {
-        Some("lite-cnn-com.snap.ftml") => {
-            // Markdown collapses the double-spaced separators around the footer pipes, altering the inline text.
-            true
-        }
-        Some("todoist-monthly-newsletter-german-october-2024.snap.ftml") => {
-            // Loses the leading figure-space in one paragraph during FTML rendering, so the structure no longer matches.
-            true
-        }
-        _ => false,
-    }
-}
-
 pub fn render_ftml(document: &tdoc::Document) -> String {
     let mut buffer = Vec::new();
     tdoc::write(&mut buffer, document)
@@ -81,14 +67,6 @@ fn ftml_roundtrips_ftml_documents() {
         let Some(expected) = load_ftml_document(&ftml_path) else {
             continue;
         };
-
-        if should_skip_roundtrip(&ftml_path) {
-            eprintln!(
-                "Skipping strict FTML round-trip assertion for {} due to known fidelity limitations.",
-                ftml_path.display()
-            );
-            continue;
-        }
 
         let rendered_ftml = render_ftml(&expected);
         let roundtripped = parse(Cursor::new(rendered_ftml.as_bytes())).unwrap_or_else(|err| {

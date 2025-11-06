@@ -1091,43 +1091,138 @@ impl Parser {
     ) -> Vec<Span> {
         // Trim leading whitespace (unless we need to preserve it due to entities)
         if !preserve_leading {
-            while let Some(first) = spans.first_mut() {
-                if first.style == InlineStyle::None && first.children.is_empty() {
-                    let trimmed = first.text.trim_start();
-                    if trimmed.is_empty() {
+            loop {
+                let action = match spans.first() {
+                    Some(first)
+                        if first.style == InlineStyle::None && first.children.is_empty() =>
+                    {
+                        let start_idx = trim_start_index_preserving_entities(&first.text);
+                        if start_idx == 0 {
+                            None
+                        } else if start_idx >= first.text.len() {
+                            Some(TrimLeadingAction::RemoveSpan)
+                        } else {
+                            Some(TrimLeadingAction::UpdateText(
+                                first.text[start_idx..].to_string(),
+                            ))
+                        }
+                    }
+                    _ => None,
+                };
+
+                match action {
+                    Some(TrimLeadingAction::RemoveSpan) => {
                         spans.remove(0);
-                    } else if trimmed != first.text {
-                        first.text = trimmed.to_string();
-                        break;
-                    } else {
+                        continue;
+                    }
+                    Some(TrimLeadingAction::UpdateText(new_text)) => {
+                        if let Some(first) = spans.first_mut() {
+                            first.text = new_text;
+                        }
                         break;
                     }
-                } else {
-                    break;
+                    None => break,
                 }
             }
         }
 
         // Trim trailing whitespace (unless we need to preserve it due to entities)
         if !preserve_trailing {
-            while let Some(last) = spans.last_mut() {
-                if last.style == InlineStyle::None && last.children.is_empty() {
-                    let trimmed = last.text.trim_end();
-                    if trimmed.is_empty() {
+            loop {
+                let action = match spans.last() {
+                    Some(last) if last.style == InlineStyle::None && last.children.is_empty() => {
+                        let end_idx = trim_end_index_preserving_entities(&last.text);
+                        if end_idx == last.text.len() {
+                            None
+                        } else if end_idx == 0 {
+                            Some(TrimTrailingAction::RemoveSpan)
+                        } else {
+                            Some(TrimTrailingAction::Truncate(end_idx))
+                        }
+                    }
+                    _ => None,
+                };
+
+                match action {
+                    Some(TrimTrailingAction::RemoveSpan) => {
                         spans.pop();
-                    } else if trimmed != last.text {
-                        last.text = trimmed.to_string();
-                        break;
-                    } else {
+                        continue;
+                    }
+                    Some(TrimTrailingAction::Truncate(end_idx)) => {
+                        if let Some(last) = spans.last_mut() {
+                            last.text.truncate(end_idx);
+                        }
                         break;
                     }
-                } else {
-                    break;
+                    None => break,
                 }
             }
         }
 
         spans
+    }
+}
+
+enum TrimLeadingAction {
+    RemoveSpan,
+    UpdateText(String),
+}
+
+enum TrimTrailingAction {
+    RemoveSpan,
+    Truncate(usize),
+}
+
+const FIGURE_SPACE: char = '\u{2005}';
+const NON_BREAKING_SPACE: char = '\u{00A0}';
+
+fn is_preserved_entity_space(ch: char) -> bool {
+    matches!(ch, FIGURE_SPACE | NON_BREAKING_SPACE)
+}
+
+fn trim_start_index_preserving_entities(text: &str) -> usize {
+    let mut candidate = 0;
+    let mut saw_trimmed_whitespace = false;
+
+    for (idx, ch) in text.char_indices() {
+        if is_preserved_entity_space(ch) {
+            return idx;
+        }
+        if ch.is_whitespace() {
+            candidate = idx + ch.len_utf8();
+            saw_trimmed_whitespace = true;
+            continue;
+        }
+        return idx;
+    }
+
+    if saw_trimmed_whitespace {
+        candidate
+    } else {
+        0
+    }
+}
+
+fn trim_end_index_preserving_entities(text: &str) -> usize {
+    let mut end = text.len();
+    let mut saw_trimmed_whitespace = false;
+
+    for (idx, ch) in text.char_indices().rev() {
+        if is_preserved_entity_space(ch) {
+            return end;
+        }
+        if ch.is_whitespace() {
+            end = idx;
+            saw_trimmed_whitespace = true;
+            continue;
+        }
+        return end;
+    }
+
+    if saw_trimmed_whitespace {
+        end
+    } else {
+        text.len()
     }
 }
 
@@ -1140,15 +1235,15 @@ fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
             break;
         }
 
-        let trimmed = last.text.trim_end();
-        if trimmed.len() == last.text.len() {
+        let end_idx = trim_end_index_preserving_entities(&last.text);
+        if end_idx == last.text.len() {
             break;
         }
 
-        if trimmed.is_empty() {
+        if end_idx == 0 {
             spans.pop();
         } else {
-            last.text = trimmed.to_string();
+            last.text.truncate(end_idx);
             break;
         }
     }
@@ -1212,6 +1307,8 @@ pub fn parse<R: Read>(mut reader: R) -> Result<Document, ParseError> {
 
 #[cfg(test)]
 mod tests {
+    use crate::ftml;
+
     use super::*;
     use std::io::Cursor;
 
@@ -1257,6 +1354,80 @@ mod tests {
         assert_eq!(doc.paragraphs[0].content[0].text, "A");
         assert_eq!(doc.paragraphs[0].content[1].text, "\n");
         assert_eq!(doc.paragraphs[0].content[2].text, "B");
+    }
+
+    #[test]
+    fn test_whitespace_handling() {
+        fn doc(s: &str) -> Document {
+            parse(Cursor::new(s)).unwrap()
+        }
+        assert_eq!(
+            doc("<p> Hier kommt ein Test! </p>"),
+            ftml! { p { "Hier kommt ein Test!" } }
+        );
+
+        assert_eq!(doc("<p> A   B </p>"), ftml! { p { "A B" } });
+
+        assert_eq!(doc("<p> A&emsp14;&emsp14;B </p>"), ftml! { p { "A  B" } });
+    }
+
+    #[test]
+    fn test_space_at_start_end() {
+        fn doc(s: &str) -> Document {
+            parse(Cursor::new(s)).unwrap()
+        }
+        assert_eq!(
+            doc("<p>&emsp14;Start with space</p>"),
+            ftml! { p { " Start with space" } }
+        );
+
+        assert_eq!(
+            doc("<p>End with space&emsp14;</p>"),
+            ftml! { p { "End with space " } }
+        );
+
+        assert_eq!(
+            doc("<p>&emsp14;Surrounded by space&emsp14;</p>"),
+            ftml! { p { " Surrounded by space " } }
+        );
+    }
+
+    #[test]
+    fn test_extra_space_at_start_end() {
+        fn doc(s: &str) -> Document {
+            parse(Cursor::new(s)).unwrap()
+        }
+        assert_eq!(
+            doc("<p> &emsp14;Start with space </p>"),
+            ftml! { p { " Start with space" } }
+        );
+
+        assert_eq!(
+            doc("<p> End with space&emsp14; </p>"),
+            ftml! { p { "End with space " } }
+        );
+
+        assert_eq!(
+            doc("<p> &emsp14;Surrounded by space&emsp14; </p>"),
+            ftml! { p { " Surrounded by space " } }
+        );
+    }
+
+    #[test]
+    fn test_footer_links() {
+        assert_eq!(
+            parse(Cursor::new("<p>\n  <a href=\"https://www.cnn.com/terms\">Terms of Use </a> |  <a href=\"https://www.cnn.com/privacy\">Privacy Policy </a> |  <a href=\"https://www.cnn.com/ad-choices\">Ad Choices </a> |  Cookie Settings&emsp14;\n</p>")).unwrap(),
+            ftml! {
+                p {
+                    link { "https://www.cnn.com/terms" "Terms of Use " }
+                    " | ",
+                    link { "https://www.cnn.com/privacy" "Privacy Policy " }
+                    " | ",
+                    link { "https://www.cnn.com/ad-choices" "Ad Choices " }
+                    " | Cookie Settings "
+                }
+            }
+        );
     }
 
     #[test]
@@ -1322,6 +1493,17 @@ mod tests {
         assert_eq!(
             paragraph.content[1].link_target.as_deref(),
             Some("https://example.com")
+        );
+    }
+
+    #[test]
+    fn test_whitespace_edge_in_span() {
+        fn doc(s: &str) -> Document {
+            parse(Cursor::new(s)).unwrap()
+        }
+        assert_eq!(
+            doc("<p><a href=\"yadayada\">Hier kommt ein Test! </a></p>\n"),
+            ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } },
         );
     }
 }

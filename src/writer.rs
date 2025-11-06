@@ -589,7 +589,7 @@ pub fn write<W: Write>(writer: &mut W, document: &Document) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Document, InlineStyle, Paragraph, Span};
+    use crate::{ftml, Document, InlineStyle, Paragraph, Span};
 
     #[test]
     fn test_simple_paragraph() {
@@ -673,5 +673,47 @@ mod tests {
         let result = writer.write_to_string(&doc).unwrap();
 
         assert_eq!(result, "<p>&emsp14;test&emsp14;</p>\n");
+    }
+
+    #[test]
+    fn test_whitespace_edge_in_span() {
+        fn w(doc: Document) -> String {
+            let writer = Writer::new();
+            writer.write_to_string(&doc).unwrap()
+        }
+        assert_eq!(
+            w(ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } }),
+            "<p><a href=\"yadayada\">Hier kommt ein Test! </a></p>\n",
+        );
+    }
+
+    #[test]
+    fn test_whitespace_handling() {
+        fn w(doc: Document) -> String {
+            let writer = Writer::new();
+            writer.write_to_string(&doc).unwrap()
+        }
+        assert_eq!(
+            w(ftml! { p { "Hier kommt ein Test!" } }),
+            "<p>Hier kommt ein Test!</p>\n",
+        );
+
+        assert_eq!(w(ftml! { p { "A B" } }), "<p>A B</p>\n");
+
+        assert_eq!(w(ftml! { p { "A  B" } }), "<p>A&emsp14;&emsp14;B</p>\n");
+
+        assert_eq!(
+            w(ftml! {
+                p {
+                    link { "https://www.cnn.com/terms" "Terms of Use " }
+                    " | ",
+                    link { "https://www.cnn.com/privacy" "Privacy Policy " }
+                    " | ",
+                    link { "https://www.cnn.com/ad-choices" "Ad Choices " }
+                    " | Cookie Settings "
+                }
+            }),
+            "<p>\n  <a href=\"https://www.cnn.com/terms\">Terms of Use </a> | <a href=\"https://www.cnn.com/privacy\">Privacy Policy </a> | <a href=\"https://www.cnn.com/ad-choices\">Ad Choices </a> | Cookie Settings&emsp14;\n</p>\n"
+        );
     }
 }

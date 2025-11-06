@@ -1309,7 +1309,7 @@ impl<'a> LineState<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::*;
+    use crate::{ftml, test_helpers::*};
     use std::io::Cursor;
 
     #[test]
@@ -1562,5 +1562,32 @@ mod tests {
 
         let reparsed = parse(Cursor::new(markdown.as_slice())).unwrap();
         assert_eq!(reparsed, doc);
+    }
+
+    #[test]
+    fn test_whitespace_edge_in_span() {
+        fn r(s: &str) -> Document {
+            parse(Cursor::new(s)).unwrap()
+        }
+        fn w(d: Document) -> String {
+            let mut output = Vec::new();
+            write(&mut output, &d).unwrap();
+            String::from_utf8(output).unwrap()
+        }
+        assert_eq!(
+            w(ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } }),
+            "[Hier kommt ein Test!&emsp14;](yadayada)\n",
+        );
+
+        assert_eq!(
+            r("[Hier kommt ein Test!&emsp14;](yadayada)\n"),
+            ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } },
+        );
+
+        // with newline
+        assert_eq!(
+            r("[Hier kommt ein Test!\n](yadayada)\n"),
+            ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } },
+        );
     }
 }
