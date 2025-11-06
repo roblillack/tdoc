@@ -213,7 +213,7 @@ fn test_markdown_soft_break_collapses() {
 fn test_markdown_hard_break_preserved() {
     let input = "Hello  \nworld\n";
     let parsed = markdown::parse(Cursor::new(input)).unwrap();
-    let expected = ftml! { p { "Hello\nworld" } };
+    let expected = ftml! { p { "Hello" "\n" "world" } };
     assert_eq!(parsed, expected);
 }
 

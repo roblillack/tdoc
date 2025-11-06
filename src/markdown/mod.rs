@@ -679,6 +679,8 @@ impl ParagraphContext {
             && b.link_target.is_none()
             && a.children.is_empty()
             && b.children.is_empty()
+            && !a.text.contains('\n')
+            && !b.text.contains('\n')
     }
 
     fn finish(mut self) -> Paragraph {
