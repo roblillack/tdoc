@@ -53,10 +53,6 @@ pub fn should_skip_roundtrip(path: &Path) -> bool {
             // Markdown collapses the double-spaced separators around the footer pipes, altering the inline text.
             true
         }
-        Some("todoist-daily-update-mail.snap.ftml") => {
-            // The footer contains nested anchors; Markdown export/import unwraps them differently, changing the span structure.
-            true
-        }
         Some("todoist-monthly-newsletter-german-october-2024.snap.ftml") => {
             // Loses the leading figure-space in one paragraph during FTML rendering, so the structure no longer matches.
             true

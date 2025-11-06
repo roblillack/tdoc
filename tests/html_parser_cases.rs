@@ -1,5 +1,6 @@
 use std::io::Cursor;
 
+use tdoc::ftml;
 use tdoc::html;
 use tdoc::test_helpers::*;
 use tdoc::writer::Writer;
@@ -412,4 +413,89 @@ fn parsing_error_resilience() {
     for input in inputs {
         parse(input);
     }
+}
+
+#[test]
+fn parse_complex_formatting_with_styles() {
+    let input = r#"<p
+                style="
+                  font-size: 13px;
+                  line-height: 17.29px;
+                  margin: 0;
+                  font-family: Helvetica;
+                  font-style: normal;
+                  font-weight: 400;
+                  letter-spacing: 0.26px;
+                  color: #726c65;
+                  text-align: center;
+                  margin-bottom: 16px;
+                "
+              >
+                <a
+                  class="underlineOnHover"
+                  href="https://example.example/TRACKINGLINK/"
+                  style="
+                    color: #726c65;
+                    text-decoration: underline;
+                    font-family: Helvetica;
+                    font-size: 13px;
+                    font-style: normal;
+                    font-weight: 400;
+                    line-height: 17.29px;
+                    letter-spacing: 0.26px;
+                  "
+                  target="_blank"
+                  >Inspiration Hub</a
+                >&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a
+                  class="underlineOnHover"
+                  href="https://example.example/TRACKINGLINK/"
+                  style="
+                    color: #726c65;
+                    text-decoration: underline;
+                    font-family: Helvetica;
+                    font-size: 13px;
+                    font-style: normal;
+                    font-weight: 400;
+                    line-height: 17.29px;
+                    letter-spacing: 0.26px;
+                  "
+                  target="_blank"
+                  >Apps herunterladen</a
+                >&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a
+                  class="underlineOnHover"
+                  href="https://example.example/TRACKINGLINK/"
+                  style="
+                    color: #726c65;
+                    text-decoration: underline;
+                    font-family: Helvetica;
+                    font-size: 13px;
+                    font-style: normal;
+                    font-weight: 400;
+                    line-height: 17.29px;
+                    letter-spacing: 0.26px;
+                  "
+                  target="_blank"
+                  >Help Center</a
+                >
+              </p>"#;
+
+    assert_eq!(
+        parse(input),
+        ftml!(p {
+            link {
+                "https://example.example/TRACKINGLINK/",
+                "Inspiration Hub"
+            }
+            "\u{a0}\u{a0}\u{a0}|\u{a0}\u{a0}\u{a0}"
+            link {
+                "https://example.example/TRACKINGLINK/",
+                "Apps herunterladen"
+            }
+            "\u{a0}\u{a0}\u{a0}|\u{a0}\u{a0}\u{a0}"
+            link {
+                "https://example.example/TRACKINGLINK/",
+                "Help Center"
+            }
+        })
+    );
 }

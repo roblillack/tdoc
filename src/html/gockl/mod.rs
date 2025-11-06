@@ -334,7 +334,23 @@ impl EndElementToken {
         if self.raw.len() <= 2 {
             ""
         } else {
-            &self.raw[2..self.raw.len().saturating_sub(1)]
+            let raw_end = if self.raw.ends_with('>') {
+                self.raw.len().saturating_sub(1)
+            } else {
+                self.raw.len()
+            };
+
+            if raw_end <= 2 {
+                ""
+            } else {
+                let body = &self.raw[2..raw_end];
+                let trimmed = body.trim();
+                if trimmed.is_empty() {
+                    ""
+                } else {
+                    trimmed
+                }
+            }
         }
     }
 }

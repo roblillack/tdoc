@@ -10,7 +10,7 @@ Starte gelassen und mit einem Gefühl von Kontrolle in den Tag.
 ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
 ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
 
-Im Browser anzeigen  ¹
+Im Browser anzeigen¹
 
 Tagesbericht
 
@@ -22,7 +22,9 @@ My Todo
 
 171 überfällige Aufgaben
 
-Todoist öffnen        Deine Produktivitätsziele     ²
+Todoist öffnen²
+
+Deine Produktivitätsziele
 
 Ziel von gestern
 
@@ -53,7 +55,7 @@ Todoist-Tipp des Tages
 [Android] Todoist unterstützt eine Schnelleinstellungs-Kachel für
 „Aufgabe hinzufügen“.
 
-So funktioniert das Einrichten      ¹
+So funktioniert das Einrichten¹
 
 Team-Aufgaben managen leicht gemacht
 
@@ -61,13 +63,16 @@ Vergiss deine komplexe Teamarbeits-Software.
 Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen
 sind.
 
-Vereinfache deine Teamarbeit  ¹
+Vereinfache deine Teamarbeit¹
 
 
 
-Inspiration Hub   |   Apps herunterladen   |   Help Center ¹ ¹
-Abbestellen ¹ ¹ © Doist Inc. 2100 Geng Road, Suite 210 Palo Alto, CA
-94303 Vereinigte Staaten
+Inspiration Hub¹   |   Apps herunterladen¹   |   Help Center¹
+
+Abbestellen¹
+
+© Doist Inc. 2100 Geng Road, Suite 210 Palo Alto, CA 94303 Vereinigte
+Staaten
 
 ¹ https://example.example/TRACKINGLINK/
 ² https://app.todoist.com/app/today
