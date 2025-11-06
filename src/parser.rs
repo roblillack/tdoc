@@ -374,6 +374,7 @@ impl Parser {
             )?;
         }
 
+        normalize_entity_whitespace(&mut document);
         Ok(document)
     }
 
@@ -571,7 +572,7 @@ impl Parser {
         parent_is_checklist: bool,
     ) -> Result<(Vec<Paragraph>, Option<Token>, bool), ParseError> {
         let mut paragraphs = Vec::new();
-        let mut breadcrumbs: Vec<Paragraph> = Vec::new();
+        let mut breadcrumbs: Vec<(Paragraph, usize)> = Vec::new();
         let mut inline_spans: Vec<Span> = Vec::new();
         let mut checklist_state: Option<bool> = None;
 
@@ -583,22 +584,22 @@ impl Parser {
                 }
                 Token::EndTag(ref tag_name) => {
                     if let Some(&paragraph_type) = self.wrapper_elements.get(tag_name) {
-                        if let Some(paragraph) = breadcrumbs.last() {
+                        if let Some((paragraph, _)) = breadcrumbs.last() {
                             if paragraph.paragraph_type.matches_closing_tag(paragraph_type) {
-                                let paragraph = breadcrumbs.pop().unwrap();
+                                let (mut paragraph, start_len) = breadcrumbs.pop().unwrap();
                                 if !paragraph_type.is_leaf() {
-                                    let mut paragraph_with_children = paragraph;
-                                    paragraph_with_children.children.append(&mut paragraphs);
-                                    paragraphs.push(paragraph_with_children);
-                                } else {
-                                    paragraphs.push(paragraph);
+                                    let children = paragraphs.split_off(start_len);
+                                    if !children.is_empty() {
+                                        paragraph.children.extend(children);
+                                    }
                                 }
+                                paragraphs.push(paragraph);
                                 continue;
                             }
                         }
 
                         Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
-                        paragraphs.extend(breadcrumbs);
+                        Self::finalize_list_breadcrumbs(&mut breadcrumbs, &mut paragraphs);
                         let is_checklist_item = checklist_state.is_some();
                         let result_paragraphs = if let Some(checked) = checklist_state {
                             Self::convert_to_checklist_item(paragraphs, checked)
@@ -618,7 +619,7 @@ impl Parser {
                     let tag_name = tag.name.clone();
                     if tag_name == "li" {
                         Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
-                        if let Some(parent) = breadcrumbs.last_mut() {
+                        if let Some((parent, _)) = breadcrumbs.last_mut() {
                             if parent.paragraph_type == ParagraphType::UnorderedList
                                 || parent.paragraph_type == ParagraphType::OrderedList
                                 || parent.paragraph_type == ParagraphType::Checklist
@@ -634,7 +635,10 @@ impl Parser {
                                 parent.add_list_item(list_content);
 
                                 if let Some(token) = remaining_token {
-                                    paragraphs.extend(breadcrumbs);
+                                    Self::finalize_list_breadcrumbs(
+                                        &mut breadcrumbs,
+                                        &mut paragraphs,
+                                    );
                                     let is_checklist_item = checklist_state.is_some();
                                     let result_paragraphs = if let Some(checked) = checklist_state {
                                         Self::convert_to_checklist_item(paragraphs, checked)
@@ -661,7 +665,7 @@ impl Parser {
                             paragraph = paragraph.with_content(content);
                             paragraphs.push(paragraph);
                         } else {
-                            breadcrumbs.push(paragraph);
+                            breadcrumbs.push((paragraph, paragraphs.len()));
                         }
                     } else {
                         return Err(ParseError::NonInlineToken(tag_name));
@@ -703,7 +707,7 @@ impl Parser {
         }
 
         Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
-        paragraphs.extend(breadcrumbs);
+        Self::finalize_list_breadcrumbs(&mut breadcrumbs, &mut paragraphs);
 
         let is_checklist_item = checklist_state.is_some();
         if let Some(checked) = checklist_state {
@@ -743,6 +747,19 @@ impl Parser {
 
         item.content = content;
         vec![item]
+    }
+
+    fn finalize_list_breadcrumbs(
+        breadcrumbs: &mut Vec<(Paragraph, usize)>,
+        paragraphs: &mut Vec<Paragraph>,
+    ) {
+        while let Some((mut paragraph, start_len)) = breadcrumbs.pop() {
+            let children = paragraphs.split_off(start_len);
+            if !children.is_empty() {
+                paragraph.children.extend(children);
+            }
+            paragraphs.push(paragraph);
+        }
     }
 
     fn read_code_block_content(
@@ -1010,7 +1027,13 @@ impl Parser {
     }
 
     fn collapse_whitespace(&self, s: &str, first: bool, last: bool) -> String {
-        let mut result = s.to_string();
+        const FIGURE_SPACE_PLACEHOLDER: char = '\u{E000}';
+        const NBSP_PLACEHOLDER: char = '\u{E001}';
+        const FIGURE_SPACE_PLACEHOLDER_STR: &str = "\u{E000}";
+        const NBSP_PLACEHOLDER_STR: &str = "\u{E001}";
+
+        let mut result = s.replace('\u{2005}', FIGURE_SPACE_PLACEHOLDER_STR);
+        result = result.replace('\u{00A0}', NBSP_PLACEHOLDER_STR);
 
         if first {
             result = result.trim_start().to_string();
@@ -1019,15 +1042,30 @@ impl Parser {
             result = result.trim_end().to_string();
         }
 
-        self.space_regex.replace_all(&result, " ").to_string()
+        let result = self.space_regex.replace_all(&result, " ").to_string();
+
+        result
+            .replace(FIGURE_SPACE_PLACEHOLDER, "\u{2005}")
+            .replace(NBSP_PLACEHOLDER, "\u{00A0}")
     }
 
     fn normalize_span_whitespace(&self, s: &str) -> String {
         // Only normalize if the text contains newlines (indicating HTML formatting whitespace)
         if s.contains('\n') {
+            const FIGURE_SPACE_PLACEHOLDER: char = '\u{E000}';
+            const NBSP_PLACEHOLDER: char = '\u{E001}';
+            const FIGURE_SPACE_PLACEHOLDER_STR: &str = "\u{E000}";
+            const NBSP_PLACEHOLDER_STR: &str = "\u{E001}";
+
+            let mut masked = s.replace('\u{2005}', FIGURE_SPACE_PLACEHOLDER_STR);
+            masked = masked.replace('\u{00A0}', NBSP_PLACEHOLDER_STR);
+
             // Collapse all whitespace (including newlines) to single spaces and trim
-            let collapsed = self.space_regex.replace_all(s, " ");
-            collapsed.trim().to_string()
+            let collapsed = self.space_regex.replace_all(&masked, " ");
+            collapsed
+                .trim()
+                .replace(FIGURE_SPACE_PLACEHOLDER, "\u{2005}")
+                .replace(NBSP_PLACEHOLDER, "\u{00A0}")
         } else {
             // If no newlines, preserve the text as-is (including intentional spaces)
             s.to_string()
@@ -1035,13 +1073,13 @@ impl Parser {
     }
 
     fn decode_entities(&self, s: &str) -> String {
-        s.replace("&emsp14;", " ")
+        s.replace("&emsp14;", "\u{2005}")
+            .replace("&nbsp;", "\u{00A0}")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&amp;", "&")
             .replace("&quot;", "\"")
             .replace("&apos;", "'")
-            .replace("&nbsp;", " ")
     }
 
     fn trim_whitespace_with_entities(
@@ -1111,6 +1149,42 @@ fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
         } else {
             last.text = trimmed.to_string();
             break;
+        }
+    }
+}
+
+fn normalize_entity_whitespace(document: &mut Document) {
+    for paragraph in &mut document.paragraphs {
+        normalize_paragraph_spaces(paragraph);
+    }
+}
+
+fn normalize_paragraph_spaces(paragraph: &mut Paragraph) {
+    normalize_spans_spaces(&mut paragraph.content);
+
+    for child in &mut paragraph.children {
+        normalize_paragraph_spaces(child);
+    }
+
+    for entry in &mut paragraph.entries {
+        for item in entry {
+            normalize_paragraph_spaces(item);
+        }
+    }
+}
+
+fn normalize_spans_spaces(spans: &mut [Span]) {
+    for span in spans {
+        if !span.text.is_empty() {
+            span.text = span
+                .text
+                .replace('\u{E000}', " ")
+                .replace('\u{E001}', "\u{00A0}")
+                .replace('\u{2005}', " ");
+        }
+
+        if !span.children.is_empty() {
+            normalize_spans_spaces(&mut span.children);
         }
     }
 }

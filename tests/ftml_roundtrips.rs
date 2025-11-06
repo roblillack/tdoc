@@ -52,7 +52,6 @@ pub fn should_skip_roundtrip(path: &Path) -> bool {
         path.file_name().and_then(|name| name.to_str()),
         Some(
             "test_full_doc.ftml"
-                | "test_nested_quote_in_list.ftml"
                 | "testdocument.ftml"
                 | "gmail-updated-tos.snap.ftml"
                 | "lite-cnn-com.snap.ftml"

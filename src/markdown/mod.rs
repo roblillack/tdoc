@@ -593,7 +593,8 @@ impl ParagraphContext {
         if text.is_empty() {
             return;
         }
-        let span = Span::new_text(text);
+        let normalized = text.replace('\u{2005}', " ");
+        let span = Span::new_text(normalized);
         self.push_span(span);
     }
 
@@ -856,8 +857,9 @@ fn write_spans<W: Write>(
     spans: &[Span],
     state: &mut LineState<'_>,
 ) -> std::io::Result<()> {
-    for span in spans {
-        write_span(writer, span, state)?;
+    for (idx, span) in spans.iter().enumerate() {
+        let has_more = idx + 1 < spans.len();
+        write_span(writer, span, state, has_more)?;
     }
     Ok(())
 }
@@ -866,13 +868,14 @@ fn write_span<W: Write>(
     writer: &mut W,
     span: &Span,
     state: &mut LineState<'_>,
+    has_more_siblings: bool,
 ) -> std::io::Result<()> {
     match span.style {
         InlineStyle::Link => {
             if let Some(target) = &span.link_target {
                 if span.has_content() {
                     state.write_chunk(writer, "[")?;
-                    write_span_content(writer, span, state)?;
+                    write_span_content(writer, span, state, has_more_siblings)?;
                     let closing = format!("]({})", escape_link_destination(target));
                     state.write_chunk(writer, &closing)?;
                 } else {
@@ -881,7 +884,7 @@ fn write_span<W: Write>(
                 }
                 Ok(())
             } else {
-                write_span_content(writer, span, state)
+                write_span_content(writer, span, state, has_more_siblings)
             }
         }
         InlineStyle::Code => write_code_span(writer, span, state),
@@ -890,7 +893,7 @@ fn write_span<W: Write>(
             if !begin_tag.is_empty() {
                 state.write_chunk(writer, begin_tag)?;
             }
-            write_span_content(writer, span, state)?;
+            write_span_content(writer, span, state, has_more_siblings)?;
             if !end_tag.is_empty() {
                 state.write_chunk(writer, end_tag)?;
             }
@@ -903,13 +906,15 @@ fn write_span_content<W: Write>(
     writer: &mut W,
     span: &Span,
     state: &mut LineState<'_>,
+    has_more_siblings: bool,
 ) -> std::io::Result<()> {
     if !span.text.is_empty() {
-        write_plain_text(writer, &span.text, state)?;
+        write_plain_text(writer, &span.text, has_more_siblings || !span.children.is_empty(), state)?;
     }
 
-    for child in &span.children {
-        write_span(writer, child, state)?;
+    for (idx, child) in span.children.iter().enumerate() {
+        let child_has_more = idx + 1 < span.children.len() || has_more_siblings;
+        write_span(writer, child, state, child_has_more)?;
     }
 
     Ok(())
@@ -1010,6 +1015,7 @@ fn wrap_single_line(line: &str, first_prefix: &str, continuation_prefix: &str) -
 fn write_plain_text<W: Write>(
     writer: &mut W,
     text: &str,
+    has_more_content: bool,
     state: &mut LineState<'_>,
 ) -> std::io::Result<()> {
     if text.is_empty() {
@@ -1021,7 +1027,7 @@ fn write_plain_text<W: Write>(
         if ch == '\n' {
             let chunk = &text[start..idx];
             if !chunk.is_empty() {
-                let escaped = escape_markdown_text(chunk);
+                let escaped = escape_markdown_text(chunk, state.is_at_line_start(), false);
                 state.write_chunk(writer, escaped.as_str())?;
             }
             state.write_chunk(writer, "\\")?;
@@ -1033,7 +1039,8 @@ fn write_plain_text<W: Write>(
     if start < text.len() {
         let chunk = &text[start..];
         if !chunk.is_empty() {
-            let escaped = escape_markdown_text(chunk);
+            let is_final_chunk = !has_more_content;
+            let escaped = escape_markdown_text(chunk, state.is_at_line_start(), is_final_chunk);
             state.write_chunk(writer, escaped.as_str())?;
         }
     }
@@ -1053,35 +1060,40 @@ fn inline_tags(style: InlineStyle) -> (&'static str, &'static str) {
     }
 }
 
-fn escape_markdown_text(text: &str) -> String {
-    fn needs_escape(ch: char) -> bool {
-        matches!(
-            ch,
-            '\\' | '`'
-                | '*'
-                | '_'
-                | '{'
-                | '}'
-                | '['
-                | ']'
-                | '('
-                | ')'
-                | '#'
-                | '+'
-                | '-'
-                | '|'
-                | '~'
-        ) || ch == '<'
-            || ch == '>'
-            || ch == '&'
+fn escape_markdown_text(text: &str, line_start: bool, is_final_chunk: bool) -> String {
+    if text.is_empty() {
+        return String::new();
     }
 
-    if !text.chars().any(needs_escape) {
-        return text.to_string();
-    }
-
+    let chars: Vec<char> = text.chars().collect();
     let mut escaped = String::with_capacity(text.len());
-    for ch in text.chars() {
+    let mut idx = 0;
+    let mut at_line_start = line_start;
+
+    while idx < chars.len() {
+        let ch = chars[idx];
+        if ch == ' ' {
+            let mut run_end = idx;
+            while run_end < chars.len() && chars[run_end] == ' ' {
+                run_end += 1;
+            }
+            let run_len = run_end - idx;
+            let is_leading = at_line_start;
+            let is_trailing = run_end == chars.len();
+            let encode_trailing = is_trailing && is_final_chunk;
+
+            if run_len > 1 || is_leading || encode_trailing {
+                for _ in 0..run_len {
+                    escaped.push_str("&emsp14;");
+                }
+            } else {
+                escaped.push(' ');
+            }
+            idx = run_end;
+            at_line_start = false;
+            continue;
+        }
+
         match ch {
             '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '(' | ')' | '#' | '+' | '-' | '|'
             | '~' => {
@@ -1091,9 +1103,15 @@ fn escape_markdown_text(text: &str) -> String {
             '<' => escaped.push_str("&lt;"),
             '>' => escaped.push_str("&gt;"),
             '&' => escaped.push_str("&amp;"),
+            '\u{2005}' => escaped.push_str("&emsp14;"),
+            '\u{00A0}' => escaped.push_str("&nbsp;"),
             _ => escaped.push(ch),
         }
+
+        idx += 1;
+        at_line_start = false;
     }
+
     escaped
 }
 
@@ -1228,6 +1246,10 @@ impl<'a> LineState<'a> {
             self.at_line_start = false;
         }
         Ok(())
+    }
+
+    fn is_at_line_start(&self) -> bool {
+        self.at_line_start
     }
 
     fn handle_newline<W: Write>(&mut self, writer: &mut W) -> std::io::Result<()> {

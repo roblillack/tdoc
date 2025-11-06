@@ -68,10 +68,10 @@ FTML supports nesting of paragraphs, so this is entirely possible:
 > paragraphs.
 > 
 > - This is a paragraph inside of a quoted paragraph
-> - > This bullet points contains another quote:
->   > 
-> - > You can never have enough nesting of paragraphs.\
->   >    —Robert Lillack
+> - This bullet points contains another quote:
+>   
+>   > You can never have enough nesting of paragraphs.\
+>   > &emsp14;&emsp14;&emsp14;—Robert Lillack
 > - 1. One
 > - 2. …
 > - 3. …
@@ -97,7 +97,7 @@ First line\
 Second line.
 
 This is a line with multiple spaces:\
-A   B
+A&emsp14;&emsp14;&emsp14;B
 
 > This is a paragraph that contains a very long line of <mark>highlighted text
 > to force the formatter to break\

@@ -74,12 +74,12 @@ fn test_ftml_to_markdown_snapshots() {
 
         if matches!(
             file_name,
-            "test_full_doc.ftml" | "test_nested_quote_in_list.ftml" | "testdocument.ftml"
+            "test_full_doc.ftml" | "testdocument.ftml"
         ) {
             let snapshot_name = format!("{}.md", base_name);
             insta::assert_binary_snapshot!(snapshot_name.as_str(), markdown_output);
             eprintln!(
-                "Skipping canonical round-trip assertions for {} due to known nested quote limitations.",
+                "Skipping canonical round-trip assertions for {} due to known fidelity limitations.",
                 file_name
             );
             continue;

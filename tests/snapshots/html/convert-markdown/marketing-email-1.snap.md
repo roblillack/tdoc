@@ -1,12 +1,13 @@
-Save up to 30% and experience holiday magic at Example Example Example Example          
+Save up to 30% and experience holiday magic at Example Example Example Example
+&nbsp;    &emsp14;
 
-**SAVE UP TO 30% OFF TICKETS TO THE _CHRISTMAS SPECTACULAR_!\***
+**SAVE UP TO 30% OFF TICKETS TO THE _CHRISTMAS&nbsp;SPECTACULAR_!\***
 
 \*Valid on select seats &amp; performances.
 
-It’s almost showtime! The **_Christmas Spectacular Starring the Example Example
-Example_** opens next week, and now's your chance to experience the timeless
-celebration of dance, precision, and holiday magic.\
+It’s almost showtime! The **_Christmas&nbsp;Spectacular&nbsp;Starring the
+Example&nbsp;Example Example_** opens next week, and now's your chance to
+experience the timeless celebration of dance, precision, and holiday magic.\
 \
 This year is extra special as the Examples celebrate their 100th anniversary —
 making it the perfect season to see the **_Christmas Spectacular_** at
@@ -22,7 +23,7 @@ Upon arrival to Example.com, hit the 🔒 button and enter the code: **EXAMPLE12
 Add a little extra sparkle to your showtime with one of our exclusive experience
 packages.
 
- 
+&emsp14;
 
 \*8 ticket limit per transaction and 14 ticket limit per purchaser over the
 entire 2025 Christmas Spectacular season. Valid on select seats and

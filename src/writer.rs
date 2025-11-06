@@ -494,7 +494,8 @@ impl Writer {
     }
 
     fn encode_entities(&self, text: &str, first: bool, last: bool) -> String {
-        let mut result = text.to_string();
+        let mut result = text.replace('\u{2005}', "&emsp14;");
+        result = result.replace('\u{00A0}', "&nbsp;");
 
         // Handle spaces at start/end and multiple spaces
         if first {

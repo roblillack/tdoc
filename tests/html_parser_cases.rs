@@ -4,6 +4,7 @@ use tdoc::html;
 use tdoc::test_helpers::*;
 use tdoc::writer::Writer;
 use tdoc::Document;
+use tdoc::ParagraphType;
 use tdoc::Span;
 
 fn parse(input: &str) -> Document {
@@ -68,6 +69,44 @@ fn parsing_simple_paragraphs() {
             );
         }
     }
+}
+
+#[test]
+fn parsing_nested_quote_inside_list_preserves_structure() {
+    let input = "<blockquote>
+  <ul>
+    <li>
+      <p>This bullet points contains another quote:</p>
+      <blockquote>
+        <p>
+          You can never have enough nesting of paragraphs.<br />
+          &emsp14;&emsp14;&emsp14;—Robert Lillack
+        </p>
+      </blockquote>
+    </li>
+  </ul>
+</blockquote>";
+    let document = parse(input);
+    assert_eq!(document.paragraphs.len(), 1);
+    let outer_quote = &document.paragraphs[0];
+    assert_eq!(outer_quote.paragraph_type, ParagraphType::Quote);
+    assert_eq!(outer_quote.children.len(), 1);
+
+    let list = &outer_quote.children[0];
+    assert_eq!(list.paragraph_type, ParagraphType::UnorderedList);
+    assert_eq!(list.entries.len(), 1);
+
+    let entry = &list.entries[0];
+    assert_eq!(entry.len(), 2);
+    assert_eq!(entry[0].paragraph_type, ParagraphType::Text);
+    assert_eq!(entry[1].paragraph_type, ParagraphType::Quote);
+
+    let nested_quote = &entry[1];
+    assert_eq!(nested_quote.children.len(), 1);
+    assert_eq!(
+        nested_quote.children[0].paragraph_type,
+        ParagraphType::Text
+    );
 }
 
 #[test]

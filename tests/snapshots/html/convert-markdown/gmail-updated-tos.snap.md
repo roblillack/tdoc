@@ -72,28 +72,28 @@ Außerdem haben wir die Änderungen am Ende dieser E‑Mail zusammengefasst.
 Google\-Nutzungsbedingungen.](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fupdate%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
 Die Änderungen haben wir im Folgenden für Sie zusammengefasst:
 
-- **Bedingungen für generative KI**. Wir verschieben unsere bisherigen
-  [Zusatzbedingungen für generative
-  KI](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fgenerative-ai%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
+- **Bedingungen für generative&nbsp;KI**.&nbsp;Wir verschieben unsere bisherigen
+  [Zusatzbedingungen für
+  generative&nbsp;KI](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fgenerative-ai%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
   in unsere allgemeinen Nutzungsbedingungen und fügen weitere Erläuterungen in
   Zusammenhang mit künstlicher Intelligenz hinzu. So erheben wir beispielsweise
   keinen Anspruch auf Eigentumsrechte an Originalinhalten, die mit unseren
   KI\-basierten oder KI\-gestützten Diensten erstellt wurden.
-- **Weitere Informationen zu missbräuchlichen Aktivitäten**. Hier stellen wir
-  weitere Beispiele und Informationen zur Verfügung, die aufzeigen, welche Arten
-  von Missbrauch und Beeinträchtigung unserer Dienste nicht erlaubt ist.
-- **Weitere Informationen zu den Haftungsbeschränkungen**. Für Nutzer außerhalb
-  der USA ergänzen wir unsere Abschnitte zur Haftungsbeschränkung und
+- **Weitere Informationen zu missbräuchlichen Aktivitäten**.&nbsp;Hier stellen
+  wir weitere Beispiele und Informationen zur Verfügung, die aufzeigen, welche
+  Arten von Missbrauch und Beeinträchtigung unserer Dienste nicht erlaubt ist.
+- **Weitere Informationen zu den Haftungsbeschränkungen**.&nbsp;Für Nutzer
+  außerhalb der USA ergänzen wir unsere Abschnitte zur Haftungsbeschränkung und
   Haftungsfreistellung, um Missverständnisse in Bezug auf lokale Gesetze oder
   Gepflogenheiten zu vermeiden.
-- **Mehr Informationen zu Streitigkeiten**. Wir stellen klar, dass unsere
+- **Mehr Informationen zu Streitigkeiten**.&nbsp;Wir stellen klar, dass unsere
   Rechtsbehelfe bei einem Verstoß gegen unsere Nutzungsbedingungen nicht auf die
   Sperrung oder Beendigung Ihres Zugriffs auf die Dienste beschränkt sind,
   sondern auch andere Rechtsbehelfe gemäß anwendbarem Recht umfassen können.
   Sollte es in Bezug auf diese Nutzungsbedingungen zu Problemen oder
   Streitigkeiten zwischen uns kommen, haben Sie die Möglichkeit, die Probleme zu
   erläutern und auf sie einzugehen.
-- **Aktualisierungen zur Funktionsweise unserer Dienste**. Wir ergänzen
+- **Aktualisierungen zur Funktionsweise unserer Dienste**.&nbsp;Wir ergänzen
   Informationen zur Funktionsweise unserer Dienste und aktualisieren die
   Markennamen einiger Google\-Dienste, die sich im Lauf der Zeit geändert haben.
 - **Nur für Nutzer im Europäischen Wirtschaftsraum \(EWR\)**:
@@ -114,7 +114,8 @@ löschen](https://accounts.google.com/AccountChooser?Email=max%40example.example
 
 Vielen Dank, dass Sie Google\-Dienste nutzen.
 
-© 2024 Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4, Ireland. 
+© 2024 Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4,
+Ireland.&emsp14;
 
 Mit dieser E\-Mail informieren wir Sie über wichtige Änderungen an den
 Nutzungsbedingungen von Google.
