@@ -49,14 +49,6 @@ pub fn load_ftml_document(path: &Path) -> Option<tdoc::Document> {
 
 pub fn should_skip_roundtrip(path: &Path) -> bool {
     match path.file_name().and_then(|name| name.to_str()) {
-        Some("test_full_doc.ftml") => {
-            // Markdown re-import flattens the deeply nested list embedded in the quote, losing nine items.
-            true
-        }
-        Some("testdocument.ftml") => {
-            // Same nested-list flattening problem as test_full_doc.ftml.
-            true
-        }
         Some("lite-cnn-com.snap.ftml") => {
             // Markdown collapses the double-spaced separators around the footer pipes, altering the inline text.
             true

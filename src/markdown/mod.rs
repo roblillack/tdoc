@@ -430,7 +430,7 @@ impl MarkdownBuilder {
 
     fn push_hard_break(&mut self) {
         let paragraph = self.ensure_paragraph();
-        paragraph.push_text("\n");
+        paragraph.push_hard_break();
     }
 
     fn push_task_marker(&mut self, checked: bool) {
@@ -618,6 +618,25 @@ impl ParagraphContext {
         target.push(Span::new_text(" "));
     }
 
+    fn push_hard_break(&mut self) {
+        let inline_active = !self.inline_stack.is_empty();
+        let target = self.span_target_mut();
+
+        if inline_active {
+            if let Some(last) = target.last_mut() {
+                if last.style == InlineStyle::None
+                    && last.link_target.is_none()
+                    && last.children.is_empty()
+                {
+                    last.text.push('\n');
+                    return;
+                }
+            }
+        }
+
+        target.push(Span::new_text("\n"));
+    }
+
     fn push_code(&mut self, text: &str) {
         let mut span = Span::new_styled(InlineStyle::Code);
         if !text.is_empty() {
@@ -729,10 +748,27 @@ fn write_paragraphs<W: Write>(
             }
             writeln!(writer)?;
         }
-        let current_prefix = if i == 0 { prefix } else { continuation_prefix };
+        let mut current_prefix = if i == 0 { prefix } else { continuation_prefix };
+
+        if i == 0
+            && !prefix.is_empty()
+            && prefix != continuation_prefix
+            && needs_block_prefix_line(paragraph)
+        {
+            writer.write_all(prefix.as_bytes())?;
+            writer.write_all(b"\n")?;
+            current_prefix = continuation_prefix;
+        }
         write_paragraph(writer, paragraph, current_prefix, continuation_prefix)?;
     }
     Ok(())
+}
+
+fn needs_block_prefix_line(paragraph: &Paragraph) -> bool {
+    matches!(
+        paragraph.paragraph_type,
+        ParagraphType::OrderedList | ParagraphType::UnorderedList | ParagraphType::Checklist
+    )
 }
 
 fn write_paragraph<W: Write>(
@@ -786,8 +822,10 @@ fn write_paragraph<W: Write>(
         }
         ParagraphType::OrderedList => {
             for (i, entry) in paragraph.entries.iter().enumerate() {
-                let bullet_prefix = format!("{}{}. ", prefix, i + 1);
-                let bullet_continuation = format!("{}   ", continuation_prefix);
+                let marker = format!("{}. ", i + 1);
+                let bullet_prefix = format!("{}{}", prefix, marker);
+                let bullet_continuation =
+                    format!("{}{}", continuation_prefix, " ".repeat(marker.len()));
 
                 write_paragraphs(writer, entry, &bullet_prefix, &bullet_continuation)?;
             }
@@ -1502,5 +1540,27 @@ mod tests {
             result,
             "See [docs](https://example.com/docs) and <https://example.com/quick>\n"
         );
+    }
+
+    #[test]
+    fn test_nested_lists_roundtrip_inside_quote() {
+        let inner_list = ol_(vec![
+            li_(vec![p__("One")]),
+            li_(vec![p__("Two")]),
+            li_(vec![p__("Three")]),
+        ]);
+
+        let quoted_list = quote_(vec![ul_(vec![
+            li_(vec![p__("Text inside quote list")]),
+            li_(vec![inner_list]),
+        ])]);
+
+        let doc = doc(vec![quoted_list]);
+
+        let mut markdown = Vec::new();
+        write(&mut markdown, &doc).unwrap();
+
+        let reparsed = parse(Cursor::new(markdown.as_slice())).unwrap();
+        assert_eq!(reparsed, doc);
     }
 }
