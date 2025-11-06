@@ -48,22 +48,41 @@ pub fn load_ftml_document(path: &Path) -> Option<tdoc::Document> {
 }
 
 pub fn should_skip_roundtrip(path: &Path) -> bool {
-    matches!(
-        path.file_name().and_then(|name| name.to_str()),
-        Some(
-            "test_full_doc.ftml"
-                | "testdocument.ftml"
-                | "gmail-updated-tos.snap.ftml"
-                | "lite-cnn-com.snap.ftml"
-                | "marketing-email-1.snap.ftml"
-                | "motherfuckingwebsite.snap.ftml"
-                | "newyorker-what-does-it-mean-that-donald-trump-is-a-fascist.snap.ftml"
-                | "things-app-newsletter.snap.ftml"
-                | "todoist-daily-update-mail.snap.ftml"
-                | "todoist-monthly-newsletter-english-october-2024.snap.ftml"
-                | "todoist-monthly-newsletter-german-october-2024.snap.ftml"
-        )
-    )
+    match path.file_name().and_then(|name| name.to_str()) {
+        Some("test_full_doc.ftml") => {
+            // Markdown re-import flattens the deeply nested list embedded in the quote, losing nine items.
+            true
+        }
+        Some("testdocument.ftml") => {
+            // Same nested-list flattening problem as test_full_doc.ftml.
+            true
+        }
+        Some("gmail-updated-tos.snap.ftml") => {
+            // Google account chooser links acquire a double-escaped `&amp;`, so the roundtripped URL no longer matches.
+            true
+        }
+        Some("lite-cnn-com.snap.ftml") => {
+            // Markdown collapses the double-spaced separators around the footer pipes, altering the inline text.
+            true
+        }
+        Some("newyorker-what-does-it-mean-that-donald-trump-is-a-fascist.snap.ftml") => {
+            // The article starts with five empty list items; Markdown cannot represent empty bullets, so they re-import as plain text.
+            true
+        }
+        Some("todoist-daily-update-mail.snap.ftml") => {
+            // The footer contains nested anchors; Markdown export/import unwraps them differently, changing the span structure.
+            true
+        }
+        Some("todoist-monthly-newsletter-english-october-2024.snap.ftml") => {
+            // Calendar settings link picks up double-escaped query parameters, so the target URL differs after the loop.
+            true
+        }
+        Some("todoist-monthly-newsletter-german-october-2024.snap.ftml") => {
+            // Loses the leading figure-space in one paragraph and double-escapes the calendar link query parameters.
+            true
+        }
+        _ => false,
+    }
 }
 
 pub fn render_ftml(document: &tdoc::Document) -> String {
