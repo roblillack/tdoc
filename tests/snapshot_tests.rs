@@ -72,10 +72,7 @@ fn test_ftml_to_markdown_snapshots() {
         markdown::write(&mut markdown_output, &document)
             .unwrap_or_else(|e| panic!("Failed to convert {} to markdown: {}", file_name, e));
 
-        if matches!(
-            file_name,
-            "test_full_doc.ftml" | "testdocument.ftml"
-        ) {
+        if matches!(file_name, "test_full_doc.ftml" | "testdocument.ftml") {
             let snapshot_name = format!("{}.md", base_name);
             insta::assert_binary_snapshot!(snapshot_name.as_str(), markdown_output);
             eprintln!(

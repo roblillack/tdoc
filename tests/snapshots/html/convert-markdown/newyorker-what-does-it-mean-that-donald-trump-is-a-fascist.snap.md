@@ -16,7 +16,6 @@ By [Timothy Snyder](/contributors/timothy-snyder)
 
 November 8, 2024
 
-
 Photograph by Mark Peterson / Redux
 
 Save this story
@@ -395,4 +394,3 @@ sales from products that are purchased through our site as part of our Affiliate
 Partnerships with retailers. The material on this site may not be reproduced,
 distributed, transmitted, cached or otherwise used, except with the prior
 written permission of Condé Nast. [Ad Choices](http://www.aboutads.info)
-

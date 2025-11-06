@@ -909,7 +909,12 @@ fn write_span_content<W: Write>(
     has_more_siblings: bool,
 ) -> std::io::Result<()> {
     if !span.text.is_empty() {
-        write_plain_text(writer, &span.text, has_more_siblings || !span.children.is_empty(), state)?;
+        write_plain_text(
+            writer,
+            &span.text,
+            has_more_siblings || !span.children.is_empty(),
+            state,
+        )?;
     }
 
     for (idx, child) in span.children.iter().enumerate() {

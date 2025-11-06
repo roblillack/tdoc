@@ -61,10 +61,6 @@ pub fn should_skip_roundtrip(path: &Path) -> bool {
             // Markdown collapses the double-spaced separators around the footer pipes, altering the inline text.
             true
         }
-        Some("newyorker-what-does-it-mean-that-donald-trump-is-a-fascist.snap.ftml") => {
-            // The article starts with five empty list items; Markdown cannot represent empty bullets, so they re-import as plain text.
-            true
-        }
         Some("todoist-daily-update-mail.snap.ftml") => {
             // The footer contains nested anchors; Markdown export/import unwraps them differently, changing the span structure.
             true

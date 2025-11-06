@@ -66,11 +66,13 @@ impl<'a> Parser<'a> {
             self.process_token(token)?;
         }
 
-        let paragraphs = self
+        let mut paragraphs = self
             .document
             .iter()
             .map(ParagraphBuilder::to_paragraph)
-            .collect();
+            .collect::<Vec<_>>();
+
+        paragraphs.retain(|paragraph| !is_empty_list(paragraph));
 
         Ok(Document { paragraphs })
     }
@@ -725,32 +727,38 @@ impl ParagraphBuilder {
             .children
             .iter()
             .map(ParagraphBuilder::to_paragraph)
+            .filter(|child| !is_empty_list(child))
             .collect();
 
-        let entries: Vec<Vec<Paragraph>> = borrowed
-            .entries
-            .iter()
-            .map(|entry| {
-                entry
-                    .iter()
-                    .map(ParagraphBuilder::to_paragraph)
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        let mut entries = Vec::new();
+        let mut checklist_states = Vec::new();
+
+        for (idx, entry_nodes) in borrowed.entries.iter().enumerate() {
+            let entry: Vec<Paragraph> = entry_nodes
+                .iter()
+                .map(ParagraphBuilder::to_paragraph)
+                .filter(|child| !is_empty_list(child))
+                .collect();
+
+            if !list_entry_has_meaningful_content(&entry) {
+                continue;
+            }
+
+            entries.push(entry);
+            let state = borrowed.checklist_states.get(idx).copied().unwrap_or(None);
+            checklist_states.push(state);
+        }
 
         let is_checklist = borrowed.paragraph_type == ParagraphType::Checklist
-            || (!borrowed.checklist_states.is_empty()
-                && borrowed
-                    .checklist_states
-                    .iter()
-                    .all(|state| state.is_some()));
+            || (!checklist_states.is_empty()
+                && checklist_states.iter().all(|state| state.is_some()));
 
         if is_checklist {
             paragraph = Paragraph::new_checklist();
             let mut converted_entries = Vec::new();
-            for (idx, entry) in entries.into_iter().enumerate() {
-                if let Some(Some(checked)) = borrowed.checklist_states.get(idx) {
-                    let mut item = Paragraph::new_checklist_item(*checked);
+            for (entry, state) in entries.into_iter().zip(checklist_states.into_iter()) {
+                if let Some(checked) = state {
+                    let mut item = Paragraph::new_checklist_item(checked);
                     let mut content = Vec::new();
                     for (idx, child) in entry.into_iter().enumerate() {
                         if child.content.is_empty() {
@@ -767,6 +775,10 @@ impl ParagraphBuilder {
                     trim_trailing_line_breaks(&mut content);
                     trim_trailing_inline_whitespace(&mut content);
 
+                    if content.is_empty() {
+                        continue;
+                    }
+
                     item.content = content;
                     converted_entries.push(vec![item]);
                 } else {
@@ -780,6 +792,42 @@ impl ParagraphBuilder {
 
         paragraph
     }
+}
+
+fn list_entry_has_meaningful_content(entry: &[Paragraph]) -> bool {
+    entry.iter().any(paragraph_has_meaningful_content)
+}
+
+fn is_empty_list(paragraph: &Paragraph) -> bool {
+    matches!(
+        paragraph.paragraph_type,
+        ParagraphType::UnorderedList | ParagraphType::OrderedList | ParagraphType::Checklist
+    ) && paragraph.entries.iter().all(|entry| entry.is_empty())
+        && paragraph.children.is_empty()
+        && paragraph.content.is_empty()
+}
+
+fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {
+    if paragraph
+        .content
+        .iter()
+        .any(|span| !span.is_content_empty())
+    {
+        return true;
+    }
+
+    if paragraph
+        .children
+        .iter()
+        .any(paragraph_has_meaningful_content)
+    {
+        return true;
+    }
+
+    paragraph
+        .entries
+        .iter()
+        .any(|nested| list_entry_has_meaningful_content(nested))
 }
 
 struct BufferedSpanList {

@@ -103,10 +103,7 @@ fn parsing_nested_quote_inside_list_preserves_structure() {
 
     let nested_quote = &entry[1];
     assert_eq!(nested_quote.children.len(), 1);
-    assert_eq!(
-        nested_quote.children[0].paragraph_type,
-        ParagraphType::Text
-    );
+    assert_eq!(nested_quote.children[0].paragraph_type, ParagraphType::Text);
 }
 
 #[test]
