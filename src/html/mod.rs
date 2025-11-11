@@ -190,10 +190,9 @@ impl<'a> Parser<'a> {
 
         let should_remove_empty = if para_type.is_leaf() {
             let borrowed = node.borrow();
-            let empty = borrowed.content.is_empty()
+            borrowed.content.is_empty()
                 && borrowed.children.is_empty()
-                && borrowed.entries.is_empty();
-            empty
+                && borrowed.entries.is_empty()
         } else {
             false
         };
