@@ -1,19 +1,9 @@
-use std::{io::Cursor, path::Path};
+use std::io::Cursor;
 
 use tdoc::markdown;
 
 mod ftml_roundtrips;
 use ftml_roundtrips::{collect_ftml_fixtures, load_ftml_document, render_ftml};
-
-fn should_skip_roundtrip(path: &Path) -> bool {
-    match path.file_name().and_then(|name| name.to_str()) {
-        Some("lite-cnn-com.snap.ftml") => {
-            // Markdown collapses the double-spaced separators around the footer pipes, altering the inline text.
-            true
-        }
-        _ => false,
-    }
-}
 
 #[test]
 fn markdown_roundtrips_ftml_documents() {
@@ -52,14 +42,6 @@ fn markdown_roundtrips_ftml_documents() {
                 err
             )
         });
-
-        if should_skip_roundtrip(&ftml_path) {
-            eprintln!(
-                "Skipping strict round-trip assertion for {} due to known Markdown fidelity limitations.",
-                ftml_path.display()
-            );
-            continue;
-        }
 
         if roundtripped != expected {
             let expected_ftml = render_ftml(&expected);
