@@ -1460,7 +1460,7 @@ dependencies = [
 
 [[package]]
 name = "tdoc"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "assert_matches",
  "atty",
