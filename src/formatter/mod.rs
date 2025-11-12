@@ -1,6 +1,6 @@
 //! Render documents to formatted plain text suitable for terminals or logs.
 
-use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -333,21 +333,6 @@ impl<W: Write> Formatter<W> {
             ParagraphType::Text => {
                 self.write_text_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
-            ParagraphType::ChecklistItem => {
-                let marker = if paragraph.checklist_item_checked.unwrap_or(false) {
-                    "[✓] "
-                } else {
-                    "[ ] "
-                };
-                let first_prefix = format!("{}{}", prefix, marker);
-                let continuation = format!(
-                    "{}{}",
-                    continuation_prefix,
-                    " ".repeat(marker.chars().count())
-                );
-                self.write_checklist_text(paragraph, &first_prefix, &continuation)?;
-                writeln!(self.writer)?;
-            }
             ParagraphType::CodeBlock => {
                 self.write_code_block_paragraph(&paragraph.content, prefix, continuation_prefix)?;
             }
@@ -460,31 +445,55 @@ impl<W: Write> Formatter<W> {
                 }
             }
             ParagraphType::Checklist => {
-                for entry in &paragraph.entries {
-                    let marker_item = entry
-                        .iter()
-                        .find(|p| p.paragraph_type == ParagraphType::ChecklistItem)
-                        .or_else(|| entry.first());
-
-                    if let Some(item) = marker_item {
-                        let marker = if item.checklist_item_checked.unwrap_or(false) {
-                            "[✓] "
-                        } else {
-                            "[ ] "
-                        };
-                        let base_prefix = continuation_prefix;
-                        let first_prefix = format!("{}{}", base_prefix, marker);
-                        let continuation = format!(
-                            "{}{}",
-                            continuation_prefix,
-                            " ".repeat(marker.chars().count())
-                        );
-                        self.write_checklist_text(item, &first_prefix, &continuation)?;
-                        writeln!(self.writer)?;
-                    }
-                }
+                self.write_checklist_items(
+                    &paragraph.checklist_items,
+                    continuation_prefix,
+                    continuation_prefix,
+                )?
             }
         }
+        Ok(())
+    }
+
+    fn write_checklist_items(
+        &mut self,
+        items: &[ChecklistItem],
+        prefix: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        for item in items {
+            self.write_checklist_item(item, prefix, continuation_prefix)?;
+        }
+        Ok(())
+    }
+
+    fn write_checklist_item(
+        &mut self,
+        item: &ChecklistItem,
+        prefix: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        let marker = if item.checked { "[✓] " } else { "[ ] " };
+        let first_prefix = format!("{}{}", prefix, marker);
+        let continuation = format!(
+            "{}{}",
+            continuation_prefix,
+            " ".repeat(marker.chars().count())
+        );
+
+        self.write_checklist_text(item, &first_prefix, &continuation)?;
+        writeln!(self.writer)?;
+
+        if !item.children.is_empty() {
+            let child_prefix = continuation.clone();
+            let child_continuation = continuation.clone();
+            self.write_checklist_items(
+                &item.children,
+                child_prefix.as_str(),
+                child_continuation.as_str(),
+            )?;
+        }
+
         Ok(())
     }
 
@@ -727,7 +736,7 @@ impl<W: Write> Formatter<W> {
 
     fn write_checklist_text(
         &mut self,
-        item: &Paragraph,
+        item: &ChecklistItem,
         first_prefix: &str,
         continuation_prefix: &str,
     ) -> std::io::Result<()> {

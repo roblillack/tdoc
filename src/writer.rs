@@ -1,6 +1,6 @@
 //! Serialize [`Document`](crate::Document) trees back into FTML/HTML.
 
-use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -92,10 +92,6 @@ impl Writer {
         paragraph: &Paragraph,
         level: usize,
     ) -> io::Result<()> {
-        if paragraph.paragraph_type == ParagraphType::ChecklistItem {
-            return self.write_checklist_item(writer, paragraph, level);
-        }
-
         let tag = paragraph.paragraph_type.html_tag();
 
         if paragraph.paragraph_type.is_leaf() {
@@ -109,13 +105,8 @@ impl Writer {
             writeln!(writer, "<{}>", tag)?;
 
             if paragraph.paragraph_type == ParagraphType::Checklist {
-                for entry in &paragraph.entries {
-                    if let Some(item) = entry.first() {
-                        self.write_checklist_item(writer, item, level + 1)?;
-                    } else {
-                        self.write_indent(writer, level + 1)?;
-                        writeln!(writer, "<li></li>")?;
-                    }
+                for item in &paragraph.checklist_items {
+                    self.write_checklist_item(writer, item, level + 1)?;
                 }
             } else if paragraph.paragraph_type == ParagraphType::UnorderedList
                 || paragraph.paragraph_type == ParagraphType::OrderedList
@@ -207,14 +198,19 @@ impl Writer {
     fn write_checklist_item<W: Write>(
         &self,
         writer: &mut W,
-        item: &Paragraph,
+        item: &ChecklistItem,
         level: usize,
     ) -> io::Result<()> {
-        let single_line = self.render_checklist_item_single_line(item, level);
+        if item.children.is_empty() {
+            let single_line = self.render_checklist_item_single_line(item, level);
 
-        if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
-            write!(writer, "{}", single_line)?;
-            return Ok(());
+            if !single_line.is_empty()
+                && single_line.chars().count() <= self.max_width
+                && !single_line.trim_end().contains('\n')
+            {
+                write!(writer, "{}", single_line)?;
+                return Ok(());
+            }
         }
 
         self.write_indent(writer, level)?;
@@ -222,7 +218,7 @@ impl Writer {
 
         self.write_indent(writer, level + 1)?;
         write!(writer, "<input type=\"checkbox\"")?;
-        if item.checklist_item_checked.unwrap_or(false) {
+        if item.checked {
             write!(writer, " checked")?;
         }
         write!(writer, " />")?;
@@ -231,13 +227,27 @@ impl Writer {
             write!(writer, " ")?;
             self.write_spans(writer, &item.content, level + 1, true, true)?;
         }
-
         writeln!(writer)?;
+
+        if !item.children.is_empty() {
+            self.write_indent(writer, level + 1)?;
+            writeln!(writer, "<ul>")?;
+            for child in &item.children {
+                self.write_checklist_item(writer, child, level + 2)?;
+            }
+            self.write_indent(writer, level + 1)?;
+            writeln!(writer, "</ul>")?;
+        }
+
         self.write_indent(writer, level)?;
         writeln!(writer, "</li>")
     }
 
-    fn render_checklist_item_single_line(&self, item: &Paragraph, level: usize) -> String {
+    fn render_checklist_item_single_line(&self, item: &ChecklistItem, level: usize) -> String {
+        if !item.children.is_empty() {
+            return String::new();
+        }
+
         let mut result = String::new();
 
         for _ in 0..level {
@@ -245,7 +255,7 @@ impl Writer {
         }
 
         result.push_str("<li><input type=\"checkbox\"");
-        if item.checklist_item_checked.unwrap_or(false) {
+        if item.checked {
             result.push_str(" checked");
         }
         result.push_str(" />");

@@ -24,8 +24,6 @@ pub enum ParagraphType {
     Checklist,
     /// A block quote (`<blockquote>`).
     Quote,
-    /// A single checklist item (`<li>` with a checkbox input).
-    ChecklistItem,
 }
 
 impl fmt::Display for ParagraphType {
@@ -40,7 +38,6 @@ impl fmt::Display for ParagraphType {
             ParagraphType::UnorderedList => "Unordered List",
             ParagraphType::Checklist => "Checklist",
             ParagraphType::Quote => "Quote",
-            ParagraphType::ChecklistItem => "Checklist Item",
         };
         write!(f, "{}", s)
     }
@@ -55,7 +52,6 @@ impl ParagraphType {
                 | ParagraphType::Header1
                 | ParagraphType::Header2
                 | ParagraphType::Header3
-                | ParagraphType::ChecklistItem
                 | ParagraphType::CodeBlock
         )
     }
@@ -72,7 +68,6 @@ impl ParagraphType {
             ParagraphType::UnorderedList => "ul",
             ParagraphType::Checklist => "ul",
             ParagraphType::Quote => "blockquote",
-            ParagraphType::ChecklistItem => "li",
         }
     }
 
@@ -87,7 +82,6 @@ impl ParagraphType {
             "ol" => Some(ParagraphType::OrderedList),
             "ul" => Some(ParagraphType::UnorderedList),
             "blockquote" => Some(ParagraphType::Quote),
-            "li" => Some(ParagraphType::ChecklistItem),
             _ => None,
         }
     }
@@ -132,8 +126,8 @@ pub struct Paragraph {
     pub paragraph_type: ParagraphType,
     pub children: Vec<Paragraph>,
     pub content: Vec<Span>,
-    pub entries: Vec<Vec<Paragraph>>, // For lists
-    pub checklist_item_checked: Option<bool>,
+    pub entries: Vec<Vec<Paragraph>>,        // For lists
+    pub checklist_items: Vec<ChecklistItem>, // For checklists
 }
 
 impl Paragraph {
@@ -144,7 +138,7 @@ impl Paragraph {
             children: Vec::new(),
             content: Vec::new(),
             entries: Vec::new(),
-            checklist_item_checked: None,
+            checklist_items: Vec::new(),
         }
     }
 
@@ -188,13 +182,6 @@ impl Paragraph {
         Self::new(ParagraphType::Checklist)
     }
 
-    /// Convenience constructor for [`ParagraphType::ChecklistItem`].
-    pub fn new_checklist_item(checked: bool) -> Self {
-        let mut paragraph = Self::new(ParagraphType::ChecklistItem);
-        paragraph.checklist_item_checked = Some(checked);
-        paragraph
-    }
-
     /// Convenience constructor for [`ParagraphType::Quote`].
     pub fn new_quote() -> Self {
         Self::new(ParagraphType::Quote)
@@ -218,9 +205,10 @@ impl Paragraph {
         self
     }
 
-    /// Sets the checklist completion state for checklist items.
-    pub fn with_checklist_state(mut self, checked: Option<bool>) -> Self {
-        self.checklist_item_checked = checked;
+    /// Replaces the paragraph's checklist items.
+    pub fn with_checklist_items(mut self, items: Vec<ChecklistItem>) -> Self {
+        debug_assert_eq!(self.paragraph_type, ParagraphType::Checklist);
+        self.checklist_items = items;
         self
     }
 
@@ -236,7 +224,54 @@ impl Paragraph {
 
     /// Appends a single list item built from nested paragraphs.
     pub fn add_list_item(&mut self, item: Vec<Paragraph>) {
+        debug_assert_ne!(self.paragraph_type, ParagraphType::Checklist);
         self.entries.push(item);
+    }
+
+    /// Appends a single checklist item. Only valid for checklist paragraphs.
+    pub fn add_checklist_item(&mut self, item: ChecklistItem) {
+        debug_assert_eq!(self.paragraph_type, ParagraphType::Checklist);
+        self.checklist_items.push(item);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+/// Represents a single item within a checklist.
+///
+/// Checklist items contain inline [`Span`](crate::Span) content along with
+/// optional nested checklist items. Nested content is restricted to other
+/// checklist items.
+pub struct ChecklistItem {
+    pub checked: bool,
+    pub content: Vec<Span>,
+    pub children: Vec<ChecklistItem>,
+}
+
+impl ChecklistItem {
+    /// Creates a new checklist item with the provided completion state.
+    pub fn new(checked: bool) -> Self {
+        Self {
+            checked,
+            content: Vec::new(),
+            children: Vec::new(),
+        }
+    }
+
+    /// Replaces the inline content of the checklist item.
+    pub fn with_content(mut self, content: Vec<Span>) -> Self {
+        self.content = content;
+        self
+    }
+
+    /// Replaces the nested checklist children.
+    pub fn with_children(mut self, children: Vec<ChecklistItem>) -> Self {
+        self.children = children;
+        self
+    }
+
+    /// Appends a nested checklist item.
+    pub fn add_child(&mut self, child: ChecklistItem) {
+        self.children.push(child);
     }
 }
 

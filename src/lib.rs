@@ -29,7 +29,7 @@ pub mod writer;
 pub use document::Document;
 pub use inline::{InlineStyle, Span};
 pub use pager::*;
-pub use paragraph::{Paragraph, ParagraphType};
+pub use paragraph::{ChecklistItem, Paragraph, ParagraphType};
 pub use parser::parse;
 pub use writer::write;
 
