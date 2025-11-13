@@ -667,6 +667,14 @@ impl Parser {
                         } else {
                             breadcrumbs.push((paragraph, paragraphs.len()));
                         }
+                    } else if let Some(&style) = self.inline_elements.get(&tag_name) {
+                        // Handle inline style tags (b, i, u, etc.) when in checklist context
+                        if checklist_state.is_some() || parent_is_checklist {
+                            let span = self.read_span(tokenizer, style, tag)?;
+                            inline_spans.push(span);
+                        } else {
+                            return Err(ParseError::NonInlineToken(tag_name));
+                        }
                     } else {
                         return Err(ParseError::NonInlineToken(tag_name));
                     }

@@ -295,6 +295,30 @@ fn test_markdown_checklist_roundtrip() {
 }
 
 #[test]
+fn test_html_checklist_with_bold_text() {
+    let input = r#"<ul>
+  <li><input type="checkbox" checked /> This one has <b>bold</b> text</li>
+  <li><input type="checkbox" /> This one has <i>italic</i> text</li>
+</ul>
+"#;
+
+    let expected_doc = ftml! {
+        checklist {
+            done { "This one has " b { "bold" } " text" }
+            todo { "This one has " i { "italic" } " text" }
+        }
+    };
+
+    let parsed = parse(Cursor::new(input)).unwrap();
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    assert_eq!(output, input);
+}
+
+#[test]
 fn test_markdown_wikilink_roundtrip() {
     let input = "[[WikiLink]]";
     let parsed = markdown::parse(Cursor::new(input)).unwrap();
