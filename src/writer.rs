@@ -160,17 +160,26 @@ impl Writer {
         content: &[Span],
         level: usize,
     ) -> io::Result<()> {
-        self.write_indent(writer, level)?;
-        writeln!(writer, "<pre>")?;
-
         let mut code_text = self.collect_code_text(content);
         if !code_text.is_empty() {
             code_text = code_text.replace("\r\n", "\n").replace('\r', "\n");
+        }
+
+        let needs_newline_after_tag = code_text.is_empty() || !code_text.starts_with('\n');
+
+        self.write_indent(writer, level)?;
+        write!(writer, "<pre>")?;
+        if needs_newline_after_tag {
+            writeln!(writer)?;
+        }
+
+        if !code_text.is_empty() {
             let encoded = self.encode_pre_text(&code_text);
             writer.write_all(encoded.as_bytes())?;
-            if !code_text.ends_with('\n') {
-                writeln!(writer)?;
-            }
+        }
+
+        if !code_text.ends_with('\n') {
+            writeln!(writer)?;
         }
 
         self.write_indent(writer, level)?;

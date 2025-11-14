@@ -775,7 +775,8 @@ impl Parser {
         tokenizer: &mut Tokenizer,
         end_tag: &str,
     ) -> Result<Vec<Span>, ParseError> {
-        let text = self.read_code_block_inner(tokenizer, end_tag)?;
+        let mut text = self.read_code_block_inner(tokenizer, end_tag)?;
+        Self::normalize_code_block_text(&mut text);
         if text.is_empty() {
             Ok(Vec::new())
         } else {
@@ -822,6 +823,14 @@ impl Parser {
         }
 
         Ok(buffer)
+    }
+
+    fn normalize_code_block_text(text: &mut String) {
+        if text.starts_with("\r\n") {
+            text.drain(..2);
+        } else if text.starts_with('\n') || text.starts_with('\r') {
+            text.drain(..1);
+        }
     }
 
     fn read_content(

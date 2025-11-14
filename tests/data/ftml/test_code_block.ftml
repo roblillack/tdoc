@@ -1,0 +1,21 @@
+<h3>Width/Padding calculation example</h3>
+
+<p>
+  This is just a little bit of Rust to ensure we're roundtripping code blocks
+  correctly:
+</p>
+
+<pre>
+if width &lt; 60 {
+    wrap_width = width - 1; // leave space for cursor at the end of the line
+    left_padding = 0;
+} else if width &lt; 100 {
+    wrap_width = width.saturating_sub(2);
+    left_padding = 2;
+} else {
+    left_padding = (width.saturating_sub(100)) / 2 + 4;
+    wrap_width = width.saturating_sub(left_padding);
+}
+</pre>
+
+<p>The end.</p>
