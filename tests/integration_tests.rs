@@ -382,6 +382,7 @@ fn test_html_nested_checklist_roundtrip() {
     assert_eq!(reparsed, expected_doc);
 }
 
+#[test]
 fn test_html_checklist_with_bold_text() {
     let input = r#"<ul>
   <li><input type="checkbox" checked /> This one has <b>bold</b> text</li>
