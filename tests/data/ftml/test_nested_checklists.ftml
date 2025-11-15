@@ -1,0 +1,8 @@
+<ul>
+  <li><input type="checkbox" /> This todo contains a bunch of sub-items:
+    <ul>
+      <li><input type="checkbox" checked /> This one is done already</li>
+      <li><input type="checkbox" /> This one still needs to be done</li>
+    </ul>
+  </li>
+</ul>
