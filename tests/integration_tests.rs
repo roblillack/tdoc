@@ -161,6 +161,18 @@ fn test_code_block_html_roundtrip() {
 }
 
 #[test]
+fn test_code_block_html_roundtrip_with_leading_newline() {
+    let input = "<pre>\nfn main() {}\nprintln!(\"hi\");\n</pre>\n";
+    let doc = parse(Cursor::new(input)).unwrap();
+
+    let mut buf = Vec::new();
+    write(&mut buf, &doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+
+    assert_eq!(output, input);
+}
+
+#[test]
 fn test_formatter_code_block_ascii() {
     let doc = ftml! { code { "fn main() {}\nprintln!(\"hi\");" } };
     let mut output = Vec::new();
@@ -198,8 +210,54 @@ fn test_markdown_code_block_roundtrip() {
     let markdown_out = String::from_utf8(output).unwrap();
     assert_eq!(
         markdown_out,
-        "```\nfn main() {}\nprintln!(\"hi\");\n\n```\n\n"
+        "```\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
     );
+}
+
+#[test]
+fn test_markdown_code_block_trims_leading_newline() {
+    let input = "<pre>\nfn main() {}\nprintln!(\"hi\");\n</pre>\n";
+    let doc = parse(Cursor::new(input)).unwrap();
+
+    let mut output = Vec::new();
+    markdown::write(&mut output, &doc).unwrap();
+    let markdown_out = String::from_utf8(output).unwrap();
+
+    assert_eq!(
+        markdown_out,
+        "```\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
+    );
+}
+
+#[test]
+fn test_markdown_code_block_preserves_blank_first_line() {
+    let input = "<pre>\n\nfn main() {}\nprintln!(\"hi\");\n</pre>\n";
+    let doc = parse(Cursor::new(input)).unwrap();
+
+    let mut output = Vec::new();
+    markdown::write(&mut output, &doc).unwrap();
+    let markdown_out = String::from_utf8(output).unwrap();
+
+    assert_eq!(
+        markdown_out,
+        "```\n\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
+    );
+}
+
+#[test]
+fn test_parse_code_block_trims_leading_newline() {
+    let input = "<pre>\nfn main() {}\n</pre>";
+    let doc = parse(Cursor::new(input)).unwrap();
+    let expected = ftml! { code { "fn main() {}\n" } };
+    assert_eq!(doc, expected);
+}
+
+#[test]
+fn test_parse_code_block_preserves_blank_first_line() {
+    let input = "<pre>\n\nfn main() {}\n</pre>";
+    let doc = parse(Cursor::new(input)).unwrap();
+    let expected = ftml! { code { "\nfn main() {}\n" } };
+    assert_eq!(doc, expected);
 }
 
 #[test]
@@ -313,6 +371,30 @@ fn test_html_nested_checklist_roundtrip() {
     let expected_doc = Document::new().with_paragraphs(vec![
         Paragraph::new_checklist().with_checklist_items(vec![parent])
     ]);
+
+    let parsed = parse(Cursor::new(input)).unwrap();
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    let reparsed = parse(Cursor::new(&output)).unwrap();
+    assert_eq!(reparsed, expected_doc);
+}
+
+fn test_html_checklist_with_bold_text() {
+    let input = r#"<ul>
+  <li><input type="checkbox" checked /> This one has <b>bold</b> text</li>
+  <li><input type="checkbox" /> This one has <i>italic</i> text</li>
+</ul>
+"#;
+
+    let expected_doc = ftml! {
+        checklist {
+            done { "This one has " b { "bold" } " text" }
+            todo { "This one has " i { "italic" } " text" }
+        }
+    };
 
     let parsed = parse(Cursor::new(input)).unwrap();
     assert_eq!(parsed, expected_doc);

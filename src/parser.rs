@@ -722,6 +722,14 @@ impl Parser {
                         } else {
                             breadcrumbs.push((paragraph, paragraphs.len()));
                         }
+                    } else if let Some(&style) = self.inline_elements.get(&tag_name) {
+                        // Handle inline style tags (b, i, u, etc.) when in checklist context
+                        if checklist_state.is_some() || parent_is_checklist {
+                            let span = self.read_span(tokenizer, style, tag)?;
+                            inline_spans.push(span);
+                        } else {
+                            return Err(ParseError::NonInlineToken(tag_name));
+                        }
                     } else {
                         return Err(ParseError::NonInlineToken(tag_name));
                     }
@@ -868,7 +876,8 @@ impl Parser {
         tokenizer: &mut Tokenizer,
         end_tag: &str,
     ) -> Result<Vec<Span>, ParseError> {
-        let text = self.read_code_block_inner(tokenizer, end_tag)?;
+        let mut text = self.read_code_block_inner(tokenizer, end_tag)?;
+        Self::normalize_code_block_text(&mut text);
         if text.is_empty() {
             Ok(Vec::new())
         } else {
@@ -915,6 +924,14 @@ impl Parser {
         }
 
         Ok(buffer)
+    }
+
+    fn normalize_code_block_text(text: &mut String) {
+        if text.starts_with("\r\n") {
+            text.drain(..2);
+        } else if text.starts_with('\n') || text.starts_with('\r') {
+            text.drain(..1);
+        }
     }
 
     fn read_content(

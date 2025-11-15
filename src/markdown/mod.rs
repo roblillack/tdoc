@@ -926,8 +926,15 @@ fn write_code_block<W: Write>(
     let normalized = content.replace("\r\n", "\n").replace('\r', "\n");
 
     if !normalized.is_empty() {
-        for line in normalized.split('\n') {
-            writeln!(writer, "{}{}", continuation_prefix, line)?;
+        let mut ends_with_newline = false;
+
+        for chunk in normalized.split_inclusive('\n') {
+            ends_with_newline = chunk.ends_with('\n');
+            write!(writer, "{}{}", continuation_prefix, chunk)?;
+        }
+
+        if !ends_with_newline {
+            writeln!(writer)?;
         }
     }
 

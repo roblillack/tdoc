@@ -1,0 +1,6 @@
+---
+source: tests/snapshot_tests.rs
+expression: markdown_output
+extension: md
+snapshot_kind: binary
+---

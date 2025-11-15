@@ -128,7 +128,6 @@ fn create_reader(
         Some(value) => {
             if let Ok(url) = Url::parse(value) {
                 if url.scheme() == "http" || url.scheme() == "https" {
-                    let origin = ContentOrigin::Url(url.clone());
                     let client = Client::builder()
                         .timeout(Duration::from_secs(10))
                         .build()
@@ -145,7 +144,9 @@ fn create_reader(
                         )
                         .send()
                         .map_err(|err| format!("Unable to fetch {value}: {err}"))?;
-                    let extension = Path::new(url.path())
+                    let final_url = response.url().clone();
+                    let origin = ContentOrigin::Url(final_url.clone());
+                    let extension = Path::new(final_url.path())
                         .extension()
                         .and_then(|ext| ext.to_str());
                     let format = override_format
@@ -154,7 +155,7 @@ fn create_reader(
                     return Ok(InputSource {
                         format,
                         reader: Box::new(response),
-                        display_name: value.to_string(),
+                        display_name: final_url.to_string(),
                         origin,
                     });
                 }
