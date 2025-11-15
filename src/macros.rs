@@ -63,7 +63,8 @@ macro_rules! __ftml_build_block {
         $crate::Paragraph::new_ordered_list().with_entries(__ftml_list_entries!($($inner)*))
     }};
     (checklist { $($inner:tt)* }) => {{
-        $crate::Paragraph::new_checklist().with_entries(__ftml_checklist_entries!($($inner)*))
+        $crate::Paragraph::new_checklist()
+            .with_checklist_items(__ftml_checklist_entries!($($inner)*))
     }};
     ($other:ident { $($inner:tt)* }) => {{
         compile_error!(concat!("Unknown FTML element: ", stringify!($other)));
@@ -236,11 +237,10 @@ macro_rules! __ftml_list_entries {
 #[macro_export(local_inner_macros)]
 macro_rules! __ftml_checklist_entries {
     () => {
-        ::std::vec::Vec::<::std::vec::Vec<$crate::Paragraph>>::new()
+        ::std::vec::Vec::<$crate::ChecklistItem>::new()
     };
     ($($tt:tt)*) => {{
-        let mut __entries: ::std::vec::Vec<::std::vec::Vec<$crate::Paragraph>> =
-            ::std::vec::Vec::new();
+        let mut __entries: ::std::vec::Vec<$crate::ChecklistItem> = ::std::vec::Vec::new();
         __ftml_checklist_entries_inner!(__entries, $($tt)*);
         __entries
     }};
@@ -255,15 +255,15 @@ macro_rules! __ftml_checklist_entries_inner {
         __ftml_checklist_entries_inner!($vec, $($rest)*);
     };
     ($vec:ident, todo { $($inner:tt)* } $($rest:tt)*) => {{
-        let __item = $crate::Paragraph::new_checklist_item(false)
+        let __item = $crate::ChecklistItem::new(false)
             .with_content(__ftml_inline_nodes!($($inner)*));
-        $vec.push(::std::vec![__item]);
+        $vec.push(__item);
         __ftml_checklist_entries_inner!($vec, $($rest)*);
     }};
     ($vec:ident, done { $($inner:tt)* } $($rest:tt)*) => {{
-        let __item = $crate::Paragraph::new_checklist_item(true)
+        let __item = $crate::ChecklistItem::new(true)
             .with_content(__ftml_inline_nodes!($($inner)*));
-        $vec.push(::std::vec![__item]);
+        $vec.push(__item);
         __ftml_checklist_entries_inner!($vec, $($rest)*);
     }};
     ($vec:ident, $other:ident { $($inner:tt)* } $($rest:tt)*) => {{

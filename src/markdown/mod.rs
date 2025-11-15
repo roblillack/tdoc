@@ -1,6 +1,6 @@
 //! Convert between Markdown text and FTML [`Document`](crate::Document) trees.
 
-use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::borrow::Cow;
 use std::io::{Read, Write};
@@ -63,26 +63,44 @@ impl MarkdownBuilder {
                     Some(BlockContext::List {
                         ordered,
                         entries,
+                        checklist_items,
                         is_checklist,
                     }) => {
-                        let mut paragraph = if is_checklist {
-                            Paragraph::new_checklist()
+                        let paragraph = if is_checklist {
+                            debug_assert!(entries.is_empty());
+                            Paragraph::new_checklist().with_checklist_items(checklist_items)
                         } else if ordered {
-                            Paragraph::new_ordered_list()
+                            Paragraph::new_ordered_list().with_entries(entries)
                         } else {
-                            Paragraph::new_unordered_list()
+                            Paragraph::new_unordered_list().with_entries(entries)
                         };
-                        paragraph.entries = entries;
                         self.add_paragraph_to_parent(paragraph);
                     }
                     Some(BlockContext::ListItem {
                         paragraphs,
                         checklist_state,
                     }) => {
-                        if let Some(BlockContext::List { entries, .. }) = self.stack.last_mut() {
+                        if let Some(BlockContext::List {
+                            entries,
+                            checklist_items,
+                            is_checklist,
+                            ..
+                        }) = self.stack.last_mut()
+                        {
                             if let Some(checked) = checklist_state {
                                 let item = Self::build_checklist_item(paragraphs, checked);
-                                entries.push(vec![item]);
+                                if !*is_checklist && !entries.is_empty() {
+                                    let converted = entries
+                                        .drain(..)
+                                        .map(|entry| Self::build_checklist_item(entry, false))
+                                        .collect::<Vec<_>>();
+                                    checklist_items.extend(converted);
+                                }
+                                *is_checklist = true;
+                                checklist_items.push(item);
+                            } else if *is_checklist {
+                                let item = Self::build_checklist_item(paragraphs, false);
+                                checklist_items.push(item);
                             } else {
                                 entries.push(paragraphs);
                             }
@@ -154,6 +172,7 @@ impl MarkdownBuilder {
                 self.stack.push(BlockContext::List {
                     ordered,
                     entries: Vec::new(),
+                    checklist_items: Vec::new(),
                     is_checklist: false,
                 });
             }
@@ -224,17 +243,18 @@ impl MarkdownBuilder {
                 if let Some(BlockContext::List {
                     ordered,
                     entries,
+                    checklist_items,
                     is_checklist,
                 }) = self.stack.pop()
                 {
-                    let mut paragraph = if is_checklist {
-                        Paragraph::new_checklist()
+                    let paragraph = if is_checklist {
+                        debug_assert!(entries.is_empty());
+                        Paragraph::new_checklist().with_checklist_items(checklist_items)
                     } else if ordered {
-                        Paragraph::new_ordered_list()
+                        Paragraph::new_ordered_list().with_entries(entries)
                     } else {
-                        Paragraph::new_unordered_list()
+                        Paragraph::new_unordered_list().with_entries(entries)
                     };
-                    paragraph.entries = entries;
                     self.add_paragraph_to_parent(paragraph);
                 }
             }
@@ -247,14 +267,25 @@ impl MarkdownBuilder {
                 {
                     if let Some(BlockContext::List {
                         entries,
+                        checklist_items,
                         is_checklist,
                         ..
                     }) = self.stack.last_mut()
                     {
                         if let Some(checked) = checklist_state {
                             let item = Self::build_checklist_item(paragraphs, checked);
-                            entries.push(vec![item]);
+                            if !*is_checklist && !entries.is_empty() {
+                                let converted = entries
+                                    .drain(..)
+                                    .map(|entry| Self::build_checklist_item(entry, false))
+                                    .collect::<Vec<_>>();
+                                checklist_items.extend(converted);
+                            }
                             *is_checklist = true;
+                            checklist_items.push(item);
+                        } else if *is_checklist {
+                            let item = Self::build_checklist_item(paragraphs, false);
+                            checklist_items.push(item);
                         } else {
                             entries.push(paragraphs);
                         }
@@ -506,8 +537,18 @@ impl MarkdownBuilder {
                 BlockContext::ListItem {
                     paragraphs: items, ..
                 } => items.push(paragraph),
-                BlockContext::List { entries, .. } => {
-                    entries.push(vec![paragraph]);
+                BlockContext::List {
+                    entries,
+                    checklist_items,
+                    is_checklist,
+                    ..
+                } => {
+                    if *is_checklist {
+                        let item = Self::build_checklist_item(vec![paragraph], false);
+                        checklist_items.push(item);
+                    } else {
+                        entries.push(vec![paragraph]);
+                    }
                 }
                 BlockContext::Paragraph(context) => {
                     context.push_nested_paragraph(paragraph);
@@ -516,20 +557,25 @@ impl MarkdownBuilder {
         }
     }
 
-    fn build_checklist_item(paragraphs: Vec<Paragraph>, checked: bool) -> Paragraph {
-        let mut item = Paragraph::new_checklist_item(checked);
+    fn build_checklist_item(paragraphs: Vec<Paragraph>, checked: bool) -> ChecklistItem {
+        let mut item = ChecklistItem::new(checked);
         let mut content = Vec::new();
 
-        for (idx, paragraph) in paragraphs.into_iter().enumerate() {
-            if paragraph.content.is_empty() {
-                continue;
-            }
+        for paragraph in paragraphs {
+            match paragraph.paragraph_type {
+                ParagraphType::Checklist => item.children.extend(paragraph.checklist_items),
+                _ => {
+                    if paragraph.content.is_empty() {
+                        continue;
+                    }
 
-            if idx > 0 && !content.is_empty() {
-                content.push(Span::new_text("\n"));
-            }
+                    if !content.is_empty() {
+                        content.push(Span::new_text("\n"));
+                    }
 
-            content.extend(paragraph.content.into_iter());
+                    content.extend(paragraph.content.into_iter());
+                }
+            }
         }
 
         item.content = content;
@@ -547,6 +593,7 @@ enum BlockContext {
     List {
         ordered: bool,
         entries: Vec<Vec<Paragraph>>,
+        checklist_items: Vec<ChecklistItem>,
         is_checklist: bool,
     },
     ListItem {
@@ -831,35 +878,34 @@ fn write_paragraph<W: Write>(
             }
         }
         ParagraphType::Checklist => {
-            for entry in &paragraph.entries {
-                let item = entry
-                    .iter()
-                    .find(|p| p.paragraph_type == ParagraphType::ChecklistItem)
-                    .or_else(|| entry.first());
-
-                if let Some(item) = item {
-                    let marker = if item.checklist_item_checked.unwrap_or(false) {
-                        'x'
-                    } else {
-                        ' '
-                    };
-                    let first_prefix = format!("{}- [{}] ", prefix, marker);
-                    let continuation = format!("{}{}", continuation_prefix, " ".repeat(6));
-                    let content = render_spans_to_string(&item.content)?;
-                    write_wrapped_lines(writer, &first_prefix, &continuation, &content)?;
-                }
-            }
+            write_checklist_items(
+                writer,
+                &paragraph.checklist_items,
+                prefix,
+                continuation_prefix,
+            )?;
         }
-        ParagraphType::ChecklistItem => {
-            let marker = if paragraph.checklist_item_checked.unwrap_or(false) {
-                'x'
-            } else {
-                ' '
-            };
-            let first_prefix = format!("{}- [{}] ", prefix, marker);
-            let continuation = format!("{}{}", continuation_prefix, " ".repeat(6));
-            let content = render_spans_to_string(&paragraph.content)?;
-            write_wrapped_lines(writer, &first_prefix, &continuation, &content)?;
+    }
+    Ok(())
+}
+
+fn write_checklist_items<W: Write>(
+    writer: &mut W,
+    items: &[ChecklistItem],
+    prefix: &str,
+    continuation_prefix: &str,
+) -> std::io::Result<()> {
+    for item in items {
+        let marker = if item.checked { 'x' } else { ' ' };
+        let content = render_spans_to_string(&item.content)?;
+        let first_prefix = format!("{}- [{}] ", prefix, marker);
+        let continuation = format!("{}{}", continuation_prefix, " ".repeat(6));
+        write_wrapped_lines(writer, &first_prefix, &continuation, &content)?;
+
+        if !item.children.is_empty() {
+            let child_prefix = format!("{}  ", prefix);
+            let child_continuation = format!("{}  ", continuation_prefix);
+            write_checklist_items(writer, &item.children, &child_prefix, &child_continuation)?;
         }
     }
     Ok(())

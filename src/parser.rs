@@ -1,6 +1,6 @@
 //! FTML parser that transforms HTML-like markup into [`Document`](crate::Document) trees.
 
-use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::Read;
@@ -27,6 +27,12 @@ pub enum ParseError {
     },
     #[error("Unexpected list item, parent: {0:?}")]
     UnexpectedListItem(Option<ParagraphType>),
+    #[error("Checklist items must include a checkbox input")]
+    ChecklistItemMissingCheckbox,
+    #[error("Cannot mix checklist items with regular list items")]
+    MixedChecklistTypes,
+    #[error("Checklist items may only contain inline text and nested checklists; found {found}")]
+    InvalidChecklistContent { found: ParagraphType },
     #[error("Unexpected closing tag for list item")]
     UnexpectedClosingListItem,
     #[error("Paragraph content for list without list item")]
@@ -328,6 +334,11 @@ impl Default for Parser {
     }
 }
 
+enum ListItemContent {
+    Checklist(ChecklistItem),
+    Paragraphs(Vec<Paragraph>),
+}
+
 impl Parser {
     /// Creates a parser configured with the default FTML tag mappings.
     pub fn new() -> Self {
@@ -397,14 +408,36 @@ impl Parser {
                         {
                             let parent_is_checklist =
                                 parent.paragraph_type == ParagraphType::Checklist;
-                            let (list_content, remaining_token, is_checklist_item) =
+                            let (list_content, remaining_token) =
                                 self.read_list_content(tokenizer, parent_is_checklist)?;
 
-                            if is_checklist_item {
-                                parent.paragraph_type = ParagraphType::Checklist;
+                            match list_content {
+                                ListItemContent::Checklist(item) => match parent.paragraph_type {
+                                    ParagraphType::Checklist => {
+                                        parent.add_checklist_item(item);
+                                    }
+                                    ParagraphType::UnorderedList => {
+                                        if !parent.entries.is_empty() {
+                                            return Err(ParseError::MixedChecklistTypes);
+                                        }
+                                        parent.paragraph_type = ParagraphType::Checklist;
+                                        parent.checklist_items.clear();
+                                        parent.add_checklist_item(item);
+                                    }
+                                    ParagraphType::OrderedList => {
+                                        return Err(ParseError::UnexpectedListItem(Some(
+                                            ParagraphType::OrderedList,
+                                        )));
+                                    }
+                                    _ => unreachable!(),
+                                },
+                                ListItemContent::Paragraphs(entry) => {
+                                    if parent.paragraph_type == ParagraphType::Checklist {
+                                        return Err(ParseError::ChecklistItemMissingCheckbox);
+                                    }
+                                    parent.add_list_item(entry);
+                                }
                             }
-
-                            parent.add_list_item(list_content);
 
                             // If there's a remaining token (parent structure ending), handle it
                             if let Some(token) = remaining_token {
@@ -521,13 +554,16 @@ impl Parser {
         if let Some(parent) = breadcrumbs.last_mut() {
             if parent.paragraph_type == ParagraphType::UnorderedList
                 || parent.paragraph_type == ParagraphType::OrderedList
-                || parent.paragraph_type == ParagraphType::Checklist
             {
                 if let Some(last_entry) = parent.entries.last_mut() {
                     last_entry.push(paragraph);
                 } else {
                     return Err(ParseError::ListContentWithoutItem);
                 }
+            } else if parent.paragraph_type == ParagraphType::Checklist {
+                return Err(ParseError::InvalidChecklistContent {
+                    found: paragraph.paragraph_type,
+                });
             } else {
                 parent.children.push(paragraph);
             }
@@ -570,7 +606,7 @@ impl Parser {
         &self,
         tokenizer: &mut Tokenizer,
         parent_is_checklist: bool,
-    ) -> Result<(Vec<Paragraph>, Option<Token>, bool), ParseError> {
+    ) -> Result<(ListItemContent, Option<Token>), ParseError> {
         let mut paragraphs = Vec::new();
         let mut breadcrumbs: Vec<(Paragraph, usize)> = Vec::new();
         let mut inline_spans: Vec<Span> = Vec::new();
@@ -600,17 +636,12 @@ impl Parser {
 
                         Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
                         Self::finalize_list_breadcrumbs(&mut breadcrumbs, &mut paragraphs);
-                        let is_checklist_item = checklist_state.is_some();
-                        let result_paragraphs = if let Some(checked) = checklist_state {
-                            Self::convert_to_checklist_item(paragraphs, checked)
-                        } else {
-                            paragraphs
-                        };
-                        return Ok((
-                            result_paragraphs,
-                            Some(Token::EndTag(tag_name.clone())),
-                            is_checklist_item,
-                        ));
+                        let content = Self::finalize_list_item(
+                            paragraphs,
+                            checklist_state,
+                            parent_is_checklist,
+                        )?;
+                        return Ok((content, Some(Token::EndTag(tag_name.clone()))));
                     } else {
                         return Err(ParseError::UnexpectedClosingTag(tag_name.clone()));
                     }
@@ -624,28 +655,52 @@ impl Parser {
                                 || parent.paragraph_type == ParagraphType::OrderedList
                                 || parent.paragraph_type == ParagraphType::Checklist
                             {
-                                let (list_content, remaining_token, item_is_checklist) = self
-                                    .read_list_content(
-                                        tokenizer,
-                                        parent.paragraph_type == ParagraphType::Checklist,
-                                    )?;
-                                if item_is_checklist {
-                                    parent.paragraph_type = ParagraphType::Checklist;
+                                let (list_content, remaining_token) = self.read_list_content(
+                                    tokenizer,
+                                    parent.paragraph_type == ParagraphType::Checklist,
+                                )?;
+
+                                match list_content {
+                                    ListItemContent::Checklist(item) => {
+                                        match parent.paragraph_type {
+                                            ParagraphType::Checklist => {
+                                                parent.add_checklist_item(item);
+                                            }
+                                            ParagraphType::UnorderedList => {
+                                                if !parent.entries.is_empty() {
+                                                    return Err(ParseError::MixedChecklistTypes);
+                                                }
+                                                parent.paragraph_type = ParagraphType::Checklist;
+                                                parent.checklist_items.clear();
+                                                parent.add_checklist_item(item);
+                                            }
+                                            ParagraphType::OrderedList => {
+                                                return Err(ParseError::UnexpectedListItem(Some(
+                                                    ParagraphType::OrderedList,
+                                                )));
+                                            }
+                                            _ => unreachable!(),
+                                        }
+                                    }
+                                    ListItemContent::Paragraphs(entry) => {
+                                        if parent.paragraph_type == ParagraphType::Checklist {
+                                            return Err(ParseError::ChecklistItemMissingCheckbox);
+                                        }
+                                        parent.add_list_item(entry);
+                                    }
                                 }
-                                parent.add_list_item(list_content);
 
                                 if let Some(token) = remaining_token {
                                     Self::finalize_list_breadcrumbs(
                                         &mut breadcrumbs,
                                         &mut paragraphs,
                                     );
-                                    let is_checklist_item = checklist_state.is_some();
-                                    let result_paragraphs = if let Some(checked) = checklist_state {
-                                        Self::convert_to_checklist_item(paragraphs, checked)
-                                    } else {
-                                        paragraphs
-                                    };
-                                    return Ok((result_paragraphs, Some(token), is_checklist_item));
+                                    let content = Self::finalize_list_item(
+                                        paragraphs,
+                                        checklist_state,
+                                        parent_is_checklist,
+                                    )?;
+                                    return Ok((content, Some(token)));
                                 }
                             } else {
                                 return Err(ParseError::UnexpectedListItem(Some(
@@ -717,12 +772,8 @@ impl Parser {
         Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
         Self::finalize_list_breadcrumbs(&mut breadcrumbs, &mut paragraphs);
 
-        let is_checklist_item = checklist_state.is_some();
-        if let Some(checked) = checklist_state {
-            paragraphs = Self::convert_to_checklist_item(paragraphs, checked);
-        }
-
-        Ok((paragraphs, None, is_checklist_item))
+        let content = Self::finalize_list_item(paragraphs, checklist_state, parent_is_checklist)?;
+        Ok((content, None))
     }
 
     fn flush_inline_spans(spans: &mut Vec<Span>, paragraphs: &mut Vec<Paragraph>) {
@@ -735,26 +786,76 @@ impl Parser {
         paragraphs.push(paragraph);
     }
 
-    fn convert_to_checklist_item(paragraphs: Vec<Paragraph>, checked: bool) -> Vec<Paragraph> {
-        let mut item = Paragraph::new_checklist_item(checked);
+    fn convert_to_checklist_item(
+        paragraphs: Vec<Paragraph>,
+        checked: bool,
+    ) -> Result<ChecklistItem, ParseError> {
+        let mut item = ChecklistItem::new(checked);
         let mut content = Vec::new();
+        let mut children = Vec::new();
 
-        for (idx, mut paragraph) in paragraphs.into_iter().enumerate() {
-            if paragraph.content.is_empty() {
-                continue;
+        for paragraph in paragraphs {
+            match paragraph.paragraph_type {
+                ParagraphType::Text => {
+                    if !paragraph.children.is_empty() || !paragraph.entries.is_empty() {
+                        return Err(ParseError::InvalidChecklistContent {
+                            found: paragraph.paragraph_type,
+                        });
+                    }
+
+                    if paragraph.content.is_empty() {
+                        continue;
+                    }
+
+                    if !content.is_empty() {
+                        content.push(Span::new_text("\n"));
+                    }
+
+                    let mut spans = paragraph.content;
+                    content.append(&mut spans);
+                }
+                ParagraphType::Checklist => {
+                    if !paragraph.content.is_empty()
+                        || !paragraph.children.is_empty()
+                        || !paragraph.entries.is_empty()
+                    {
+                        return Err(ParseError::InvalidChecklistContent {
+                            found: ParagraphType::Checklist,
+                        });
+                    }
+                    children.extend(paragraph.checklist_items);
+                }
+                other => {
+                    if paragraph.content.is_empty()
+                        && paragraph.children.is_empty()
+                        && paragraph.entries.is_empty()
+                    {
+                        continue;
+                    }
+                    return Err(ParseError::InvalidChecklistContent { found: other });
+                }
             }
-
-            if idx > 0 && !content.is_empty() {
-                content.push(Span::new_text("\n"));
-            }
-
-            content.append(&mut paragraph.content);
         }
 
         trim_trailing_inline_whitespace(&mut content);
-
         item.content = content;
-        vec![item]
+        item.children = children;
+        Ok(item)
+    }
+
+    fn finalize_list_item(
+        paragraphs: Vec<Paragraph>,
+        checklist_state: Option<bool>,
+        parent_is_checklist: bool,
+    ) -> Result<ListItemContent, ParseError> {
+        if let Some(checked) = checklist_state {
+            let item = Self::convert_to_checklist_item(paragraphs, checked)?;
+            Ok(ListItemContent::Checklist(item))
+        } else if parent_is_checklist {
+            Err(ParseError::ChecklistItemMissingCheckbox)
+        } else {
+            Ok(ListItemContent::Paragraphs(paragraphs))
+        }
     }
 
     fn finalize_list_breadcrumbs(

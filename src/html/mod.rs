@@ -2,7 +2,7 @@
 
 pub mod gockl;
 
-use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use gockl::{Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
 use std::cell::RefCell;
@@ -753,43 +753,55 @@ impl ParagraphBuilder {
                 && checklist_states.iter().all(|state| state.is_some()));
 
         if is_checklist {
-            paragraph = Paragraph::new_checklist();
-            let mut converted_entries = Vec::new();
+            let mut checklist_items = Vec::new();
             for (entry, state) in entries.into_iter().zip(checklist_states.into_iter()) {
-                if let Some(checked) = state {
-                    let mut item = Paragraph::new_checklist_item(checked);
-                    let mut content = Vec::new();
-                    for (idx, child) in entry.into_iter().enumerate() {
-                        if child.content.is_empty() {
-                            continue;
-                        }
-
-                        if idx > 0 && !content.is_empty() {
-                            content.push(Span::new_text("\n"));
-                        }
-
-                        content.extend(child.content.into_iter());
-                    }
-
-                    trim_trailing_line_breaks(&mut content);
-                    trim_trailing_inline_whitespace(&mut content);
-
-                    if content.is_empty() {
-                        continue;
-                    }
-
-                    item.content = content;
-                    converted_entries.push(vec![item]);
-                } else {
-                    converted_entries.push(entry);
+                let checked = state.unwrap_or(false);
+                if let Some(item) = ParagraphBuilder::entry_to_checklist_item(entry, checked) {
+                    checklist_items.push(item);
                 }
             }
-            paragraph.entries = converted_entries;
+            paragraph.paragraph_type = ParagraphType::Checklist;
+            paragraph.checklist_items = checklist_items;
         } else {
             paragraph.entries = entries;
         }
 
         paragraph
+    }
+
+    fn entry_to_checklist_item(entry: Vec<Paragraph>, checked: bool) -> Option<ChecklistItem> {
+        let mut item = ChecklistItem::new(checked);
+        let mut content = Vec::new();
+
+        for paragraph in entry {
+            match paragraph.paragraph_type {
+                ParagraphType::Checklist => {
+                    item.children.extend(paragraph.checklist_items);
+                }
+                _ => {
+                    if paragraph.content.is_empty() {
+                        continue;
+                    }
+
+                    if !content.is_empty() {
+                        content.push(Span::new_text("\n"));
+                    }
+
+                    let mut spans = paragraph.content;
+                    content.append(&mut spans);
+                }
+            }
+        }
+
+        trim_trailing_line_breaks(&mut content);
+        trim_trailing_inline_whitespace(&mut content);
+
+        if content.is_empty() && item.children.is_empty() {
+            return None;
+        }
+
+        item.content = content;
+        Some(item)
     }
 }
 
@@ -804,6 +816,8 @@ fn is_empty_list(paragraph: &Paragraph) -> bool {
     ) && paragraph.entries.iter().all(|entry| entry.is_empty())
         && paragraph.children.is_empty()
         && paragraph.content.is_empty()
+        && (paragraph.paragraph_type != ParagraphType::Checklist
+            || paragraph.checklist_items.is_empty())
 }
 
 fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {

@@ -1,6 +1,7 @@
 use std::io::Cursor;
 use tdoc::{
-    formatter::Formatter, ftml, markdown, parse, write, Document, InlineStyle, ParagraphType,
+    formatter::Formatter, ftml, markdown, parse, write, ChecklistItem, Document, InlineStyle,
+    Paragraph, ParagraphType, Span,
 };
 
 #[test]
@@ -222,7 +223,10 @@ fn test_markdown_code_block_trims_leading_newline() {
     markdown::write(&mut output, &doc).unwrap();
     let markdown_out = String::from_utf8(output).unwrap();
 
-    assert_eq!(markdown_out, "```\nfn main() {}\nprintln!(\"hi\");\n```\n\n");
+    assert_eq!(
+        markdown_out,
+        "```\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
+    );
 }
 
 #[test]
@@ -350,6 +354,35 @@ fn test_markdown_checklist_roundtrip() {
 }
 
 #[test]
+fn test_html_nested_checklist_roundtrip() {
+    let input = r#"<ul>
+  <li>
+    <input type="checkbox" checked /> Parent
+    <ul>
+      <li><input type="checkbox" /> Child</li>
+    </ul>
+  </li>
+</ul>"#;
+
+    let child = ChecklistItem::new(false).with_content(vec![Span::new_text("Child")]);
+    let parent = ChecklistItem::new(true)
+        .with_content(vec![Span::new_text("Parent")])
+        .with_children(vec![child]);
+    let expected_doc = Document::new().with_paragraphs(vec![
+        Paragraph::new_checklist().with_checklist_items(vec![parent])
+    ]);
+
+    let parsed = parse(Cursor::new(input)).unwrap();
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    let reparsed = parse(Cursor::new(&output)).unwrap();
+    assert_eq!(reparsed, expected_doc);
+}
+
+#[test]
 fn test_html_checklist_with_bold_text() {
     let input = r#"<ul>
   <li><input type="checkbox" checked /> This one has <b>bold</b> text</li>
@@ -369,6 +402,27 @@ fn test_html_checklist_with_bold_text() {
 
     let mut buf = Vec::new();
     write(&mut buf, &expected_doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    let reparsed = parse(Cursor::new(&output)).unwrap();
+    assert_eq!(reparsed, expected_doc);
+}
+
+#[test]
+fn test_markdown_nested_checklist_roundtrip() {
+    let input = "- [x] Parent\n  - [ ] Child\n";
+    let child = ChecklistItem::new(false).with_content(vec![Span::new_text("Child")]);
+    let parent = ChecklistItem::new(true)
+        .with_content(vec![Span::new_text("Parent")])
+        .with_children(vec![child]);
+    let expected_doc = Document::new().with_paragraphs(vec![
+        Paragraph::new_checklist().with_checklist_items(vec![parent])
+    ]);
+
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    assert_eq!(parsed, expected_doc);
+
+    let mut buf = Vec::new();
+    markdown::write(&mut buf, &expected_doc).unwrap();
     let output = String::from_utf8(buf).unwrap();
     assert_eq!(output, input);
 }
@@ -499,6 +553,23 @@ fn test_formatter_checklist_output() {
     Formatter::new_ascii(&mut buf).write_document(&doc).unwrap();
     let output = String::from_utf8(buf).unwrap();
     let expected = "[✓] This one is done\n[ ] This one is not done\n[ ] This one is not done and also contains a very large amount of text\n    that will wrap onto multiple lines in the terminal output.\n";
+    assert_eq!(output, expected);
+}
+
+#[test]
+fn test_formatter_nested_checklist_output() {
+    let child = ChecklistItem::new(false).with_content(vec![Span::new_text("Child")]);
+    let parent = ChecklistItem::new(true)
+        .with_content(vec![Span::new_text("Parent")])
+        .with_children(vec![child]);
+    let doc = Document::new().with_paragraphs(vec![
+        Paragraph::new_checklist().with_checklist_items(vec![parent])
+    ]);
+
+    let mut buf = Vec::new();
+    Formatter::new_ascii(&mut buf).write_document(&doc).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    let expected = "[✓] Parent\n    [ ] Child\n";
     assert_eq!(output, expected);
 }
 
