@@ -82,7 +82,18 @@ FTML documents consist of a hierarchy of elements:
 - **Headers** (`<h1>`, `<h2>`, `<h3>`)
 - **Code blocks** (`<pre>`)
 - **Lists** - ordered (`<ol>`) or unordered (`<ul>`)
+- **Checklists** (`<ul>` whose items begin with checkboxes, or Markdown `- [ ]` task lists)
 - **Blockquotes** (`<blockquote>`)
+
+### Checklists
+
+Task lists are a special kind of unordered list whose entries start with checkbox inputs (HTML/FTML) or Markdown’s `- [ ]` syntax. tdoc now keeps those entries intact—including deeply nested child tasks—across the parser, Markdown/HTML writers, and the terminal formatter. That means you can read Markdown like this:
+
+```markdown
+- [x] Ship release
+  - [ ] Update screenshots
+  - [x] Publish announcement
+```
 
 ### Code Blocks
 

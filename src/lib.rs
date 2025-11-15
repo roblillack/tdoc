@@ -9,6 +9,11 @@
 //! - Writers and formatters (see [`writer`] and [`formatter`]) that turn the tree
 //!   back into HTML, Markdown, or richly styled terminal output.
 //!
+//! Checklists (Markdown `- [ ]` entries or HTML `<input type="checkbox">`
+//! lists) map to [`ParagraphType::Checklist`] nodes that store [`ChecklistItem`]
+//! children. Nested checklist items are preserved end-to-end so complex task
+//! hierarchies round-trip across every parser and writer.
+//!
 //! Most applications start by building a [`Document`] manually or converting
 //! some source text via [`parse`], manipulate or inspect the tree, and finally
 //! render it with [`writer::Writer`] or [`formatter::Formatter`].
