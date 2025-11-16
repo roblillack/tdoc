@@ -222,8 +222,9 @@ impl<W: Write> Formatter<W> {
         let mut previous_type: Option<ParagraphType> = None;
 
         for (idx, paragraph) in paragraphs.iter().enumerate() {
+            let paragraph_type = paragraph.paragraph_type();
             let flushed_links = if matches!(
-                paragraph.paragraph_type,
+                paragraph_type,
                 ParagraphType::Header1 | ParagraphType::Header2 | ParagraphType::Header3
             ) {
                 self.flush_pending_links(blank_line_prefix)?
@@ -233,7 +234,7 @@ impl<W: Write> Formatter<W> {
             let previous_after = previous_type
                 .map(|ty| self.blank_lines_after(ty))
                 .unwrap_or(0);
-            let mut blank_lines = self.blank_lines_before(previous_type, paragraph.paragraph_type);
+            let mut blank_lines = self.blank_lines_before(previous_type, paragraph_type);
             if flushed_links && blank_lines > 0 {
                 blank_lines -= 1;
             }
@@ -250,7 +251,7 @@ impl<W: Write> Formatter<W> {
                 continuation_prefix,
                 blank_line_prefix,
             )?;
-            previous_type = Some(paragraph.paragraph_type);
+            previous_type = Some(paragraph_type);
         }
 
         if let Some(last_type) = previous_type {
@@ -320,21 +321,21 @@ impl<W: Write> Formatter<W> {
         continuation_prefix: &str,
         blank_line_prefix: &str,
     ) -> std::io::Result<()> {
-        match paragraph.paragraph_type {
+        match paragraph.paragraph_type() {
             ParagraphType::Header1 => {
-                self.write_header1_paragraph(&paragraph.content, prefix)?;
+                self.write_header1_paragraph(paragraph.content(), prefix)?;
             }
             ParagraphType::Header2 => {
-                self.write_header2_paragraph(&paragraph.content, prefix)?;
+                self.write_header2_paragraph(paragraph.content(), prefix)?;
             }
             ParagraphType::Header3 => {
-                self.write_header3_paragraph(&paragraph.content, prefix)?;
+                self.write_header3_paragraph(paragraph.content(), prefix)?;
             }
             ParagraphType::Text => {
-                self.write_text_paragraph(&paragraph.content, prefix, continuation_prefix)?;
+                self.write_text_paragraph(paragraph.content(), prefix, continuation_prefix)?;
             }
             ParagraphType::CodeBlock => {
-                self.write_code_block_paragraph(&paragraph.content, prefix, continuation_prefix)?;
+                self.write_code_block_paragraph(paragraph.content(), prefix, continuation_prefix)?;
             }
             ParagraphType::Quote => {
                 let quote_continuation =
@@ -345,12 +346,13 @@ impl<W: Write> Formatter<W> {
                     .zip(continuation_prefix.chars())
                     .take_while(|(a, b)| a == b)
                     .count();
+                let children = paragraph.children();
                 let list_context = prefix != continuation_prefix
                     && shared_prefix_len > 0
-                    && !paragraph.children.is_empty()
-                    && paragraph.children.len() > 1
+                    && !children.is_empty()
+                    && children.len() > 1
                     && matches!(
-                        paragraph.children.first().map(|p| p.paragraph_type),
+                        children.first().map(|p| p.paragraph_type()),
                         Some(ParagraphType::Text)
                     );
 
@@ -366,7 +368,7 @@ impl<W: Write> Formatter<W> {
                     let first_line_prefixes = [prefix];
 
                     self.write_paragraphs_with_prefixes(
-                        &paragraph.children,
+                        children,
                         &first_line_prefixes,
                         default_first_prefix,
                         continuation,
@@ -376,7 +378,7 @@ impl<W: Write> Formatter<W> {
                     let quote_prefix = format!("{}{}", prefix, self.style.quote_prefix);
 
                     self.write_paragraphs(
-                        &paragraph.children,
+                        children,
                         &quote_prefix,
                         &quote_continuation,
                         &quote_prefix,
@@ -384,7 +386,7 @@ impl<W: Write> Formatter<W> {
                 }
             }
             ParagraphType::UnorderedList => {
-                for (idx, entry) in paragraph.entries.iter().enumerate() {
+                for (idx, entry) in paragraph.entries().iter().enumerate() {
                     if idx > 0 {
                         self.write_blank_lines_with_prefix(blank_line_prefix, 1)?;
                     }
@@ -412,7 +414,7 @@ impl<W: Write> Formatter<W> {
                 }
             }
             ParagraphType::OrderedList => {
-                for (i, entry) in paragraph.entries.iter().enumerate() {
+                for (i, entry) in paragraph.entries().iter().enumerate() {
                     if i > 0 {
                         self.write_blank_lines_with_prefix(blank_line_prefix, 1)?;
                     }
@@ -444,13 +446,11 @@ impl<W: Write> Formatter<W> {
                     )?;
                 }
             }
-            ParagraphType::Checklist => {
-                self.write_checklist_items(
-                    &paragraph.checklist_items,
-                    continuation_prefix,
-                    continuation_prefix,
-                )?
-            }
+            ParagraphType::Checklist => self.write_checklist_items(
+                paragraph.checklist_items(),
+                continuation_prefix,
+                continuation_prefix,
+            )?,
         }
         Ok(())
     }

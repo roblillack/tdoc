@@ -402,26 +402,25 @@ impl Parser {
                 let tag_name = tag.name.clone();
                 if tag_name == "li" {
                     if let Some(parent) = breadcrumbs.last_mut() {
-                        if parent.paragraph_type == ParagraphType::UnorderedList
-                            || parent.paragraph_type == ParagraphType::OrderedList
-                            || parent.paragraph_type == ParagraphType::Checklist
+                        let parent_type = parent.paragraph_type();
+                        if parent_type == ParagraphType::UnorderedList
+                            || parent_type == ParagraphType::OrderedList
+                            || parent_type == ParagraphType::Checklist
                         {
-                            let parent_is_checklist =
-                                parent.paragraph_type == ParagraphType::Checklist;
+                            let parent_is_checklist = parent_type == ParagraphType::Checklist;
                             let (list_content, remaining_token) =
                                 self.read_list_content(tokenizer, parent_is_checklist)?;
 
                             match list_content {
-                                ListItemContent::Checklist(item) => match parent.paragraph_type {
+                                ListItemContent::Checklist(item) => match parent.paragraph_type() {
                                     ParagraphType::Checklist => {
                                         parent.add_checklist_item(item);
                                     }
                                     ParagraphType::UnorderedList => {
-                                        if !parent.entries.is_empty() {
+                                        if !parent.entries().is_empty() {
                                             return Err(ParseError::MixedChecklistTypes);
                                         }
-                                        parent.paragraph_type = ParagraphType::Checklist;
-                                        parent.checklist_items.clear();
+                                        *parent = Paragraph::new_checklist();
                                         parent.add_checklist_item(item);
                                     }
                                     ParagraphType::OrderedList => {
@@ -432,7 +431,7 @@ impl Parser {
                                     _ => unreachable!(),
                                 },
                                 ListItemContent::Paragraphs(entry) => {
-                                    if parent.paragraph_type == ParagraphType::Checklist {
+                                    if parent.paragraph_type() == ParagraphType::Checklist {
                                         return Err(ParseError::ChecklistItemMissingCheckbox);
                                     }
                                     parent.add_list_item(entry);
@@ -451,9 +450,7 @@ impl Parser {
                             }
                             *list_item_level += 1;
                         } else {
-                            return Err(ParseError::UnexpectedListItem(Some(
-                                parent.paragraph_type,
-                            )));
+                            return Err(ParseError::UnexpectedListItem(Some(parent_type)));
                         }
                     } else {
                         return Err(ParseError::UnexpectedListItem(None));
@@ -490,9 +487,10 @@ impl Parser {
 
                     // Check if we have text content in a non-leaf paragraph
                     if let Some(parent) = breadcrumbs.last() {
-                        if !parent.paragraph_type.is_leaf()
-                            && parent.paragraph_type != ParagraphType::UnorderedList
-                            && parent.paragraph_type != ParagraphType::OrderedList
+                        let parent_type = parent.paragraph_type();
+                        if !parent_type.is_leaf()
+                            && parent_type != ParagraphType::UnorderedList
+                            && parent_type != ParagraphType::OrderedList
                         {
                             return Err(ParseError::UnexpectedTextContent(trimmed.to_string()));
                         }
@@ -537,7 +535,7 @@ impl Parser {
         document: &mut Document,
     ) -> Result<(), ParseError> {
         if let Some(current) = breadcrumbs.last() {
-            let current_type = current.paragraph_type;
+            let current_type = current.paragraph_type();
             if !current_type.matches_closing_tag(paragraph_type) {
                 return Err(ParseError::MismatchedClosingTag {
                     actual: current_type,
@@ -552,20 +550,21 @@ impl Parser {
 
         // Add the completed paragraph to its parent or document
         if let Some(parent) = breadcrumbs.last_mut() {
-            if parent.paragraph_type == ParagraphType::UnorderedList
-                || parent.paragraph_type == ParagraphType::OrderedList
+            let parent_type = parent.paragraph_type();
+            if parent_type == ParagraphType::UnorderedList
+                || parent_type == ParagraphType::OrderedList
             {
-                if let Some(last_entry) = parent.entries.last_mut() {
+                if let Some(last_entry) = parent.entries_mut().last_mut() {
                     last_entry.push(paragraph);
                 } else {
                     return Err(ParseError::ListContentWithoutItem);
                 }
-            } else if parent.paragraph_type == ParagraphType::Checklist {
+            } else if parent_type == ParagraphType::Checklist {
                 return Err(ParseError::InvalidChecklistContent {
-                    found: paragraph.paragraph_type,
+                    found: paragraph.paragraph_type(),
                 });
             } else {
-                parent.children.push(paragraph);
+                parent.children_mut().push(paragraph);
             }
         } else {
             // Add to document if no parent
@@ -582,19 +581,20 @@ impl Parser {
         breadcrumbs: &mut [Paragraph],
     ) -> Result<(), ParseError> {
         if let Some(parent) = breadcrumbs.last_mut() {
+            let parent_type = parent.paragraph_type();
             // If the parent is a list, add to the current list entry
-            if parent.paragraph_type == ParagraphType::UnorderedList
-                || parent.paragraph_type == ParagraphType::OrderedList
-                || parent.paragraph_type == ParagraphType::Checklist
+            if parent_type == ParagraphType::UnorderedList
+                || parent_type == ParagraphType::OrderedList
+                || parent_type == ParagraphType::Checklist
             {
-                if let Some(last_entry) = parent.entries.last_mut() {
+                if let Some(last_entry) = parent.entries_mut().last_mut() {
                     last_entry.push(paragraph.clone());
                 } else {
                     return Err(ParseError::ListContentWithoutItem);
                 }
             } else {
                 // Otherwise add to the parent paragraph's children
-                parent.children.push(paragraph.clone());
+                parent.children_mut().push(paragraph.clone());
             }
         } else {
             document.add_paragraph(paragraph.clone());
@@ -621,12 +621,23 @@ impl Parser {
                 Token::EndTag(ref tag_name) => {
                     if let Some(&paragraph_type) = self.wrapper_elements.get(tag_name) {
                         if let Some((paragraph, _)) = breadcrumbs.last() {
-                            if paragraph.paragraph_type.matches_closing_tag(paragraph_type) {
+                            if paragraph
+                                .paragraph_type()
+                                .matches_closing_tag(paragraph_type)
+                            {
                                 let (mut paragraph, start_len) = breadcrumbs.pop().unwrap();
                                 if !paragraph_type.is_leaf() {
                                     let children = paragraphs.split_off(start_len);
                                     if !children.is_empty() {
-                                        paragraph.children.extend(children);
+                                        match paragraph.paragraph_type() {
+                                            ParagraphType::Quote => {
+                                                paragraph = paragraph.with_children(children);
+                                            }
+                                            _ => debug_assert!(
+                                                children.is_empty(),
+                                                "unexpected children for non-quote paragraph"
+                                            ),
+                                        }
                                     }
                                 }
                                 paragraphs.push(paragraph);
@@ -651,27 +662,27 @@ impl Parser {
                     if tag_name == "li" {
                         Self::flush_inline_spans(&mut inline_spans, &mut paragraphs);
                         if let Some((parent, _)) = breadcrumbs.last_mut() {
-                            if parent.paragraph_type == ParagraphType::UnorderedList
-                                || parent.paragraph_type == ParagraphType::OrderedList
-                                || parent.paragraph_type == ParagraphType::Checklist
+                            let parent_type = parent.paragraph_type();
+                            if parent_type == ParagraphType::UnorderedList
+                                || parent_type == ParagraphType::OrderedList
+                                || parent_type == ParagraphType::Checklist
                             {
                                 let (list_content, remaining_token) = self.read_list_content(
                                     tokenizer,
-                                    parent.paragraph_type == ParagraphType::Checklist,
+                                    parent_type == ParagraphType::Checklist,
                                 )?;
 
                                 match list_content {
                                     ListItemContent::Checklist(item) => {
-                                        match parent.paragraph_type {
+                                        match parent.paragraph_type() {
                                             ParagraphType::Checklist => {
                                                 parent.add_checklist_item(item);
                                             }
                                             ParagraphType::UnorderedList => {
-                                                if !parent.entries.is_empty() {
+                                                if !parent.entries().is_empty() {
                                                     return Err(ParseError::MixedChecklistTypes);
                                                 }
-                                                parent.paragraph_type = ParagraphType::Checklist;
-                                                parent.checklist_items.clear();
+                                                *parent = Paragraph::new_checklist();
                                                 parent.add_checklist_item(item);
                                             }
                                             ParagraphType::OrderedList => {
@@ -683,7 +694,7 @@ impl Parser {
                                         }
                                     }
                                     ListItemContent::Paragraphs(entry) => {
-                                        if parent.paragraph_type == ParagraphType::Checklist {
+                                        if parent.paragraph_type() == ParagraphType::Checklist {
                                             return Err(ParseError::ChecklistItemMissingCheckbox);
                                         }
                                         parent.add_list_item(entry);
@@ -703,9 +714,7 @@ impl Parser {
                                     return Ok((content, Some(token)));
                                 }
                             } else {
-                                return Err(ParseError::UnexpectedListItem(Some(
-                                    parent.paragraph_type,
-                                )));
+                                return Err(ParseError::UnexpectedListItem(Some(parent_type)));
                             }
                         } else {
                             return Err(ParseError::UnexpectedListItem(None));
@@ -782,7 +791,7 @@ impl Parser {
         }
 
         let mut paragraph = Paragraph::new_text();
-        paragraph.content.append(spans);
+        paragraph.content_mut().append(spans);
         paragraphs.push(paragraph);
     }
 
@@ -795,44 +804,30 @@ impl Parser {
         let mut children = Vec::new();
 
         for paragraph in paragraphs {
-            match paragraph.paragraph_type {
-                ParagraphType::Text => {
-                    if !paragraph.children.is_empty() || !paragraph.entries.is_empty() {
-                        return Err(ParseError::InvalidChecklistContent {
-                            found: paragraph.paragraph_type,
-                        });
-                    }
-
-                    if paragraph.content.is_empty() {
+            match paragraph {
+                Paragraph::Text { content: mut spans } => {
+                    if spans.is_empty() {
                         continue;
                     }
-
                     if !content.is_empty() {
                         content.push(Span::new_text("\n"));
                     }
-
-                    let mut spans = paragraph.content;
                     content.append(&mut spans);
                 }
-                ParagraphType::Checklist => {
-                    if !paragraph.content.is_empty()
-                        || !paragraph.children.is_empty()
-                        || !paragraph.entries.is_empty()
-                    {
-                        return Err(ParseError::InvalidChecklistContent {
-                            found: ParagraphType::Checklist,
-                        });
-                    }
-                    children.extend(paragraph.checklist_items);
+                Paragraph::Checklist { mut items } => {
+                    children.append(&mut items);
                 }
                 other => {
-                    if paragraph.content.is_empty()
-                        && paragraph.children.is_empty()
-                        && paragraph.entries.is_empty()
+                    if other.content().is_empty()
+                        && other.children().is_empty()
+                        && other.entries().is_empty()
+                        && other.checklist_items().is_empty()
                     {
                         continue;
                     }
-                    return Err(ParseError::InvalidChecklistContent { found: other });
+                    return Err(ParseError::InvalidChecklistContent {
+                        found: other.paragraph_type(),
+                    });
                 }
             }
         }
@@ -863,9 +858,21 @@ impl Parser {
         paragraphs: &mut Vec<Paragraph>,
     ) {
         while let Some((mut paragraph, start_len)) = breadcrumbs.pop() {
-            let children = paragraphs.split_off(start_len);
-            if !children.is_empty() {
-                paragraph.children.extend(children);
+            let new_children = paragraphs.split_off(start_len);
+            if !new_children.is_empty() {
+                paragraph = match paragraph {
+                    Paragraph::Quote { mut children } => {
+                        children.extend(new_children);
+                        Paragraph::Quote { children }
+                    }
+                    other => {
+                        debug_assert!(
+                            new_children.is_empty(),
+                            "unexpected children for non-quote paragraph"
+                        );
+                        other
+                    }
+                };
             }
             paragraphs.push(paragraph);
         }
@@ -1374,16 +1381,29 @@ fn normalize_entity_whitespace(document: &mut Document) {
 }
 
 fn normalize_paragraph_spaces(paragraph: &mut Paragraph) {
-    normalize_spans_spaces(&mut paragraph.content);
-
-    for child in &mut paragraph.children {
-        normalize_paragraph_spaces(child);
+    if paragraph.is_leaf() {
+        normalize_spans_spaces(paragraph.content_mut());
     }
 
-    for entry in &mut paragraph.entries {
-        for item in entry {
-            normalize_paragraph_spaces(item);
+    match paragraph {
+        Paragraph::Quote { children } => {
+            for child in children {
+                normalize_paragraph_spaces(child);
+            }
         }
+        Paragraph::OrderedList { entries } | Paragraph::UnorderedList { entries } => {
+            for entry in entries {
+                for item in entry {
+                    normalize_paragraph_spaces(item);
+                }
+            }
+        }
+        Paragraph::Checklist { .. }
+        | Paragraph::Text { .. }
+        | Paragraph::Header1 { .. }
+        | Paragraph::Header2 { .. }
+        | Paragraph::Header3 { .. }
+        | Paragraph::CodeBlock { .. } => {}
     }
 }
 
@@ -1436,9 +1456,9 @@ mod tests {
         let doc = parse(Cursor::new(input)).unwrap();
 
         assert_eq!(doc.paragraphs.len(), 1);
-        assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Text);
-        assert_eq!(doc.paragraphs[0].content.len(), 1);
-        assert_eq!(doc.paragraphs[0].content[0].text, "This is a test.");
+        assert_eq!(doc.paragraphs[0].paragraph_type(), ParagraphType::Text);
+        assert_eq!(doc.paragraphs[0].content().len(), 1);
+        assert_eq!(doc.paragraphs[0].content()[0].text, "This is a test.");
     }
 
     #[test]
@@ -1447,8 +1467,8 @@ mod tests {
         let doc = parse(Cursor::new(input)).unwrap();
 
         assert_eq!(doc.paragraphs.len(), 1);
-        assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Header1);
-        assert_eq!(doc.paragraphs[0].content[0].text, "Header");
+        assert_eq!(doc.paragraphs[0].paragraph_type(), ParagraphType::Header1);
+        assert_eq!(doc.paragraphs[0].content()[0].text, "Header");
     }
 
     #[test]
@@ -1456,11 +1476,11 @@ mod tests {
         let input = "<p>This is <b>bold</b> text.</p>";
         let doc = parse(Cursor::new(input)).unwrap();
 
-        assert_eq!(doc.paragraphs[0].content.len(), 3);
-        assert_eq!(doc.paragraphs[0].content[0].text, "This is ");
-        assert_eq!(doc.paragraphs[0].content[1].style, InlineStyle::Bold);
-        assert_eq!(doc.paragraphs[0].content[1].children[0].text, "bold");
-        assert_eq!(doc.paragraphs[0].content[2].text, " text.");
+        assert_eq!(doc.paragraphs[0].content().len(), 3);
+        assert_eq!(doc.paragraphs[0].content()[0].text, "This is ");
+        assert_eq!(doc.paragraphs[0].content()[1].style, InlineStyle::Bold);
+        assert_eq!(doc.paragraphs[0].content()[1].children[0].text, "bold");
+        assert_eq!(doc.paragraphs[0].content()[2].text, " text.");
     }
 
     #[test]
@@ -1468,10 +1488,10 @@ mod tests {
         let input = "<p>A<br/>B</p>";
         let doc = parse(Cursor::new(input)).unwrap();
 
-        assert_eq!(doc.paragraphs[0].content.len(), 3);
-        assert_eq!(doc.paragraphs[0].content[0].text, "A");
-        assert_eq!(doc.paragraphs[0].content[1].text, "\n");
-        assert_eq!(doc.paragraphs[0].content[2].text, "B");
+        assert_eq!(doc.paragraphs[0].content().len(), 3);
+        assert_eq!(doc.paragraphs[0].content()[0].text, "A");
+        assert_eq!(doc.paragraphs[0].content()[1].text, "\n");
+        assert_eq!(doc.paragraphs[0].content()[2].text, "B");
     }
 
     #[test]
@@ -1555,10 +1575,10 @@ mod tests {
 
         assert_eq!(doc.paragraphs.len(), 1);
         let paragraph = &doc.paragraphs[0];
-        assert_eq!(paragraph.content.len(), 2);
-        assert_eq!(paragraph.content[0].text, "See ");
+        assert_eq!(paragraph.content().len(), 2);
+        assert_eq!(paragraph.content()[0].text, "See ");
 
-        let link_span = &paragraph.content[1];
+        let link_span = &paragraph.content()[1];
         assert_eq!(link_span.style, InlineStyle::Link);
         assert_eq!(
             link_span.link_target.as_deref(),
@@ -1575,9 +1595,9 @@ mod tests {
 
         assert_eq!(doc.paragraphs.len(), 1);
         let paragraph = &doc.paragraphs[0];
-        assert_eq!(paragraph.content.len(), 1);
+        assert_eq!(paragraph.content().len(), 1);
 
-        let link_span = &paragraph.content[0];
+        let link_span = &paragraph.content()[0];
         assert_eq!(link_span.style, InlineStyle::Link);
         assert_eq!(
             link_span.link_target.as_deref(),
@@ -1593,7 +1613,7 @@ mod tests {
         let doc = parse(Cursor::new(input)).unwrap();
 
         let paragraph = &doc.paragraphs[0];
-        let link_span = &paragraph.content[0];
+        let link_span = &paragraph.content()[0];
         assert_eq!(
             link_span.link_target.as_deref(),
             Some("https://example.com/path?foo=1&bar=2")
@@ -1606,10 +1626,10 @@ mod tests {
         let doc = parse(Cursor::new(input)).unwrap();
 
         let paragraph = &doc.paragraphs[0];
-        assert_eq!(paragraph.content.len(), 2);
-        assert_eq!(paragraph.content[0].text, "Zugriff auf ");
+        assert_eq!(paragraph.content().len(), 2);
+        assert_eq!(paragraph.content()[0].text, "Zugriff auf ");
         assert_eq!(
-            paragraph.content[1].link_target.as_deref(),
+            paragraph.content()[1].link_target.as_deref(),
             Some("https://example.com")
         );
     }

@@ -92,27 +92,28 @@ impl Writer {
         paragraph: &Paragraph,
         level: usize,
     ) -> io::Result<()> {
-        let tag = paragraph.paragraph_type.html_tag();
+        let paragraph_type = paragraph.paragraph_type();
+        let tag = paragraph_type.html_tag();
 
-        if paragraph.paragraph_type.is_leaf() {
-            if paragraph.paragraph_type == ParagraphType::CodeBlock {
-                self.write_code_block_paragraph(writer, &paragraph.content, level)
+        if paragraph_type.is_leaf() {
+            if paragraph_type == ParagraphType::CodeBlock {
+                self.write_code_block_paragraph(writer, paragraph.content(), level)
             } else {
-                self.write_leaf_paragraph(writer, &paragraph.content, tag, level)
+                self.write_leaf_paragraph(writer, paragraph.content(), tag, level)
             }
         } else {
             self.write_indent(writer, level)?;
             writeln!(writer, "<{}>", tag)?;
 
-            if paragraph.paragraph_type == ParagraphType::Checklist {
-                for item in &paragraph.checklist_items {
+            if paragraph_type == ParagraphType::Checklist {
+                for item in paragraph.checklist_items() {
                     self.write_checklist_item(writer, item, level + 1)?;
                 }
-            } else if paragraph.paragraph_type == ParagraphType::UnorderedList
-                || paragraph.paragraph_type == ParagraphType::OrderedList
+            } else if paragraph_type == ParagraphType::UnorderedList
+                || paragraph_type == ParagraphType::OrderedList
             {
                 let mut first = true;
-                for entry in &paragraph.entries {
+                for entry in paragraph.entries() {
                     if first {
                         first = false;
                     } else {
@@ -130,7 +131,7 @@ impl Writer {
                 }
             } else {
                 let mut first = true;
-                for child in &paragraph.children {
+                for child in paragraph.children() {
                     if first {
                         first = false;
                     } else {

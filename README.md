@@ -146,7 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Access document structure
     for paragraph in &document.paragraphs {
-        println!("Paragraph type: {}", paragraph.paragraph_type);
+        println!("Paragraph type: {}", paragraph.paragraph_type());
     }
 
     Ok(())
