@@ -633,10 +633,12 @@ impl Parser {
                                             ParagraphType::Quote => {
                                                 paragraph = paragraph.with_children(children);
                                             }
-                                            _ => debug_assert!(
-                                                children.is_empty(),
-                                                "unexpected children for non-quote paragraph"
-                                            ),
+                                            _ => {
+                                                // Non-quote containers (like stray lists)
+                                                // should not have unconsumed children.
+                                                // Treat them as siblings to avoid panics.
+                                                paragraphs.extend(children);
+                                            }
                                         }
                                     }
                                 }
