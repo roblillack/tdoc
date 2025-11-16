@@ -321,8 +321,8 @@ macro_rules! __ftml_list_entries_inner {
 ///     p  { "Hello, ", b { "world" }, "!" }
 /// };
 ///
-/// assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Header1);
-/// assert_eq!(doc.paragraphs[1].paragraph_type, ParagraphType::Text);
+/// assert_eq!(doc.paragraphs[0].paragraph_type(), ParagraphType::Header1);
+/// assert_eq!(doc.paragraphs[1].paragraph_type(), ParagraphType::Text);
 /// ```
 macro_rules! ftml {
     ($($tt:tt)*) => {{

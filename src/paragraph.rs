@@ -18,7 +18,7 @@ pub enum ParagraphType {
     CodeBlock,
     /// An ordered list (`<ol>`) paragraph.
     OrderedList,
-    /// An unordered (bulleted) list (`<ul>`) paragraph.
+    /// An unordered (bulleted) list (`<ul>`).
     UnorderedList,
     /// A checklist (`<ul>` with checkbox items).
     Checklist,
@@ -105,7 +105,8 @@ impl ParagraphType {
 ///
 /// Paragraphs can contain nested paragraphs (for quotes or nested lists), inline
 /// [`Span`](crate::Span) content, or list entries depending on their
-/// [`ParagraphType`].
+/// [`ParagraphType`]. Modeling paragraphs as an enum ensures only valid
+/// combinations of data are representable (e.g. lists always carry entries).
 ///
 /// # Examples
 ///
@@ -122,116 +123,246 @@ impl ParagraphType {
 /// list.add_list_item(vec![Paragraph::new_text().with_content(vec![Span::new_text("Two")])]);
 /// assert!(!list.is_leaf());
 /// ```
-pub struct Paragraph {
-    pub paragraph_type: ParagraphType,
-    pub children: Vec<Paragraph>,
-    pub content: Vec<Span>,
-    pub entries: Vec<Vec<Paragraph>>,        // For lists
-    pub checklist_items: Vec<ChecklistItem>, // For checklists
+pub enum Paragraph {
+    /// A plain text paragraph with inline spans.
+    Text { content: Vec<Span> },
+    /// A level-1 heading paragraph.
+    Header1 { content: Vec<Span> },
+    /// A level-2 heading paragraph.
+    Header2 { content: Vec<Span> },
+    /// A level-3 heading paragraph.
+    Header3 { content: Vec<Span> },
+    /// A preformatted code block paragraph.
+    CodeBlock { content: Vec<Span> },
+    /// An ordered list paragraph that owns list entries.
+    OrderedList { entries: Vec<Vec<Paragraph>> },
+    /// An unordered/bulleted list paragraph.
+    UnorderedList { entries: Vec<Vec<Paragraph>> },
+    /// A checklist paragraph with checklist items.
+    Checklist { items: Vec<ChecklistItem> },
+    /// A block quote paragraph that contains nested paragraphs.
+    Quote { children: Vec<Paragraph> },
 }
 
 impl Paragraph {
     /// Creates a paragraph with the provided [`ParagraphType`].
     pub fn new(paragraph_type: ParagraphType) -> Self {
-        Self {
-            paragraph_type,
-            children: Vec::new(),
-            content: Vec::new(),
-            entries: Vec::new(),
-            checklist_items: Vec::new(),
+        match paragraph_type {
+            ParagraphType::Text => Self::new_text(),
+            ParagraphType::Header1 => Self::new_header1(),
+            ParagraphType::Header2 => Self::new_header2(),
+            ParagraphType::Header3 => Self::new_header3(),
+            ParagraphType::CodeBlock => Self::new_code_block(),
+            ParagraphType::OrderedList => Self::new_ordered_list(),
+            ParagraphType::UnorderedList => Self::new_unordered_list(),
+            ParagraphType::Checklist => Self::new_checklist(),
+            ParagraphType::Quote => Self::new_quote(),
         }
     }
 
     /// Convenience constructor for [`ParagraphType::Text`].
     pub fn new_text() -> Self {
-        Self::new(ParagraphType::Text)
+        Self::Text {
+            content: Vec::new(),
+        }
     }
 
     /// Convenience constructor for [`ParagraphType::Header1`].
     pub fn new_header1() -> Self {
-        Self::new(ParagraphType::Header1)
+        Self::Header1 {
+            content: Vec::new(),
+        }
     }
 
     /// Convenience constructor for [`ParagraphType::Header2`].
     pub fn new_header2() -> Self {
-        Self::new(ParagraphType::Header2)
+        Self::Header2 {
+            content: Vec::new(),
+        }
     }
 
     /// Convenience constructor for [`ParagraphType::Header3`].
     pub fn new_header3() -> Self {
-        Self::new(ParagraphType::Header3)
+        Self::Header3 {
+            content: Vec::new(),
+        }
     }
 
     /// Convenience constructor for [`ParagraphType::CodeBlock`].
     pub fn new_code_block() -> Self {
-        Self::new(ParagraphType::CodeBlock)
+        Self::CodeBlock {
+            content: Vec::new(),
+        }
     }
 
     /// Convenience constructor for [`ParagraphType::OrderedList`].
     pub fn new_ordered_list() -> Self {
-        Self::new(ParagraphType::OrderedList)
+        Self::OrderedList {
+            entries: Vec::new(),
+        }
     }
 
     /// Convenience constructor for [`ParagraphType::UnorderedList`].
     pub fn new_unordered_list() -> Self {
-        Self::new(ParagraphType::UnorderedList)
+        Self::UnorderedList {
+            entries: Vec::new(),
+        }
     }
 
     /// Convenience constructor for [`ParagraphType::Checklist`].
     pub fn new_checklist() -> Self {
-        Self::new(ParagraphType::Checklist)
+        Self::Checklist { items: Vec::new() }
     }
 
     /// Convenience constructor for [`ParagraphType::Quote`].
     pub fn new_quote() -> Self {
-        Self::new(ParagraphType::Quote)
+        Self::Quote {
+            children: Vec::new(),
+        }
     }
 
-    /// Replaces the inline content of the paragraph.
-    pub fn with_content(mut self, content: Vec<Span>) -> Self {
-        self.content = content;
-        self
-    }
-
-    /// Replaces the paragraph's child paragraphs.
-    pub fn with_children(mut self, children: Vec<Paragraph>) -> Self {
-        self.children = children;
-        self
-    }
-
-    /// Replaces the paragraph's list entries.
-    pub fn with_entries(mut self, entries: Vec<Vec<Paragraph>>) -> Self {
-        self.entries = entries;
-        self
-    }
-
-    /// Replaces the paragraph's checklist items.
-    pub fn with_checklist_items(mut self, items: Vec<ChecklistItem>) -> Self {
-        debug_assert_eq!(self.paragraph_type, ParagraphType::Checklist);
-        self.checklist_items = items;
-        self
+    /// Returns the [`ParagraphType`] of the current paragraph.
+    pub fn paragraph_type(&self) -> ParagraphType {
+        match self {
+            Paragraph::Text { .. } => ParagraphType::Text,
+            Paragraph::Header1 { .. } => ParagraphType::Header1,
+            Paragraph::Header2 { .. } => ParagraphType::Header2,
+            Paragraph::Header3 { .. } => ParagraphType::Header3,
+            Paragraph::CodeBlock { .. } => ParagraphType::CodeBlock,
+            Paragraph::OrderedList { .. } => ParagraphType::OrderedList,
+            Paragraph::UnorderedList { .. } => ParagraphType::UnorderedList,
+            Paragraph::Checklist { .. } => ParagraphType::Checklist,
+            Paragraph::Quote { .. } => ParagraphType::Quote,
+        }
     }
 
     /// Returns `true` if this paragraph cannot contain nested paragraphs.
     pub fn is_leaf(&self) -> bool {
-        self.paragraph_type.is_leaf()
+        self.paragraph_type().is_leaf()
+    }
+
+    /// Returns the inline content for leaf paragraphs, or an empty slice otherwise.
+    pub fn content(&self) -> &[Span] {
+        match self {
+            Paragraph::Text { content }
+            | Paragraph::Header1 { content }
+            | Paragraph::Header2 { content }
+            | Paragraph::Header3 { content }
+            | Paragraph::CodeBlock { content } => content,
+            _ => &[],
+        }
+    }
+
+    /// Returns mutable inline content for leaf paragraphs.
+    pub fn content_mut(&mut self) -> &mut Vec<Span> {
+        match self {
+            Paragraph::Text { content }
+            | Paragraph::Header1 { content }
+            | Paragraph::Header2 { content }
+            | Paragraph::Header3 { content }
+            | Paragraph::CodeBlock { content } => content,
+            _ => panic!("only leaf paragraphs contain inline content"),
+        }
+    }
+
+    /// Replaces the inline content of the paragraph.
+    pub fn with_content(self, content: Vec<Span>) -> Self {
+        match self {
+            Paragraph::Text { .. } => Paragraph::Text { content },
+            Paragraph::Header1 { .. } => Paragraph::Header1 { content },
+            Paragraph::Header2 { .. } => Paragraph::Header2 { content },
+            Paragraph::Header3 { .. } => Paragraph::Header3 { content },
+            Paragraph::CodeBlock { .. } => Paragraph::CodeBlock { content },
+            _ => panic!("only leaf paragraphs can hold inline content"),
+        }
+    }
+
+    /// Returns the child paragraphs for quote nodes (or an empty slice).
+    pub fn children(&self) -> &[Paragraph] {
+        match self {
+            Paragraph::Quote { children } => children,
+            _ => &[],
+        }
+    }
+
+    /// Returns mutable child paragraphs for quote nodes.
+    pub fn children_mut(&mut self) -> &mut Vec<Paragraph> {
+        match self {
+            Paragraph::Quote { children } => children,
+            _ => panic!("only block quotes hold child paragraphs"),
+        }
+    }
+
+    /// Replaces the paragraph's child paragraphs.
+    pub fn with_children(self, children: Vec<Paragraph>) -> Self {
+        match self {
+            Paragraph::Quote { .. } => Paragraph::Quote { children },
+            _ => panic!("only block quotes can hold child paragraphs"),
+        }
     }
 
     /// Appends a child paragraph (used for quotes or nested structures).
     pub fn add_child(&mut self, child: Paragraph) {
-        self.children.push(child);
+        self.children_mut().push(child);
+    }
+
+    /// Returns the list entries for list paragraphs (or an empty slice).
+    pub fn entries(&self) -> &[Vec<Paragraph>] {
+        match self {
+            Paragraph::OrderedList { entries } | Paragraph::UnorderedList { entries } => entries,
+            _ => &[],
+        }
+    }
+
+    /// Returns mutable access to list entries for list paragraphs.
+    pub fn entries_mut(&mut self) -> &mut Vec<Vec<Paragraph>> {
+        match self {
+            Paragraph::OrderedList { entries } | Paragraph::UnorderedList { entries } => entries,
+            _ => panic!("only list paragraphs can hold entries"),
+        }
+    }
+
+    /// Replaces the paragraph's list entries.
+    pub fn with_entries(self, entries: Vec<Vec<Paragraph>>) -> Self {
+        match self {
+            Paragraph::OrderedList { .. } => Paragraph::OrderedList { entries },
+            Paragraph::UnorderedList { .. } => Paragraph::UnorderedList { entries },
+            _ => panic!("only list paragraphs can hold entries"),
+        }
     }
 
     /// Appends a single list item built from nested paragraphs.
     pub fn add_list_item(&mut self, item: Vec<Paragraph>) {
-        debug_assert_ne!(self.paragraph_type, ParagraphType::Checklist);
-        self.entries.push(item);
+        self.entries_mut().push(item);
+    }
+
+    /// Returns the checklist items for checklist paragraphs (or an empty slice).
+    pub fn checklist_items(&self) -> &[ChecklistItem] {
+        match self {
+            Paragraph::Checklist { items } => items,
+            _ => &[],
+        }
+    }
+
+    /// Returns mutable access to checklist items for checklist paragraphs.
+    pub fn checklist_items_mut(&mut self) -> &mut Vec<ChecklistItem> {
+        match self {
+            Paragraph::Checklist { items } => items,
+            _ => panic!("only checklist paragraphs can hold checklist items"),
+        }
+    }
+
+    /// Replaces the paragraph's checklist items.
+    pub fn with_checklist_items(self, items: Vec<ChecklistItem>) -> Self {
+        match self {
+            Paragraph::Checklist { .. } => Paragraph::Checklist { items },
+            _ => panic!("only checklist paragraphs can hold checklist items"),
+        }
     }
 
     /// Appends a single checklist item. Only valid for checklist paragraphs.
     pub fn add_checklist_item(&mut self, item: ChecklistItem) {
-        debug_assert_eq!(self.paragraph_type, ParagraphType::Checklist);
-        self.checklist_items.push(item);
+        self.checklist_items_mut().push(item);
     }
 }
 
@@ -278,7 +409,6 @@ impl ChecklistItem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Span;
 
     #[test]
     fn test_paragraph_type_display() {
@@ -311,8 +441,8 @@ mod tests {
     fn test_paragraph_creation() {
         let p = Paragraph::new_text().with_content(vec![Span::new_text("Hello")]);
 
-        assert_eq!(p.paragraph_type, ParagraphType::Text);
-        assert_eq!(p.content.len(), 1);
-        assert_eq!(p.content[0].text, "Hello");
+        assert_eq!(p.paragraph_type(), ParagraphType::Text);
+        assert_eq!(p.content().len(), 1);
+        assert_eq!(p.content()[0].text, "Hello");
     }
 }

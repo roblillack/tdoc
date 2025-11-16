@@ -720,9 +720,7 @@ impl ParagraphBuilder {
 
     fn to_paragraph(node: &ParagraphNode) -> Paragraph {
         let borrowed = node.borrow();
-        let mut paragraph = Paragraph::new(borrowed.paragraph_type);
-        paragraph.content = borrowed.content.clone();
-        paragraph.children = borrowed
+        let children: Vec<Paragraph> = borrowed
             .children
             .iter()
             .map(ParagraphBuilder::to_paragraph)
@@ -760,13 +758,32 @@ impl ParagraphBuilder {
                     checklist_items.push(item);
                 }
             }
-            paragraph.paragraph_type = ParagraphType::Checklist;
-            paragraph.checklist_items = checklist_items;
+            Paragraph::new_checklist().with_checklist_items(checklist_items)
         } else {
-            paragraph.entries = entries;
+            match borrowed.paragraph_type {
+                ParagraphType::Text => Paragraph::new_text().with_content(borrowed.content.clone()),
+                ParagraphType::Header1 => {
+                    Paragraph::new_header1().with_content(borrowed.content.clone())
+                }
+                ParagraphType::Header2 => {
+                    Paragraph::new_header2().with_content(borrowed.content.clone())
+                }
+                ParagraphType::Header3 => {
+                    Paragraph::new_header3().with_content(borrowed.content.clone())
+                }
+                ParagraphType::CodeBlock => {
+                    Paragraph::new_code_block().with_content(borrowed.content.clone())
+                }
+                ParagraphType::Quote => Paragraph::new_quote().with_children(children),
+                ParagraphType::OrderedList => Paragraph::new_ordered_list().with_entries(entries),
+                ParagraphType::UnorderedList => {
+                    Paragraph::new_unordered_list().with_entries(entries)
+                }
+                ParagraphType::Checklist => {
+                    Paragraph::new_checklist().with_checklist_items(Vec::new())
+                }
+            }
         }
-
-        paragraph
     }
 
     fn entry_to_checklist_item(entry: Vec<Paragraph>, checked: bool) -> Option<ChecklistItem> {
@@ -774,12 +791,16 @@ impl ParagraphBuilder {
         let mut content = Vec::new();
 
         for paragraph in entry {
-            match paragraph.paragraph_type {
-                ParagraphType::Checklist => {
-                    item.children.extend(paragraph.checklist_items);
+            match paragraph {
+                Paragraph::Checklist { mut items } => {
+                    item.children.append(&mut items);
                 }
-                _ => {
-                    if paragraph.content.is_empty() {
+                Paragraph::Text { content: mut spans }
+                | Paragraph::Header1 { content: mut spans }
+                | Paragraph::Header2 { content: mut spans }
+                | Paragraph::Header3 { content: mut spans }
+                | Paragraph::CodeBlock { content: mut spans } => {
+                    if spans.is_empty() {
                         continue;
                     }
 
@@ -787,9 +808,9 @@ impl ParagraphBuilder {
                         content.push(Span::new_text("\n"));
                     }
 
-                    let mut spans = paragraph.content;
                     content.append(&mut spans);
                 }
+                _ => {}
             }
         }
 
@@ -810,37 +831,28 @@ fn list_entry_has_meaningful_content(entry: &[Paragraph]) -> bool {
 }
 
 fn is_empty_list(paragraph: &Paragraph) -> bool {
-    matches!(
-        paragraph.paragraph_type,
-        ParagraphType::UnorderedList | ParagraphType::OrderedList | ParagraphType::Checklist
-    ) && paragraph.entries.iter().all(|entry| entry.is_empty())
-        && paragraph.children.is_empty()
-        && paragraph.content.is_empty()
-        && (paragraph.paragraph_type != ParagraphType::Checklist
-            || paragraph.checklist_items.is_empty())
+    match paragraph {
+        Paragraph::OrderedList { entries } | Paragraph::UnorderedList { entries } => {
+            entries.iter().all(|entry| entry.is_empty())
+        }
+        Paragraph::Checklist { items } => items.is_empty(),
+        _ => false,
+    }
 }
 
 fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {
-    if paragraph
-        .content
-        .iter()
-        .any(|span| !span.is_content_empty())
-    {
-        return true;
+    match paragraph {
+        Paragraph::Text { content }
+        | Paragraph::Header1 { content }
+        | Paragraph::Header2 { content }
+        | Paragraph::Header3 { content }
+        | Paragraph::CodeBlock { content } => content.iter().any(|span| !span.is_content_empty()),
+        Paragraph::Quote { children } => children.iter().any(paragraph_has_meaningful_content),
+        Paragraph::OrderedList { entries } | Paragraph::UnorderedList { entries } => entries
+            .iter()
+            .any(|nested| list_entry_has_meaningful_content(nested)),
+        Paragraph::Checklist { items } => !items.is_empty(),
     }
-
-    if paragraph
-        .children
-        .iter()
-        .any(paragraph_has_meaningful_content)
-    {
-        return true;
-    }
-
-    paragraph
-        .entries
-        .iter()
-        .any(|nested| list_entry_has_meaningful_content(nested))
 }
 
 struct BufferedSpanList {
@@ -1132,10 +1144,10 @@ mod tests {
 
         assert_eq!(document.paragraphs.len(), 1);
         let paragraph = &document.paragraphs[0];
-        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
-        assert_eq!(paragraph.content.len(), 1);
+        assert_eq!(paragraph.paragraph_type(), ParagraphType::Text);
+        assert_eq!(paragraph.content().len(), 1);
 
-        let span = &paragraph.content[0];
+        let span = &paragraph.content()[0];
         assert_eq!(span.style, InlineStyle::Link);
         assert_eq!(span.link_target.as_deref(), Some("https://example.com"));
         assert!(span.children.is_empty());
@@ -1148,9 +1160,9 @@ mod tests {
         let document = parse(Cursor::new(input)).unwrap();
 
         let paragraph = &document.paragraphs[0];
-        assert_eq!(paragraph.content.len(), 1);
+        assert_eq!(paragraph.content().len(), 1);
 
-        let span = &paragraph.content[0];
+        let span = &paragraph.content()[0];
         assert_eq!(span.style, InlineStyle::None);
         assert!(span.link_target.is_none());
         assert_eq!(span.text, "Example");
@@ -1162,9 +1174,9 @@ mod tests {
         let document = parse(Cursor::new(input)).unwrap();
 
         let paragraph = &document.paragraphs[0];
-        assert_eq!(paragraph.content.len(), 1);
+        assert_eq!(paragraph.content().len(), 1);
 
-        let span = &paragraph.content[0];
+        let span = &paragraph.content()[0];
         assert_eq!(span.style, InlineStyle::None);
         assert!(span.link_target.is_none());
         assert_eq!(span.text, "Anchor label");
@@ -1177,9 +1189,9 @@ mod tests {
 
         assert_eq!(document.paragraphs.len(), 1);
         let paragraph = &document.paragraphs[0];
-        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
-        assert_eq!(paragraph.content.len(), 1);
-        assert_eq!(paragraph.content[0].text, "Hello");
+        assert_eq!(paragraph.paragraph_type(), ParagraphType::Text);
+        assert_eq!(paragraph.content().len(), 1);
+        assert_eq!(paragraph.content()[0].text, "Hello");
     }
 
     #[test]
@@ -1189,9 +1201,9 @@ mod tests {
 
         assert_eq!(document.paragraphs.len(), 1);
         let paragraph = &document.paragraphs[0];
-        assert_eq!(paragraph.paragraph_type, ParagraphType::Text);
-        assert_eq!(paragraph.content.len(), 1);
-        assert_eq!(paragraph.content[0].text, "World");
+        assert_eq!(paragraph.paragraph_type(), ParagraphType::Text);
+        assert_eq!(paragraph.content().len(), 1);
+        assert_eq!(paragraph.content()[0].text, "World");
     }
 
     #[test]
@@ -1242,22 +1254,22 @@ mod tests {
         let list = document
             .paragraphs
             .iter()
-            .find(|paragraph| paragraph.paragraph_type == ParagraphType::UnorderedList)
+            .find(|paragraph| paragraph.paragraph_type() == ParagraphType::UnorderedList)
             .expect("expected a list paragraph");
 
-        assert_eq!(list.entries.len(), 2);
+        assert_eq!(list.entries().len(), 2);
 
-        for (entry, expected_href) in list.entries.iter().zip(["/", "/articles"]) {
+        for (entry, expected_href) in list.entries().iter().zip(["/", "/articles"]) {
             assert_eq!(entry.len(), 1);
             let text_paragraph = &entry[0];
-            assert_eq!(text_paragraph.paragraph_type, ParagraphType::Text);
+            assert_eq!(text_paragraph.paragraph_type(), ParagraphType::Text);
             assert!(
-                text_paragraph.content.iter().any(|span| {
+                text_paragraph.content().iter().any(|span| {
                     span.style == InlineStyle::Link
                         && span.link_target.as_deref() == Some(expected_href)
                 }),
                 "expected list item to contain a link span for href '{expected_href}', got {:?}",
-                text_paragraph.content
+                text_paragraph.content()
             );
         }
     }
