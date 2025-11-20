@@ -1,9 +1,11 @@
+mod gemini_client;
+
 use clap::{Parser, ValueEnum, ValueHint};
 use crossterm::terminal;
 use reqwest::blocking::Client;
 use reqwest::header::USER_AGENT;
 use std::fs::File;
-use std::io::{self, BufReader, Read, Write};
+use std::io::{self, BufReader, Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -161,6 +163,38 @@ fn create_reader(
                         reader: Box::new(response),
                         display_name: final_url.to_string(),
                         origin,
+                    });
+                } else if url.scheme() == "gemini" {
+                    // Fetch via Gemini protocol
+                    let response = gemini_client::fetch(value)
+                        .map_err(|err| format!("Unable to fetch {value}: {err}"))?;
+
+                    // Handle redirects
+                    if response.is_redirect() {
+                        if let Some(redirect_url) = response.redirect_url() {
+                            return Err(format!(
+                                "Gemini redirect to: {} (status {})\nPlease follow the redirect manually.",
+                                redirect_url, response.status
+                            ));
+                        }
+                    }
+
+                    // Check for success status
+                    if !response.is_success() {
+                        return Err(format!(
+                            "Gemini request failed with status {}: {}",
+                            response.status, response.meta
+                        ));
+                    }
+
+                    // Gemini responses default to text/gemini (gemtext)
+                    let format = override_format.unwrap_or(InputFormat::Gemini);
+
+                    return Ok(InputSource {
+                        format,
+                        reader: Box::new(Cursor::new(response.body)),
+                        display_name: url.to_string(),
+                        origin: ContentOrigin::Url(url.clone()),
                     });
                 }
             }
@@ -420,7 +454,7 @@ fn build_link_policy(origin: &ContentOrigin) -> pager::LinkPolicy {
                         return false;
                     }
                     match Url::options().base_url(Some(&base)).parse(trimmed) {
-                        Ok(resolved) => matches!(resolved.scheme(), "http" | "https"),
+                        Ok(resolved) => matches!(resolved.scheme(), "http" | "https" | "gemini"),
                         Err(_) => false,
                     }
                 }),
@@ -473,7 +507,7 @@ fn navigate_to_target(
                 Ok(url) => url,
                 Err(_) => return Ok(None),
             };
-            if !matches!(resolved.scheme(), "http" | "https") {
+            if !matches!(resolved.scheme(), "http" | "https" | "gemini") {
                 return Ok(None);
             }
             if &resolved == current_url {
