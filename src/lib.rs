@@ -4,10 +4,10 @@
 //! The crate is centered around three core concepts:
 //! - [`Document`], [`Paragraph`], and [`Span`], which form an in-memory tree
 //!   representation of FTML content.
-//! - Parsers (see [`parser`], [`html`], and [`markdown`]) that turn external text
+//! - Parsers (see [`parser`], [`html`], [`markdown`], and [`gemini`]) that turn external text
 //!   into that tree.
 //! - Writers and formatters (see [`writer`] and [`formatter`]) that turn the tree
-//!   back into HTML, Markdown, or richly styled terminal output.
+//!   back into HTML, Markdown, Gemini, or richly styled terminal output.
 //!
 //! Checklists (Markdown `- [ ]` entries or HTML `<input type="checkbox">`
 //! lists) map to [`ParagraphType::Checklist`] nodes that store [`ChecklistItem`]
@@ -22,6 +22,7 @@ mod macros;
 
 pub mod document;
 pub mod formatter;
+pub mod gemini;
 pub mod html;
 pub mod inline;
 pub mod markdown;
