@@ -180,7 +180,7 @@ impl<'a> Read for IoAdapter<'a> {
                 Ok(_) => {
                     self.conn
                         .process_new_packets()
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                        .map_err(std::io::Error::other)?;
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
                 Err(e) => return Err(e),
