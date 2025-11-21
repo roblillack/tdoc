@@ -1,0 +1,68 @@
+# Comprehensive Gemini Test Document
+
+This document tests all major Gemini features.
+
+## Text Formatting
+
+Regular paragraph text appears without any special markers.
+
+Multiple paragraphs are separated by blank lines.
+
+## Headings
+
+We have three levels of headings (shown above and below).
+
+### Third Level Heading
+
+This is under a third-level heading.
+
+## Links
+
+=> https://gemini.circumlunar.space/ Project Gemini
+=> gemini://example.com/page.gmi Example Gemini Page
+=> /local/path/file.gmi Local File
+=> https://example.com
+
+## Lists
+
+* First list item
+* Second list item
+* Third list item with more text
+* Fourth and final item
+
+## Quotes
+
+> This is a blockquote in Gemini format.
+> It can span multiple lines.
+> Each line starts with a greater-than sign.
+
+## Preformatted Text
+
+```
+This is preformatted text (code block).
+It preserves    spacing   and formatting.
+
+def example():
+    return "Hello, Gemini!"
+```
+
+```python
+# You can optionally specify alt text after the backticks
+def greet(name):
+    print(f"Hello, {name}!")
+```
+
+## Mixed Content
+
+Here's a paragraph followed by a link:
+
+=> https://example.org Example Organization
+
+And then another paragraph with more content.
+
+* List item one
+* List item two
+
+> A quote to finish things off.
+
+That's all!

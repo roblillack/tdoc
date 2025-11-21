@@ -1,0 +1,25 @@
+# Welcome to Gemini
+
+This is a simple paragraph of text in Gemini format.
+
+## Links Section
+
+=> https://example.com Example Website
+=> /about.gmi About This Site
+
+## Lists
+
+* First item
+* Second item
+* Third item
+
+> This is a quote from someone famous
+
+## Code Example
+
+```
+def hello():
+    print("Hello, World!")
+```
+
+That's all for now!

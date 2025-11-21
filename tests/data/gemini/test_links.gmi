@@ -1,0 +1,4 @@
+=> https://example.com Example Site
+=> https://gemini.circumlunar.space/ Gemini Protocol
+=> /local/file.gmi
+=> gemini://example.com/page A Gemini Link

@@ -1,0 +1,36 @@
+# Gemini Protocol Document
+
+## Introduction
+
+The Gemini protocol is a new internet protocol which is heavier than Gopher but lighter than the web.
+
+=> gemini://gemini.circumlunar.space/ Project Gemini Home
+
+## Features
+
+Gemini has the following features:
+
+* Simple text format
+* Privacy focused
+* No client-side scripting
+* No inline images
+
+> The Gemini protocol is designed to be simple and private.
+
+## Example Code
+
+```python
+import gemini
+
+def fetch_page(url):
+    response = gemini.request(url)
+    return response.text
+```
+
+## Links
+
+=> /about.gmi About Gemini
+=> /faq.gmi Frequently Asked Questions
+=> gemini://example.com/ Example Site
+
+That's all!

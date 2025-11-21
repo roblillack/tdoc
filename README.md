@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/crates/d/tdoc.svg)](https://crates.io/crates/tdoc)
 [![Docs.rs](https://docs.rs/tdoc/badge.svg)](https://docs.rs/tdoc)
 
-A command-line tool and Rust library for handling all kinds of text documents (Markdown, HTML, FTML - Formatted Text Markup Language).
+A command-line tool and Rust library for handling all kinds of text documents (Markdown, HTML, Gemini, and FTML - Formatted Text Markup Language).
 
 This project is a partial rewrite of the Go library available at https://github.com/roblillack/ftml, bringing FTML support to the Rust ecosystem with improved performance and memory safety.
 
@@ -13,7 +13,7 @@ This project is a partial rewrite of the Go library available at https://github.
 
 ## CLI usage
 
-`tdoc` is the unified CLI for viewing and exporting FTML, HTML, and Markdown content.
+`tdoc` is the unified CLI for viewing and exporting FTML, HTML, Markdown, and Gemini content.
 When no input path is provided it reads from stdin. The output format is detected
 from the `--output/-o` file extension.
 
@@ -26,6 +26,9 @@ tdoc notes.md
 
 # View a local HTML file with ANSI styling
 tdoc email.html
+
+# View a local Gemini file with ANSI styling
+tdoc capsule.gmi
 
 # View from a URL
 tdoc https://example.com/document.html
@@ -43,6 +46,7 @@ cat notes.md | tdoc --input-format markdown
 tdoc paper.ftml --output paper.md      # Markdown
 tdoc paper.ftml --output paper.ftml    # FTML
 tdoc paper.ftml --output paper.html    # HTML
+tdoc paper.ftml --output paper.gmi     # Gemini
 tdoc paper.ftml --output paper.txt     # Wrapped ASCII text
 ```
 
@@ -66,7 +70,8 @@ tdoc provides a comprehensive toolkit for working with FTML documents in Rust:
 - **Load and Save**: Parse FTML documents from files or streams, and write them back with proper formatting
 - **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code`, [clickable links](https://github.com/roblillack/tdoc) and all supported paragraph types
 - **Format Conversion**: Convert between FTML and other formats:
-  - **Markdown**: Export FTML documents to Markdown for compatibility with documentation systems
+  - **Markdown**: Import and export Markdown documents with full round-trip support
+  - **Gemini**: Import and export Gemini text (.gmi) documents with full round-trip support
   - **HTML**: Import HTML documents into FTML (basic support), with plans for full HTML export
 - **Document Manipulation**: Build and modify FTML documents programmatically with a clean, type-safe API
 - **Inline FTML macro**: Compose FTML document trees inline with the `ftml!` macro for ergonomic test fixtures and examples
@@ -224,6 +229,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Working with Gemini format
+
+```rust
+use tdoc::gemini;
+use std::fs::File;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Parse a Gemini file
+    let file = File::open("capsule.gmi")?;
+    let document = gemini::parse(file)?;
+
+    // Export to Gemini
+    gemini::write(&mut std::io::stdout(), &document)?;
+
+    Ok(())
+}
+```
+
 ### Importing from HTML
 
 ```rust
@@ -256,6 +279,8 @@ This Rust implementation is a work in progress. Here's how it compares to the [G
 | **Import/Export**      |             |               |                                           |
 | Markdown Import        | ✅ Full     | ❌ Planned    | Only Rust version has implementation      |
 | Markdown Export        | ✅ Full     | ✅ Full       | Both implementations complete             |
+| Gemini Import          | ✅ Full     | ❌ None       | Only Rust version has implementation      |
+| Gemini Export          | ✅ Full     | ❌ None       | Only Rust version has implementation      |
 | HTML Import            | ✅ Full     | ✅ Full       | Both implementations complete             |
 | HTML Export            | ⚠️ Basic    | ✅ Full       | `tdoc` wraps canonical FTML in HTML       |
 | **CLI Tools**          |             |               |                                           |
