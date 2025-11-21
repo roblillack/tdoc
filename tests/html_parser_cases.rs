@@ -90,21 +90,23 @@ fn parsing_nested_quote_inside_list_preserves_structure() {
     let document = parse(input);
     assert_eq!(document.paragraphs.len(), 1);
     let outer_quote = &document.paragraphs[0];
-    assert_eq!(outer_quote.paragraph_type, ParagraphType::Quote);
-    assert_eq!(outer_quote.children.len(), 1);
+    assert_eq!(outer_quote.paragraph_type(), ParagraphType::Quote);
+    assert_eq!(outer_quote.children().len(), 1);
 
-    let list = &outer_quote.children[0];
-    assert_eq!(list.paragraph_type, ParagraphType::UnorderedList);
-    assert_eq!(list.entries.len(), 1);
+    let first_child = outer_quote.children();
+    let list = &first_child[0];
+    assert_eq!(list.paragraph_type(), ParagraphType::UnorderedList);
+    assert_eq!(list.entries().len(), 1);
 
-    let entry = &list.entries[0];
+    let entry = &list.entries()[0];
     assert_eq!(entry.len(), 2);
-    assert_eq!(entry[0].paragraph_type, ParagraphType::Text);
-    assert_eq!(entry[1].paragraph_type, ParagraphType::Quote);
+    assert_eq!(entry[0].paragraph_type(), ParagraphType::Text);
+    assert_eq!(entry[1].paragraph_type(), ParagraphType::Quote);
 
     let nested_quote = &entry[1];
-    assert_eq!(nested_quote.children.len(), 1);
-    assert_eq!(nested_quote.children[0].paragraph_type, ParagraphType::Text);
+    assert_eq!(nested_quote.children().len(), 1);
+    let nested_children = nested_quote.children();
+    assert_eq!(nested_children[0].paragraph_type(), ParagraphType::Text);
 }
 
 #[test]

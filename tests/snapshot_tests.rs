@@ -98,19 +98,21 @@ fn test_ftml_to_markdown_snapshots() {
                 if document.paragraphs[idx] != reparsed_document.paragraphs[idx] {
                     eprintln!(
                         "Round-trip mismatch for {} at paragraph {} ({:?})",
-                        file_name, idx, document.paragraphs[idx].paragraph_type
+                        file_name,
+                        idx,
+                        document.paragraphs[idx].paragraph_type()
                     );
                     if matches!(
-                        document.paragraphs[idx].paragraph_type,
+                        document.paragraphs[idx].paragraph_type(),
                         tdoc::ParagraphType::UnorderedList | tdoc::ParagraphType::OrderedList
                     ) {
                         let orig_counts: Vec<_> = document.paragraphs[idx]
-                            .entries
+                            .entries()
                             .iter()
                             .map(|entry| entry.len())
                             .collect();
                         let new_counts: Vec<_> = reparsed_document.paragraphs[idx]
-                            .entries
+                            .entries()
                             .iter()
                             .map(|entry| entry.len())
                             .collect();
@@ -119,18 +121,18 @@ fn test_ftml_to_markdown_snapshots() {
                             orig_counts, new_counts
                         );
                         let min_entries = document.paragraphs[idx]
-                            .entries
+                            .entries()
                             .len()
-                            .min(reparsed_document.paragraphs[idx].entries.len());
+                            .min(reparsed_document.paragraphs[idx].entries().len());
                         for entry_idx in 0..min_entries {
-                            if document.paragraphs[idx].entries[entry_idx]
-                                != reparsed_document.paragraphs[idx].entries[entry_idx]
+                            if document.paragraphs[idx].entries()[entry_idx]
+                                != reparsed_document.paragraphs[idx].entries()[entry_idx]
                             {
                                 eprintln!(
                                     "Entry {} diff:\noriginal: {:#?}\nreparsed: {:#?}",
                                     entry_idx,
-                                    document.paragraphs[idx].entries[entry_idx],
-                                    reparsed_document.paragraphs[idx].entries[entry_idx]
+                                    document.paragraphs[idx].entries()[entry_idx],
+                                    reparsed_document.paragraphs[idx].entries()[entry_idx]
                                 );
                                 break;
                             }

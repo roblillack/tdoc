@@ -14,7 +14,7 @@ use std::io::{Read, Write};
 /// use tdoc::{markdown, ParagraphType};
 ///
 /// let doc = markdown::parse(Cursor::new("# Heading")).unwrap();
-/// assert_eq!(doc.paragraphs[0].paragraph_type, ParagraphType::Header1);
+/// assert_eq!(doc.paragraphs[0].paragraph_type(), ParagraphType::Header1);
 /// ```
 pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     let mut input = String::new();
@@ -489,7 +489,7 @@ impl MarkdownBuilder {
     fn push_thematic_break(&mut self) {
         self.close_open_paragraphs();
         let mut paragraph = Paragraph::new_text();
-        paragraph.content.push(Span::new_text("---"));
+        paragraph.content_mut().push(Span::new_text("---"));
         self.add_paragraph_to_parent(paragraph);
     }
 
@@ -562,19 +562,22 @@ impl MarkdownBuilder {
         let mut content = Vec::new();
 
         for paragraph in paragraphs {
-            match paragraph.paragraph_type {
-                ParagraphType::Checklist => item.children.extend(paragraph.checklist_items),
-                _ => {
-                    if paragraph.content.is_empty() {
+            match paragraph {
+                Paragraph::Checklist { mut items } => item.children.append(&mut items),
+                Paragraph::Text { content: mut spans }
+                | Paragraph::Header1 { content: mut spans }
+                | Paragraph::Header2 { content: mut spans }
+                | Paragraph::Header3 { content: mut spans }
+                | Paragraph::CodeBlock { content: mut spans } => {
+                    if spans.is_empty() {
                         continue;
                     }
-
                     if !content.is_empty() {
                         content.push(Span::new_text("\n"));
                     }
-
-                    content.extend(paragraph.content.into_iter());
+                    content.append(&mut spans);
                 }
+                _ => {}
             }
         }
 
@@ -693,8 +696,17 @@ impl ParagraphContext {
     }
 
     fn push_nested_paragraph(&mut self, paragraph: Paragraph) {
-        for span in paragraph.content {
-            self.push_span(span);
+        match paragraph {
+            Paragraph::Text { content }
+            | Paragraph::Header1 { content }
+            | Paragraph::Header2 { content }
+            | Paragraph::Header3 { content }
+            | Paragraph::CodeBlock { content } => {
+                for span in content {
+                    self.push_span(span);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -755,9 +767,7 @@ impl ParagraphContext {
             self.push_span(span);
         }
 
-        let mut paragraph = Paragraph::new(self.paragraph_type);
-        paragraph.content = self.spans;
-        paragraph
+        Paragraph::new(self.paragraph_type).with_content(self.spans)
     }
 }
 
@@ -813,8 +823,10 @@ fn write_paragraphs<W: Write>(
 
 fn needs_block_prefix_line(paragraph: &Paragraph) -> bool {
     matches!(
-        paragraph.paragraph_type,
-        ParagraphType::OrderedList | ParagraphType::UnorderedList | ParagraphType::Checklist
+        paragraph,
+        Paragraph::OrderedList { .. }
+            | Paragraph::UnorderedList { .. }
+            | Paragraph::Checklist { .. }
     )
 }
 
@@ -824,34 +836,34 @@ fn write_paragraph<W: Write>(
     prefix: &str,
     continuation_prefix: &str,
 ) -> std::io::Result<()> {
-    match paragraph.paragraph_type {
-        ParagraphType::Text => {
-            let content = render_spans_to_string(&paragraph.content)?;
+    match paragraph {
+        Paragraph::Text { content } => {
+            let content = render_spans_to_string(content)?;
             write_wrapped_lines(writer, prefix, continuation_prefix, &content)?;
         }
-        ParagraphType::CodeBlock => {
-            write_code_block(writer, prefix, continuation_prefix, &paragraph.content)?;
+        Paragraph::CodeBlock { content } => {
+            write_code_block(writer, prefix, continuation_prefix, content)?;
         }
-        ParagraphType::Header1 => {
-            let content = render_spans_to_string(&paragraph.content)?;
+        Paragraph::Header1 { content } => {
+            let content = render_spans_to_string(content)?;
             let first_prefix = format!("{}# ", prefix);
             write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
         }
-        ParagraphType::Header2 => {
-            let content = render_spans_to_string(&paragraph.content)?;
+        Paragraph::Header2 { content } => {
+            let content = render_spans_to_string(content)?;
             let first_prefix = format!("{}## ", prefix);
             write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
         }
-        ParagraphType::Header3 => {
-            let content = render_spans_to_string(&paragraph.content)?;
+        Paragraph::Header3 { content } => {
+            let content = render_spans_to_string(content)?;
             let first_prefix = format!("{}### ", prefix);
             write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
         }
-        ParagraphType::Quote => {
+        Paragraph::Quote { children } => {
             let quote_prefix = format!("{}> ", prefix);
             let quote_continuation = format!("{}> ", continuation_prefix);
 
-            for (idx, child) in paragraph.children.iter().enumerate() {
+            for (idx, child) in children.iter().enumerate() {
                 if idx > 0 {
                     write!(writer, "{}", quote_continuation)?;
                     writeln!(writer)?;
@@ -859,16 +871,16 @@ fn write_paragraph<W: Write>(
                 write_paragraph(writer, child, &quote_prefix, &quote_continuation)?;
             }
         }
-        ParagraphType::UnorderedList => {
-            for entry in &paragraph.entries {
+        Paragraph::UnorderedList { entries } => {
+            for entry in entries {
                 let bullet_prefix = format!("{}- ", prefix);
                 let bullet_continuation = format!("{}  ", continuation_prefix);
 
                 write_paragraphs(writer, entry, &bullet_prefix, &bullet_continuation)?;
             }
         }
-        ParagraphType::OrderedList => {
-            for (i, entry) in paragraph.entries.iter().enumerate() {
+        Paragraph::OrderedList { entries } => {
+            for (i, entry) in entries.iter().enumerate() {
                 let marker = format!("{}. ", i + 1);
                 let bullet_prefix = format!("{}{}", prefix, marker);
                 let bullet_continuation =
@@ -877,13 +889,8 @@ fn write_paragraph<W: Write>(
                 write_paragraphs(writer, entry, &bullet_prefix, &bullet_continuation)?;
             }
         }
-        ParagraphType::Checklist => {
-            write_checklist_items(
-                writer,
-                &paragraph.checklist_items,
-                prefix,
-                continuation_prefix,
-            )?;
+        Paragraph::Checklist { items } => {
+            write_checklist_items(writer, items, prefix, continuation_prefix)?;
         }
     }
     Ok(())
@@ -1544,10 +1551,10 @@ mod tests {
 
         assert_eq!(parsed.paragraphs.len(), 1);
         let paragraph = &parsed.paragraphs[0];
-        assert_eq!(paragraph.content.len(), 2);
-        assert_eq!(paragraph.content[0].text, "See ");
+        assert_eq!(paragraph.content().len(), 2);
+        assert_eq!(paragraph.content()[0].text, "See ");
 
-        let link_span = &paragraph.content[1];
+        let link_span = &paragraph.content()[1];
         assert_eq!(link_span.style, InlineStyle::Link);
         assert_eq!(
             link_span.link_target.as_deref(),
@@ -1564,9 +1571,9 @@ mod tests {
 
         assert_eq!(parsed.paragraphs.len(), 1);
         let paragraph = &parsed.paragraphs[0];
-        assert_eq!(paragraph.content.len(), 1);
+        assert_eq!(paragraph.content().len(), 1);
 
-        let link_span = &paragraph.content[0];
+        let link_span = &paragraph.content()[0];
         assert_eq!(link_span.style, InlineStyle::Link);
         assert_eq!(
             link_span.link_target.as_deref(),

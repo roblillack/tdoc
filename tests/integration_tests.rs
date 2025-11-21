@@ -642,7 +642,7 @@ fn test_trim_whitespace() {
     let doc = parse(Cursor::new(input)).unwrap();
 
     // Should trim leading/trailing whitespace
-    assert_eq!(doc.paragraphs[0].content[0].text, "test, test.");
+    assert_eq!(doc.paragraphs[0].content()[0].text, "test, test.");
 }
 
 #[test]
@@ -686,7 +686,7 @@ fn test_all_inline_styles() {
 
     for (input, expected_style) in tests {
         let doc = parse(Cursor::new(input)).unwrap();
-        assert_eq!(doc.paragraphs[0].content[0].style, expected_style);
+        assert_eq!(doc.paragraphs[0].content()[0].style, expected_style);
     }
 }
 
@@ -710,7 +710,7 @@ fn test_all_paragraph_types() {
 
     for (input, expected_type) in tests {
         let doc = parse(Cursor::new(input)).unwrap();
-        assert_eq!(doc.paragraphs[0].paragraph_type, expected_type);
+        assert_eq!(doc.paragraphs[0].paragraph_type(), expected_type);
     }
 }
 
