@@ -53,7 +53,7 @@ impl GeminiBuilder {
 
     fn process_line(&mut self, line: &str) {
         // Handle preformatted toggle
-        if line.starts_with("```") {
+        if let Some(stripped) = line.strip_prefix("```") {
             if self.in_preformatted {
                 // End preformatted block
                 self.flush_preformatted();
@@ -63,7 +63,7 @@ impl GeminiBuilder {
                 self.flush_list();
                 self.flush_quote();
                 self.in_preformatted = true;
-                self.preformatted_alt = line[3..].trim().to_string();
+                self.preformatted_alt = stripped.trim().to_string();
                 self.preformatted_lines.clear();
             }
             return;
