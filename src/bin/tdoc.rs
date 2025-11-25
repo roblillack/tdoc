@@ -8,14 +8,14 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
-use tdoc::{html, markdown, pager, parse, write, Document};
+use tdoc::{gemini, html, markdown, pager, parse, write, Document};
 use url::Url;
 
 #[derive(Parser)]
 #[command(
     name = "tdoc",
     version,
-    about = "View and export FTML, HTML, and Markdown documents"
+    about = "View and export FTML, HTML, Markdown, and Gemini documents"
 )]
 struct Cli {
     /// Input file or URL (omit to read from stdin)
@@ -40,6 +40,7 @@ enum InputFormat {
     Ftml,
     Html,
     Markdown,
+    Gemini,
 }
 
 #[derive(Copy, Clone, ValueEnum)]
@@ -47,6 +48,7 @@ enum InputFormatArg {
     Ftml,
     Html,
     Markdown,
+    Gemini,
 }
 
 impl From<InputFormatArg> for InputFormat {
@@ -55,6 +57,7 @@ impl From<InputFormatArg> for InputFormat {
             InputFormatArg::Ftml => InputFormat::Ftml,
             InputFormatArg::Html => InputFormat::Html,
             InputFormatArg::Markdown => InputFormat::Markdown,
+            InputFormatArg::Gemini => InputFormat::Gemini,
         }
     }
 }
@@ -78,6 +81,7 @@ enum OutputFormat {
     Ftml,
     Markdown,
     Html,
+    Gemini,
 }
 
 fn main() {
@@ -187,6 +191,7 @@ fn detect_input_format(extension: Option<&str>) -> Option<InputFormat> {
         "ftml" => Some(InputFormat::Ftml),
         "html" | "htm" => Some(InputFormat::Html),
         "md" | "markdown" => Some(InputFormat::Markdown),
+        "gmi" | "gemini" => Some(InputFormat::Gemini),
         _ => None,
     }
 }
@@ -204,6 +209,8 @@ fn parse_document(
             .map_err(|err| format!("Unable to parse {display_name} as HTML: {err}")),
         InputFormat::Markdown => markdown::parse(reader)
             .map_err(|err| format!("Unable to parse {display_name} as Markdown: {err}")),
+        InputFormat::Gemini => gemini::parse(reader)
+            .map_err(|err| format!("Unable to parse {display_name} as Gemini: {err}")),
     }
 }
 
@@ -603,6 +610,19 @@ fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {
             file.flush()
                 .map_err(|err| format!("Unable to flush {}: {err}", output_path.display()))
         }
+        OutputFormat::Gemini => {
+            let mut file = File::create(output_path).map_err(|err| {
+                format!(
+                    "Unable to open {} for writing: {err}",
+                    output_path.display()
+                )
+            })?;
+            gemini::write(&mut file, document).map_err(|err| {
+                format!("Unable to write Gemini to {}: {err}", output_path.display())
+            })?;
+            file.flush()
+                .map_err(|err| format!("Unable to flush {}: {err}", output_path.display()))
+        }
     }
 }
 
@@ -613,6 +633,7 @@ fn determine_output_format(extension: Option<&str>) -> Option<OutputFormat> {
         "ftml" => Some(OutputFormat::Ftml),
         "md" | "markdown" => Some(OutputFormat::Markdown),
         "html" | "htm" => Some(OutputFormat::Html),
+        "gmi" | "gemini" => Some(OutputFormat::Gemini),
         _ => None,
     }
 }

@@ -1,0 +1,1 @@
+This is a rather long paragraph to show the text-wrapping supported by the ASCII and Markdown exporters. Applications integrating FTML support should do the right thing regarding breaking lines in paragraphs.
