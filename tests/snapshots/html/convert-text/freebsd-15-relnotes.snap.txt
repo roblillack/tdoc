@@ -1,0 +1,2872 @@
+Donate to FreeBSD¹
+
+ • Get FreeBSD²
+
+ • Release Information³
+   
+    • Production Release:
+      15.0⁴
+   
+    • Production Release:
+      14.3⁵
+   
+    • Legacy Release:
+      13.5⁶
+
+ • Snapshot Releases⁷
+   
+    • Upcoming Release:
+      14.4⁸
+
+ • Ported Applications⁹
+
+¹ https://www.FreeBSDFoundation.org/donate/
+² https://www.freebsd.org/where
+³ https://www.freebsd.org/releases
+⁴ https://www.FreeBSD.org/releases/15.0R/announce/
+⁵ https://www.FreeBSD.org/releases/14.3R/announce/
+⁶ https://www.FreeBSD.org/releases/13.5R/announce/
+⁷ https://www.freebsd.org/snapshots
+⁸ https://www.FreeBSD.org/releases/14.4R/schedule/
+⁹ https://www.freebsd.org/ports
+
+
+                   FreeBSD 15.0-RELEASE Release Notes
+
+
+
+Abstract
+========
+
+
+The release notes for FreeBSD 15.0-RELEASE contain a summary of the
+changes made to the FreeBSD base system on the 15-STABLE development
+line. This document lists applicable security advisories that were
+issued since the last release, as well as significant changes to the
+FreeBSD kernel and userland. Some brief remarks on upgrading are also
+presented.
+
+Table of Contents
+
+ • Abstract¹
+
+ • Introduction²
+
+ • Upgrading from Previous Releases of FreeBSD³
+
+ • Upgrading from Existing Pre-Release Base System Package Installs⁴
+
+ • Included Security Fixes and Errata Patches⁵
+   
+    • Fixed Security Advisories⁶
+   
+    • Patched Errata Notices⁷
+
+ • Architectures⁸
+
+ • Userland⁹
+   
+    • Userland Configuration Changes¹⁰
+   
+    • Userland Application Changes¹¹
+   
+    • Contributed Software¹²
+   
+    • Runtime Libraries and API¹³
+   
+    • Miscellaneous¹⁴
+   
+    • Deprecated Applications¹⁵
+
+ • Cloud Support¹⁶
+
+ • Kernel¹⁷
+   
+    • General Kernel Changes¹⁸
+   
+    • Architecture-Specific Changes¹⁹
+
+ • Devices and Drivers²⁰
+   
+    • Device Drivers²¹
+   
+    • Deprecated and Removed Drivers²²
+
+ • Storage²³
+   
+    • NFS²⁴
+   
+    • UFS²⁵
+   
+    • ZFS²⁶
+   
+    • GEOM²⁷
+   
+    • General Storage²⁸
+
+ • Boot Loader Changes²⁹
+
+ • Networking³⁰
+   
+    • General Network³¹
+   
+    • Network Protocols³²
+   
+    • Wireless Networking³³
+
+ • Hardware Support³⁴
+   
+    • Virtualization Support³⁵
+   
+    • Linux Binary Compatibility³⁶
+
+ • Multimedia³⁷
+
+ • Documentation³⁸
+   
+    • Manual Pages³⁹
+
+ • Ports Collection and Package Infrastructure⁴⁰
+   
+    • Installer⁴¹
+   
+    • Packaging Changes⁴²
+
+ • General Notes Regarding Future FreeBSD Releases⁴³
+
+ ¹ #_abstract
+ ² #intro
+ ³ #upgrade
+ ⁴ #upgrade-rc
+ ⁵ #security-errata
+ ⁶ #security
+ ⁷ #errata
+ ⁸ #architectures
+ ⁹ #userland
+¹⁰ #userland-config
+¹¹ #userland-programs
+¹² #userland-contrib
+¹³ #userland-libraries
+¹⁴ #userland-misc
+¹⁵ #userland-deprecated-programs
+¹⁶ #cloud
+¹⁷ #kernel
+¹⁸ #kernel-general
+¹⁹ #kernel-architecture-specific
+²⁰ #drivers
+²¹ #drivers-device
+²² #drivers-removals
+²³ #storage
+²⁴ #storage-nfs
+²⁵ #storage-ufs
+²⁶ #storage-zfs
+²⁷ #storage-geom
+²⁸ #storage-general
+²⁹ #boot-loader
+³⁰ #network
+³¹ #network-general
+³² #network-protocols
+³³ #wireless-networking
+³⁴ #hardware
+³⁵ #hardware-virtualization
+³⁶ #linuxulator
+³⁷ #multimedia
+³⁸ #documentation
+³⁹ #man-pages
+⁴⁰ #ports
+⁴¹ #Installer
+⁴² #ports-packages
+⁴³ #future-releases
+
+
+Introduction
+============
+
+
+This document contains the release notes for FreeBSD 15.0-RELEASE. It
+describes recently added, changed, or deleted features of FreeBSD. It
+also provides some notes on upgrading from previous versions of FreeBSD.
+
+The "release" distribution to which these release notes apply represents
+the latest point along the 15-STABLE development branch between
+14.0-RELEASE and the future 15.1-RELEASE. Information regarding
+pre-built, binary "release" distributions along this branch can be found
+at https://www.FreeBSD.org/releases/. More information on obtaining this
+(or other) "release" distributions of FreeBSD can be found in the
+Obtaining FreeBSD appendix¹ to the FreeBSD Handbook².
+
+All users are encouraged to consult the release errata before installing
+FreeBSD. The errata document is updated with "late-breaking" information
+discovered late in the release cycle or after the release. Typically, it
+contains information on known bugs, security advisories, and corrections
+to documentation. An up-to-date copy of the errata for FreeBSD
+15.0-RELEASE can be found on the FreeBSD Web site.
+
+This document describes the most user-visible new or changed features in
+FreeBSD since 14.0-RELEASE. In general, changes described here are
+unique to the 15-STABLE branch unless specifically marked as MERGED
+features.
+
+Typical release note items document recent security advisories issued
+after 14.0-RELEASE, new drivers or hardware support, new commands or
+options, major bug fixes, or contributed software upgrades. They may
+also list changes to major ports/packages or release engineering
+practices. Clearly the release notes cannot list every single change
+made to FreeBSD between releases; this document focuses primarily on
+security advisories, user-visible changes, and major architectural
+improvements.
+
+¹ https://docs.freebsd.org/en/books/handbook//mirrors
+² https://docs.freebsd.org/en/books/handbook//
+
+
+Upgrading from Previous Releases of FreeBSD
+===========================================
+
+
+Binary upgrades between RELEASE versions (and snapshots of the various
+security branches) are supported using the freebsd-update(8)¹ utility.
+See the release-specific upgrade procedure, FreeBSD 15.0-RELEASE upgrade
+information², with more details in the FreeBSD handbook binary upgrade
+procedure³. This will update unmodified userland utilities, as well as
+unmodified GENERIC kernels distributed as a part of an official FreeBSD
+release. The freebsd-update(8)¹ utility requires that the host being
+upgraded have Internet connectivity.
+
+Source-based upgrades (those based on recompiling the FreeBSD base
+system from source code) from previous versions are supported, according
+to the instructions in /usr/src/UPDATING.
+
+Upgrading FreeBSD should only be attempted after backing up all data and
+configuration files.
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=freebsd-update&sektion=8&format=html
+² ../installation/#upgrade-binary
+³ https://docs.freebsd.org/en/books/handbook/cutting-edge/#freebsdupdate-upgrade
+
+
+Upgrading from Existing Pre-Release Base System Package Installs
+================================================================
+
+
+For users of PRERELEASE, ALPHA, and BETA builds of FreeBSD 15.0, due to
+late-breaking changes in FreeBSD.org infrastructure, it is not possible
+to upgrade directly using the pkg-upgrade(8)¹ utility.
+
+Users should either manually copy the required files from a source tree
+checkout of 15.0-RELEASE tag, or a later commit in STABLE or CURRENT
+branches, or alternatively, force-install the FreeBSD-pkg-bootstrap
+package from the official release base system packages.
+
+The recommended, and most secure approach, is using the source tree
+checkout of any of head, stable/15, or releng/15.0 branches after
+2025-11-27 22:00 UTC.
+
+------------------------------------------------------------------------
+# cp /usr/src/usr.sbin/pkg/FreeBSD.conf.quarterly-release \
+       /etc/pkg/FreeBSD.conf
+# cp -R /usr/src/share/keys/pkgbase-15 /usr/share/keys/pkgbase-15
+------------------------------------------------------------------------
+
+Users who do not have up to date sources installed may use a less
+secure, but simpler approach, validating the checksums after
+installation. As these are architecture-independent files, the checksums
+will match on all platforms.
+
+------------------------------------------------------------------------
+# pkg add -f https://pkg.freebsd.org/FreeBSD:15:$(uname -p)/base_release
+_0/FreeBSD-pkg-bootstrap-15.0.pkg
+# sha256 -r /etc/pkg/FreeBSD.conf /usr/share/keys/pkg/trusted/pkg.freebs
+d.org.2013102301 \
+  /usr/share/keys/pkgbase-15/trusted/awskms-15 /usr/share/keys/pkgbase-1
+5/trusted/backup-signing-15
+ab261a3b84ffc11654ac0bafbb7d6b3f1b6afc30bfabab3bcff64259678eac26 /etc/pk
+g/FreeBSD.conf
+036ae4f9c441a3febb41734bbb37227ec3374edd3c6c687e5cb70d580efbea30 /usr/sh
+are/keys/pkg/trusted/pkg.freebsd.org.2013102301
+529c79e85a6ca152faa9d57ead85fe0111ffada8d0a0fa2f11fc510999fa50df /usr/sh
+are/keys/pkgbase-15/trusted/awskms-15
+c368ec8d05654bdaad34742c1d75b9b150bfc3892838cef32f6e5b036b0c0605 /usr/sh
+are/keys/pkgbase-15/trusted/backup-signing-15
+------------------------------------------------------------------------
+
+Upgrading FreeBSD should only be attempted after backing up all data and
+configuration files.
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=pkg-upgrade&sektion=8&format=html
+
+
+Included Security Fixes and Errata Patches
+==========================================
+
+
+This section lists the various Security Advisories and Errata Notices
+since 14.0-RELEASE that have been addressed in 15.0-RELEASE.
+
+
+Fixed Security Advisories
+-------------------------
+
+Advisory Date Topic
+
+FreeBSD-SA-23:17.pf¹
+
+05 December 2023
+
+TCP spoofing vulnerability in pf(4)²
+
+FreeBSD-SA-23:18.nfsclient³
+
+12 December 2023
+
+NFS client data corruption and kernel memory disclosure
+
+FreeBSD-SA-23:19.openssh⁴
+
+19 December 2023
+
+Prefix Truncation Attack in the SSH protocol
+
+FreeBSD-SA-24:01.bhyveload⁵
+
+14 February 2024
+
+bhyveload(8)⁶ host file access
+
+FreeBSD-SA-24:02.tty⁷
+
+14 February 2024
+
+jail(2)⁸ information leak
+
+FreeBSD-SA-24:03.unbound⁹
+
+28 March 2024
+
+Multiple vulnerabilities in unbound
+
+FreeBSD-SA-24:04.openssh¹⁰
+
+01 July 2024
+
+OpenSSH pre-authentication remote code execution
+
+FreeBSD-SA-24:05.pf¹¹
+
+07 August 2024
+
+pf incorrectly matches different ICMPv6 states in the state table
+
+FreeBSD-SA-24:06.ktrace¹²
+
+07 August 2024
+
+ktrace(2)¹³ fails to detach when executing a setuid binary
+
+FreeBSD-SA-24:07.nfsclient¹⁴
+
+07 August 2024
+
+NFS client accepts file names containing path separators
+
+FreeBSD-SA-24:08.openssh¹⁵
+
+07 August 2024
+
+OpenSSH pre-authentication async signal safety issue
+
+FreeBSD-SA-24:09.libnv¹⁶
+
+04 September 2024
+
+Multiple vulnerabilities in libnv
+
+FreeBSD-SA-24:10.bhyve¹⁷
+
+04 September 2024
+
+bhyve(8)¹⁸ privileged guest escape via TPM device passthrough
+
+FreeBSD-SA-24:11.ctl¹⁹
+
+04 September 2024
+
+Multiple issues in ctl(4)²⁰ CAM Target Layer
+
+FreeBSD-SA-24:12.bhyve²¹
+
+04 September 2024
+
+bhyve(8)¹⁸ privileged guest escape via USB controller
+
+FreeBSD-SA-24:13.openssl²²
+
+04 September 2024
+
+Possible DoS in X.509 name checks in OpenSSL
+
+FreeBSD-SA-24:14.umtx²³
+
+04 September 2024
+
+umtx Kernel panic or Use-After-Free
+
+FreeBSD-SA-24:15.bhyve²⁴
+
+19 September 2024
+
+bhyve(8)¹⁸ out-of-bounds read access via XHCI emulation
+
+FreeBSD-SA-24:16.libnv²⁵
+
+19 September 2024
+
+Integer overflow in libnv
+
+FreeBSD-SA-24:17.bhyve²⁶
+
+29 October 2024
+
+Multiple issues in the bhyve hypervisor
+
+FreeBSD-SA-24:18.ctl²⁷
+
+29 October 2024
+
+Unbounded allocation in ctl(4)²⁰ CAM Target Layer
+
+FreeBSD-SA-24:19.fetch²⁸
+
+29 October 2024
+
+Certificate revocation list fetch(1)²⁹ option fails
+
+FreeBSD-SA-25:01.openssh³⁰
+
+29 January 2025
+
+OpenSSH Keystroke Obfuscation Bypass
+
+FreeBSD-SA-25:02.fs³¹
+
+29 January 2025
+
+Buffer overflow in some filesystems via NFS
+
+FreeBSD-SA-25:03.etcupdate³²
+
+29 January 2025
+
+Unprivileged access to system files
+
+FreeBSD-SA-25:04.ktrace³³
+
+29 January 2025
+
+Uninitialized kernel memory disclosure via ktrace(2)¹³
+
+FreeBSD-SA-25:05.openssh³⁴
+
+21 February 2025
+
+Multiple vulnerabilities in OpenSSH
+
+FreeBSD-SA-25:06.xz³⁵
+
+02 July 2025
+
+Use-after-free in multi-threaded xz decoder
+
+FreeBSD-SA-25:07.libarchive³⁶
+
+08 August 2025
+
+Integer overflow in libarchive leading to double free
+
+FreeBSD-SA-25:08.openssl³⁷
+
+30 September 2025
+
+Multiple vulnerabilities in OpenSSL
+
+FreeBSD-SA-25:09.netinet³⁸
+
+22 October 2025
+
+SO_REUSEPORT_LB breaks connect(2)³⁹ for UDP sockets
+
+FreeBSD-SA-25:10.unbound⁴⁰
+
+26 November 2025
+
+Cache poison in local-unbound service
+
+ ¹ https://www.freebsd.org/security/advisories/FreeBSD-SA-23:17.pf.asc
+ ² https://man.freebsd.org/cgi/man.cgi?query=pf&sektion=4&format=html
+ ³ https://www.freebsd.org/security/advisories/FreeBSD-SA-23:18.nfsclient.asc
+ ⁴ https://www.freebsd.org/security/advisories/FreeBSD-SA-23:19.openssh.asc
+ ⁵ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:01.bhyveload.asc
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=bhyveload&sektion=8&format=html
+ ⁷ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:02.tty.asc
+ ⁸ https://man.freebsd.org/cgi/man.cgi?query=jail&sektion=2&format=html
+ ⁹ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:03.unbound.asc
+¹⁰ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:04.openssh.asc
+¹¹ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:05.pf.asc
+¹² https://www.freebsd.org/security/advisories/FreeBSD-SA-24:06.ktrace.asc
+¹³ https://man.freebsd.org/cgi/man.cgi?query=ktrace&sektion=2&format=html
+¹⁴ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:07.nfsclient.asc
+¹⁵ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:08.openssh.asc
+¹⁶ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:09.libnv.asc
+¹⁷ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:10.bhyve.asc
+¹⁸ https://man.freebsd.org/cgi/man.cgi?query=bhyve&sektion=8&format=html
+¹⁹ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:11.ctl.asc
+²⁰ https://man.freebsd.org/cgi/man.cgi?query=ctl&sektion=4&format=html
+²¹ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:12.bhyve.asc
+²² https://www.freebsd.org/security/advisories/FreeBSD-SA-24:13.openssl.asc
+²³ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:14.umtx.asc
+²⁴ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:15.bhyve.asc
+²⁵ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:16.libnv.asc
+²⁶ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:17.bhyve.asc
+²⁷ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:18.ctl.asc
+²⁸ https://www.freebsd.org/security/advisories/FreeBSD-SA-24:19.fetch.asc
+²⁹ https://man.freebsd.org/cgi/man.cgi?query=fetch&sektion=1&format=html
+³⁰ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:01.openssh.asc
+³¹ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:02.fs.asc
+³² https://www.freebsd.org/security/advisories/FreeBSD-SA-25:03.etcupdate.asc
+³³ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:04.ktrace.asc
+³⁴ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:05.openssh.asc
+³⁵ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:06.xz.asc
+³⁶ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:07.libarchive.asc
+³⁷ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:08.openssl.asc
+³⁸ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:09.netinet.asc
+³⁹ https://man.freebsd.org/cgi/man.cgi?query=connect&sektion=2&format=html
+⁴⁰ https://www.freebsd.org/security/advisories/FreeBSD-SA-25:10.unbound.asc
+
+Patched Errata Notices
+----------------------
+
+Errata Date Topic
+
+FreeBSD-EN-23:15:sanitizer¹
+
+01 December 2023
+
+Clang sanitizer failure with ASLR enabled
+
+FreeBSD-EN-23:16:openzfs²
+
+01 December 2023
+
+OpenZFS data corruption
+
+FreeBSD-EN-23:17:ossl³
+
+05 December 2023
+
+ossl(4)⁴'s AES-GCM implementation may give incorrect results
+
+FreeBSD-EN-23:18:openzfs⁵
+
+05 December 2023
+
+High CPU usage by ZFS kernel threads
+
+FreeBSD-EN-23:19:pkgbase⁶
+
+05 December 2023
+
+Incorrect pkgbase version number for FreeBSD 14.0-RELEASE.
+
+FreeBSD-EN-23:20:vm⁷
+
+05 December 2023
+
+Incorrect results from the kernel physical memory allocator
+
+FreeBSD-EN-23:21:tty⁸
+
+24 November 2023
+
+tty(4)⁹ IUTF8 causes a kernel panic
+
+FreeBSD-EN-23:22:vfs¹⁰
+
+05 December 2023
+
+ZFS snapshot directories not accessible over NFS
+
+FreeBSD-EN-24:01:tzdata¹¹
+
+14 February 2024
+
+Timezone database information update
+
+FreeBSD-EN-24:02:libutil¹²
+
+14 February 2024
+
+Login class resource limits and CPU mask bypass
+
+FreeBSD-EN-24:03:kqueue¹³
+
+14 February 2024
+
+kqueue_close(2)¹⁴ page fault on exit using rfork(2)¹⁵
+
+FreeBSD-EN-24:04:ip¹⁶
+
+14 February 2024
+
+Kernel panic triggered by bind(2)¹⁷
+
+FreeBSD-EN-24:05:tty¹⁸
+
+28 March 2024
+
+TTY Kernel Panic
+
+FreeBSD-EN-24:06:wireguard¹⁹
+
+28 March 2024
+
+Insufficient barriers in WireGuard if_wg(4)²⁰
+
+FreeBSD-EN-24:07:clang²¹
+
+28 March 2024
+
+Clang crash when certain optimization is enabled
+
+FreeBSD-EN-24:08:kerberos²²
+
+28 March 2024
+
+Kerberos segfaults when using weak crypto
+
+FreeBSD-EN-24:09:zfs²³
+
+24 April 2024
+
+High CPU usage by kernel threads related to ZFS
+
+FreeBSD-EN-24:10:zfs²⁴
+
+19 June 2024
+
+Kernel memory leak in ZFS
+
+FreeBSD-EN-24:11:ldns²⁵
+
+19 June 2024
+
+LDNS uses nameserver commented out in resolv.conf
+
+FreeBSD-EN-24:12:killpg²⁶
+
+19 June 2024
+
+Lock order reversal in killpg causing livelock
+
+FreeBSD-EN-24:13:libc++²⁷
+
+19 June 2024
+
+Incorrect size passed to heap allocated std::string delete
+
+FreeBSD-EN-24:14:ifconfig²⁸
+
+07 August 2024
+
+Incorrect ifconfig netmask assignment
+
+FreeBSD-EN-24:15:calendar²⁹
+
+04 September 2024
+
+cron(8)³⁰ / periodic(8)³¹ session login
+
+FreeBSD-EN-24:16:pf³²
+
+19 September 2024
+
+Incorrect ICMPv6 state handling in pf
+
+FreeBSD-EN-24:17:pam_xdg³³
+
+20 October 2024
+
+XDG runtime directory’s file descriptor leak at login
+
+FreeBSD-EN-25:01.rpc³⁴
+
+29 January 2025
+
+NULL pointer dereference in the NFSv4 client
+
+FreeBSD-EN-25:02.audit³⁵
+
+29 January 2025
+
+System call auditing disabled by DTrace
+
+FreeBSD-EN-25:03.tzdata³⁶
+
+29 January 2025
+
+Timezone database information update
+
+FreeBSD-EN-25:04.tzdata³⁷
+
+10 April 2025
+
+Timezone database information update
+
+FreeBSD-EN-25:05.expat³⁸
+
+10 April 2025
+
+Update expat to 2.7.1
+
+FreeBSD-EN-25:06.daemon³⁹
+
+10 April 2025
+
+daemon(8)⁴⁰ missing signals
+
+FreeBSD-EN-25:07.openssl⁴¹
+
+10 April 2025
+
+Update OpenSSL to 3.0.16
+
+FreeBSD-EN-25:08.caroot⁴²
+
+10 April 2025
+
+Root certificate bundle update
+
+FreeBSD-EN-25:09:libc⁴³
+
+02 July 2025
+
+Dynamically-loaded C++ libraries crashing at exit
+
+FreeBSD-EN-25:10:zfs⁴⁴
+
+02 July 2025
+
+Corruption in ZFS replication streams from encrypted datasets
+
+FreeBSD-EN-25:11:ena⁴⁵
+
+02 July 2025
+
+ena resets and kernel panic on Nitro v4 or newer instances
+
+FreeBSD-EN-25:12:efi⁴⁶
+
+08 August 2025
+
+bsdinstall(8)⁴⁷ not copying the correct loader on systems with IA32 UEFI
+firmware.
+
+FreeBSD-EN-25:13:wlan_tkip⁴⁸
+
+08 August 2025
+
+net80211 TKIP crypto support fails for some drivers
+
+FreeBSD-EN-25:14:route⁴⁹
+
+08 August 2025
+
+route(8)⁵⁰ monitor buffers too much when redirected to a file
+
+FreeBSD-EN-25:15:arm64⁵¹
+
+16 September 2025
+
+arm64 syscall(2)⁵² allows unprivileged user to panic kernel
+
+FreeBSD-EN-25:16:vfs⁵³
+
+16 September 2025
+
+copy_file_range(2)⁵⁴ fails to set output parameters
+
+FreeBSD-EN-25:17:bnxt⁵⁵
+
+16 September 2025
+
+bnxt(4)⁵⁶ fails to set media type in some cases
+
+FreeBSD-EN-25:18:freebsd-update⁵⁷
+
+30 September 2025
+
+freebsd-update(8)⁵⁸ installs libraries in incorrect order
+
+ ¹ https://www.freebsd.org/security/advisories/FreeBSD-EN-23:15.sanitizer.asc
+ ² https://www.freebsd.org/security/advisories/FreeBSD-EN-23:16.openzfs.asc
+ ³ https://www.freebsd.org/security/advisories/FreeBSD-EN-23:17.ossl.asc
+ ⁴ https://man.freebsd.org/cgi/man.cgi?query=ossl&sektion=4&format=html
+ ⁵ https://www.freebsd.org/security/advisories/FreeBSD-EN-23:18.openzfs.asc
+ ⁶ https://www.freebsd.org/security/advisories/FreeBSD-EN-23:19.pkgbase.asc
+ ⁷ https://www.freebsd.org/security/advisories/FreeBSD-EN-23:20.vm.asc
+ ⁸ https://www.freebsd.org/security/advisories/FreeBSD-EN-23:21.tty.asc
+ ⁹ https://man.freebsd.org/cgi/man.cgi?query=tty&sektion=4&format=html
+¹⁰ https://www.freebsd.org/security/advisories/FreeBSD-EN-23:22.vfs.asc
+¹¹ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:01.tzdata.asc
+¹² https://www.freebsd.org/security/advisories/FreeBSD-EN-24:02.libutil.asc
+¹³ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:03.kqueue.asc
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=kqueue_close&sektion=2&format=html
+¹⁵ https://man.freebsd.org/cgi/man.cgi?query=rfork&sektion=2&format=html
+¹⁶ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:04.ip.asc
+¹⁷ https://man.freebsd.org/cgi/man.cgi?query=bind&sektion=2&format=html
+¹⁸ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:05.tty.asc
+¹⁹ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:06.wireguard.asc
+²⁰ https://man.freebsd.org/cgi/man.cgi?query=if_wg&sektion=4&format=html
+²¹ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:07.clang.asc
+²² https://www.freebsd.org/security/advisories/FreeBSD-EN-24:08.kerberos.asc
+²³ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:09.zfs.asc
+²⁴ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:10.zfs.asc
+²⁵ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:11.ldns.asc
+²⁶ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:12.killpg.asc
+²⁷ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:13.libc%2B%2B.asc
+²⁸ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:14.ifconfig.asc
+²⁹ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:15.calendar.asc
+³⁰ https://man.freebsd.org/cgi/man.cgi?query=cron&sektion=8&format=html
+³¹ https://man.freebsd.org/cgi/man.cgi?query=periodic&sektion=8&format=html
+³² https://www.freebsd.org/security/advisories/FreeBSD-EN-24:16.pf.asc
+³³ https://www.freebsd.org/security/advisories/FreeBSD-EN-24:17.pam_xdg.asc
+³⁴ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:01.rpc.asc
+³⁵ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:02.audit.asc
+³⁶ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:03.tzdata.asc
+³⁷ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:04.tzdata.asc
+³⁸ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:05.expat.asc
+³⁹ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:06.daemon.asc
+⁴⁰ https://man.freebsd.org/cgi/man.cgi?query=daemon&sektion=8&format=html
+⁴¹ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:07.openssl.asc
+⁴² https://www.freebsd.org/security/advisories/FreeBSD-EN-25:08.caroot.asc
+⁴³ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:09.libc.asc
+⁴⁴ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:10.zfs.asc
+⁴⁵ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:11.ena.asc
+⁴⁶ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:12.efi.asc
+⁴⁷ https://man.freebsd.org/cgi/man.cgi?query=bsdinstall&sektion=8&format=html
+⁴⁸ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:13.wlan_tkip.asc
+⁴⁹ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:14.route.asc
+⁵⁰ https://man.freebsd.org/cgi/man.cgi?query=route&sektion=8&format=html
+⁵¹ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:15.arm64.asc
+⁵² https://man.freebsd.org/cgi/man.cgi?query=syscall&sektion=2&format=html
+⁵³ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:16.vfs.asc
+⁵⁴ https://man.freebsd.org/cgi/man.cgi?query=copy_file_range&sektion=2&format=html
+⁵⁵ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:17.bnxt.asc
+⁵⁶ https://man.freebsd.org/cgi/man.cgi?query=bnxt&sektion=4&format=html
+⁵⁷ https://www.freebsd.org/security/advisories/FreeBSD-EN-25:18.freebsd-update.asc
+⁵⁸ https://man.freebsd.org/cgi/man.cgi?query=freebsd-update&sektion=8&format=html
+
+
+Architectures
+=============
+
+
+The venerable 32-bit hardware platforms i386, armv6, and 32-bit powerpc
+have been retired. 32-bit application support lives on via the 32-bit
+compatibility mode in their respective 64-bit platforms. The armv7
+platform remains as the last supported 32-bit platform. We thank them
+for their service.
+
+
+
+Userland
+========
+
+
+This section covers changes and additions to userland applications,
+contributed software, and system utilities.
+
+
+Userland Configuration Changes
+------------------------------
+
+The Kerberos v5 Authentication Service, krb5kdc(8)¹, has gained a new
+kdc_restart variable under daemon(8)². Set kdc_restart="YES" in
+rc.conf(5)³ to auto restart kdc on abnormal termination. Set
+kdc_restart_delay="N" to the number of seconds to delay before
+restarting the kdc. abc4b3088941⁴
+
+The daily periodic(8)⁵ scripts now show less context in emails by
+default to reduce output size. The behavior can be controlled by the
+daily_diff_flags variable in periodic.conf(5)⁶. Similarly, the changes
+shown by the security scripts show less context than previously,
+controlled by the security_status_diff_flags variable in
+periodic.conf(5)⁶. 538994626b9f⁷, 37dc394170a5⁸, 128e78ffb084⁹
+
+The bsnmpd(1)¹⁰ daemon no longer supports legacy UDP transport. Users,
+that have not updated their /etc/snmpd.config since 12.0-RELEASE or
+older will need to merge in the new configuration. In particular, the
+transport definition shall be changed from begemotSnmpdPortStatus OID to
+begemotSnmpdTransInetStatus. 9ba51cce8bbd¹¹
+
+The FreeBSD-base repository is now defined in /etc/pkg/FreeBSD.conf,
+disabled by default. Systems which installed with pkgbase prior to
+15.0-RC1 (if running releng/15.0) or November 15th (if running from
+stable/main snapshots) will need to remove the definition of the
+FreeBSD-base repository from /usr/local/etc/pkg/repos/ and replace it
+with a single line FreeBSD-base: { enabled: yes }. 5d832135a971¹²
+
+The powerd(8)¹³ utility is now enabled in /etc/rc.conf by default on
+images for the arm64 Raspberry Pi’s (arm64-aarch64-RPI files). This
+prevents the CPU clock from running slow all the time. 4347ef60501f¹⁴
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=krb5kdc&sektion=8&format=html
+ ² https://man.freebsd.org/cgi/man.cgi?query=daemon&sektion=8&format=html
+ ³ https://man.freebsd.org/cgi/man.cgi?query=rc.conf&sektion=5&format=html
+ ⁴ https://cgit.freebsd.org/src/commit/?id=abc4b3088941
+ ⁵ https://man.freebsd.org/cgi/man.cgi?query=periodic&sektion=8&format=html
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=periodic.conf&sektion=5&format=html
+ ⁷ https://cgit.freebsd.org/src/commit/?id=538994626b9f
+ ⁸ https://cgit.freebsd.org/src/commit/?id=37dc394170a5
+ ⁹ https://cgit.freebsd.org/src/commit/?id=128e78ffb084
+¹⁰ https://man.freebsd.org/cgi/man.cgi?query=bsnmpd&sektion=1&format=html
+¹¹ https://cgit.freebsd.org/src/commit/?id=9ba51cce8bbd
+¹² https://cgit.freebsd.org/src/commit/?id=5d832135a971
+¹³ https://man.freebsd.org/cgi/man.cgi?query=powerd&sektion=8&format=html
+¹⁴ https://cgit.freebsd.org/src/commit/?id=4347ef60501f
+
+Userland Application Changes
+----------------------------
+
+The adduser(8)¹ utility, used by bsdinstall(8)², will now create a ZFS
+dataset for a new user’s home directory if the parent directory resides
+on a ZFS dataset. A command-line option is available to disable use of a
+separate dataset. ZFS encryption is also available. 516009ce8d38³
+
+The date(1)⁴ program now supports nanoseconds. For example: date -Ins
+prints "2024-04-22T12:20:28,763742224+02:00" and date +%N prints
+"415050400". eeb04a736cb9⁵ (Sponsored by Klara, Inc.)
+
+The dtrace(1)⁶ utility can now generate machine-readable output in JSON,
+XML, and HTML using libxo(3)⁷. aef4504139a4⁸ (Sponsored by Innovate UK)
+
+The lastcomm(1)⁹ utility now displays timestamps with a precision of
+seconds. 692c0a2e80c1¹⁰ (Sponsored by DSS Gmbh)
+
+The ldconfig(8)¹¹ utility now supports hints files of either byte order.
+The default format is the native byte-order of the host. fa7b31166ddb¹²
+
+The usbconfig(8)¹³ utility now reads the descriptions of usb vendor and
+products from /usr/share/misc/usb_vendors when available, similar to
+what pciconf(8)¹⁴ does. 7b9a772f9f64¹⁵
+
+The env(1)¹⁶ utility has gained an option to change the directory, which
+closely resembles the feature in the GNU version of env, although it
+does not support long options. 08e8554c4a39¹⁷ (Sponsored by Klara, Inc.)
+
+The ps(1)¹⁸ utility now automatically removes canned displays' columns
+that contain same data as some explicitly-requested columns. Before this
+change, if some user requested to add some "canned display" (options -j,
+-l, -u or -v), columns in it that were duplicates of
+explicitly-requested ones earlier on the command line were omitted, but
+this did not work the other way around, when a canned display appears
+before explicitly-requested columns. Additionally, columns with
+different keywords but which are aliases to the same keyword are now
+also considered holding the same data, in addition to columns having the
+same keyword. cd768a840644¹⁹ (Sponsored by The FreeBSD Foundation)
+
+The ps(1)¹⁸ utility’s -O option is now more versatile and predictable.
+The ps(1)¹⁸ display’s list of columns is now first built without taking
+into account the -O options. In a second step, all columns passed via -O
+are finally inserted after the built-so-far display’s first PID column
+(if it exists, else at start), in their order of appearance as arguments
+to the -O options. 5dad61d9b949²⁰ (Sponsored by The FreeBSD Foundation)
+
+The ps(1)¹⁸ utility’s -a and -A options now always show all processes.
+When combined with other options affecting the selection of processes,
+except for -X and -x, option -a would have no effect (and -A would
+reduce to just -x). This was in contradiction with the rule applying to
+all other selection options stating that one process is listed as soon
+as any of these options has been specified and selects it, which is both
+mandated by POSIX and arguably a natural expectation. As a practical
+consequence, specifying -a or -A now causes all processes to be listed
+regardless of other selection options such as -U, -p, -G, etc., except
+for the -X and -x filter options, which continue to apply. In
+particular, to list only processes from specific jails, one must not use
+-a with -J. Option -J, contrary to its apparent initial intent, never
+worked as a filter in practice, except by accident with only -a due to
+the bug. 93a94ce731a8²¹ (Sponsored by The FreeBSD Foundation)
+
+The ps(1)¹⁸ utility now matches current user’s processes using the
+effective user ID. Previously, we would match using the real user ID.
+This puts ps(1)¹⁸ in conformance with POSIX on that topic.
+1aabbb25c9f9²² (Sponsored by The FreeBSD Foundation)
+
+The ps(1)¹⁸ utility’s -U flag now selects processes by real user IDs.
+This is what POSIX mandates for option -U and arguably the behavior that
+most users actually need in most cases. Before, -U would select
+processes by their effective user IDs (which is the behavior mandated by
+POSIX for option -u). 995b690d1398²³ (Sponsored by The FreeBSD
+Foundation)
+
+The sysctl(8)²⁴ utility has gained flags to filter jail prison and vnet
+variables, so users do not have to contact the source code to tell
+whether a variable is a jail prison / vnet one or not. 615c9ce250ee²⁵
+
+The grep(1)²⁶ utility no longer follows symbolic links by default for
+recursive searches. This matches the documented behavior in the manual
+page. fc12c191c087²⁷
+
+The mdo(1)²⁸ utility now supports fully specifying all users and groups
+in the target credentials. As a convenience, in addition to a full
+explicit specification, it allows starting from a baseline providing
+default values for all attributes, which is either the login credentials
+from some user in the password database or the current credentials, and
+then amending these attributes selectively. The manual page has been
+updated to describe the new options and their interactions.
+4ffcb1a4a99c²⁹ (Sponsored by The FreeBSD Foundation) (Sponsored by
+Google LLC (GSoC 2025))
+
+When booting in single-user mode, init(8)³⁰ now changes the working
+directory to /root, using / only as a fallback. The /.profile link to
+/root/.profile is no more installed. b4b91207ab6f³¹, ca771d7ae527³²
+
+The deprecated ftpd(8)³³ has been removed from the base system. Users
+who still need it can install the ftp/freebsd-ftpd port. 259bb93b80c0³⁴
+
+The Kerberos v5 database administration program learned how to dump the
+Heimdal KDC database in a format which can be loaded into the MIT KDC.
+See https://wiki.freebsd.org/Kerberos/Heimdal2MIT_KDC_Migration for how
+to use kadmin -l dump -f to transfer/convert the KDC database.
+9fd3b28d4e0d³⁵, 23fbea8cf2f3³⁶
+
+The bsdconfig(8)³⁷ and bsdinstall(8)² utilities now use bsddialog(1)³⁸
+instead of GNU dialog. c36b3dbc99d1³⁹, 04b465777a09⁴⁰
+
+The jail(8)⁴¹ command now supports the zfs.dataset parameter to attach a
+list of ZFS datasets to a jail. e0dfe185cbca⁴²
+
+The jail(8)⁴¹ command now supports meta and env parameters, which are
+arbitrary strings associated with a jail. These parameters can be used
+to tag jails with specific metadata, or to pass information securely to
+be accessed inside a jail. They can be added at jail creation, or
+modified later using jail(8)⁴¹. 30e6e008bc06⁴³ (Sponsored by SkunkWerks,
+GmbH)
+
+The rc.d/jail startup script now supports the legacy variable
+jail_${jailname}_zfs_dataset to allow unmaintained jail managers like
+ezjail to leverage the new zfs.dataset feature (see above).
+0b49e504a32d⁴⁴
+
+The newsyslog(8)⁴⁵ utility now supports specifying a global compression
+method directly at the beginning of the newsyslog.conf file. All
+historical compression flags (J, X, Y, Z) then behave as indicating
+"treat the file as compressible" instead of "compress the file with that
+specific method.". The following methods are available:
+
+ • none: Never compress.
+
+ • legacy: Historical behavior (J=bzip2, X=xz, Y=zstd, Z=gzip).
+
+ • bzip2, xz, zstd, gzip: apply the specified compression method.
+   61174ad88e33⁴⁶, 906748d208d3⁴⁷, 39d668f1e09e⁴⁸
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=adduser&sektion=8&format=html
+ ² https://man.freebsd.org/cgi/man.cgi?query=bsdinstall&sektion=8&format=html
+ ³ https://cgit.freebsd.org/src/commit/?id=516009ce8d38
+ ⁴ https://man.freebsd.org/cgi/man.cgi?query=date&sektion=1&format=html
+ ⁵ https://cgit.freebsd.org/src/commit/?id=eeb04a736cb9
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=dtrace&sektion=1&format=html
+ ⁷ https://man.freebsd.org/cgi/man.cgi?query=libxo&sektion=3&format=html
+ ⁸ https://cgit.freebsd.org/src/commit/?id=aef4504139a4
+ ⁹ https://man.freebsd.org/cgi/man.cgi?query=lastcomm&sektion=1&format=html
+¹⁰ https://cgit.freebsd.org/src/commit/?id=692c0a2e80c1
+¹¹ https://man.freebsd.org/cgi/man.cgi?query=ldconfig&sektion=8&format=html
+¹² https://cgit.freebsd.org/src/commit/?id=fa7b31166ddb
+¹³ https://man.freebsd.org/cgi/man.cgi?query=usbconfig&sektion=8&format=html
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=pciconf&sektion=8&format=html
+¹⁵ https://cgit.freebsd.org/src/commit/?id=7b9a772f9f64
+¹⁶ https://man.freebsd.org/cgi/man.cgi?query=env&sektion=1&format=html
+¹⁷ https://cgit.freebsd.org/src/commit/?id=08e8554c4a39
+¹⁸ https://man.freebsd.org/cgi/man.cgi?query=ps&sektion=1&format=html
+¹⁹ https://cgit.freebsd.org/src/commit/?id=cd768a840644
+²⁰ https://cgit.freebsd.org/src/commit/?id=5dad61d9b949
+²¹ https://cgit.freebsd.org/src/commit/?id=93a94ce731a8
+²² https://cgit.freebsd.org/src/commit/?id=1aabbb25c9f9c4372
+²³ https://cgit.freebsd.org/src/commit/?id=995b690d1398
+²⁴ https://man.freebsd.org/cgi/man.cgi?query=sysctl&sektion=8&format=html
+²⁵ https://cgit.freebsd.org/src/commit/?id=615c9ce250ee
+²⁶ https://man.freebsd.org/cgi/man.cgi?query=grep&sektion=1&format=html
+²⁷ https://cgit.freebsd.org/src/commit/?id=fc12c191c087
+²⁸ https://man.freebsd.org/cgi/man.cgi?query=mdo&sektion=1&format=html
+²⁹ https://cgit.freebsd.org/src/commit/?id=4ffcb1a4a99c
+³⁰ https://man.freebsd.org/cgi/man.cgi?query=init&sektion=8&format=html
+³¹ https://cgit.freebsd.org/src/commit/?id=b4b91207ab6f
+³² https://cgit.freebsd.org/src/commit/?id=ca771d7ae527
+³³ https://man.freebsd.org/cgi/man.cgi?query=ftpd&sektion=8&format=html
+³⁴ https://cgit.freebsd.org/src/commit/?id=259bb93b80c0
+³⁵ https://cgit.freebsd.org/src/commit/?id=9fd3b28d4e0d
+³⁶ https://cgit.freebsd.org/src/commit/?id=23fbea8cf2f3
+³⁷ https://man.freebsd.org/cgi/man.cgi?query=bsdconfig&sektion=8&format=html
+³⁸ https://man.freebsd.org/cgi/man.cgi?query=bsddialog&sektion=1&format=html
+³⁹ https://cgit.freebsd.org/src/commit/?id=c36b3dbc99d1
+⁴⁰ https://cgit.freebsd.org/src/commit/?id=04b465777a09
+⁴¹ https://man.freebsd.org/cgi/man.cgi?query=jail&sektion=8&format=html
+⁴² https://cgit.freebsd.org/src/commit/?id=e0dfe185cbca
+⁴³ https://cgit.freebsd.org/src/commit/?id=30e6e008bc06
+⁴⁴ https://cgit.freebsd.org/src/commit/?id=0b49e504a32d
+⁴⁵ https://man.freebsd.org/cgi/man.cgi?query=newsyslog&sektion=8&format=html
+⁴⁶ https://cgit.freebsd.org/src/commit/?id=61174ad88e33
+⁴⁷ https://cgit.freebsd.org/src/commit/?id=906748d208d3
+⁴⁸ https://cgit.freebsd.org/src/commit/?id=39d668f1e09e
+
+Contributed Software
+--------------------
+
+One True Awk (awk(1)¹) has been updated to 2nd Edition, with new -csv
+support and UTF-8 support. The snapshot used is 20250804. b45a181a74c8²
+(Sponsored by Netflix)
+
+The system reference manual toolchain, mandoc(1)³, has been updated to
+version 1.14.6 snapshot 2025-09-26. This version includes improved
+compatibility with groff and DocBook, improved html and markdown output,
+and the deprecation of the LIBRARY section. c1c95add8c80⁴,
+80c12959679a⁵, 4c07abdbacf4⁶, 06410c1b5163⁷, 59fc2b0166f7⁸
+
+The jemalloc(3)⁹ library has been updated to version 5.3.0.
+c43cad871720¹⁰
+
+The bmake(1)¹¹ build system has been upgraded to 20250804, providing
+many debugging improvements, bug fixes such as detecting and rejecting
+gmake syntax, and feature improvements such as a floating point argument
+to -j being used as a multiple of the number of cpus available.
+
+The sendmail(8)¹² suite has been upgraded to version 8.18.1, addressing
+CVE-2023-51765. 58ae50f31e95¹³
+
+The bc(1)¹⁴ calculator has been upgraded to 7.1.0. fdc4a7c8012b¹⁵
+
+The blacklist suite has been renamed upstream to blocklist. Existing
+setups will continue to work emitting a warning. The snapshot used is
+20251026. 4afb96fdd272¹⁶
+
+The bsddialog(1)¹⁷ utility has been upgraded to 1.0.5. 0595e10ec773¹⁸
+
+The byacc(1)¹⁹ parser generator has been upgraded to 20240109.
+822ca3276345²⁰
+
+The libarchive library has been upgraded to 3.8.2. 8a0b57ba54f0²¹
+
+The libcbor library has been upgraded to 0.11.0. 1755b9daa693²²
+(Sponsored by The FreeBSD Foundation)
+
+The libcxxrt library has been upgraded to vendor snapshot 6f2fdfebcd62.
+d0dcee46d971²³
+
+The libfido2 library has been upgraded to 1.14.0. 128bace5102e²⁴
+(Sponsored by The FreeBSD Foundation)
+
+The libpcap library has been upgraded to 1.10.5. 26f21a6494b4²⁵
+(Sponsored by The FreeBSD Foundation)
+
+The ncurses(3)²⁶ library has been upgraded to 6.5. 21817992b331²⁷
+
+The tcpdump(1)²⁸ utility has been upgraded to 4.99.5. ec3da16d8bc1²⁹
+(Sponsored by The FreeBSD Foundation)
+
+The unbound DNS validating resolver has been upgraded to 1.24.1.
+a988846174e0³⁰
+
+The llvm compiler infrastructure has been upgraded to
+19.1.7-0-gcd708029e0b2. dc3f24ea8a25³¹
+
+The OpenZFS filesystem has been updated to zfs-2.4.0-rc4. 7b5b0f43eb06³²
+
+The xz(1)³³ data compressors have been updated to 5.8.1. 128836d304d9³⁴
+
+The less(1)³⁵ pager has been updated to v679. 76bafc906926³⁶
+
+The file(1)³⁷ identifier has been updated to 5.46. ae316d1d1cff³⁸
+
+The zlib(3)³⁹ data compression library has been updated to 1.3.1.
+6255c67c3d1a⁴⁰
+
+The Time Zone Database, tzdata, has been updated to 2025b.
+475082194ac8⁴¹
+
+OpenSSH has been updated to 10.0p2. .8e28d84935f2⁴² (Sponsored by The
+FreeBSD Foundation)
+
+OpenSSL has been updated to 3.5.4. c0366f908ff4⁴³
+
+Lua has been updated to 5.4.8. 3068d706eabe⁴⁴ (Sponsored by Netflix)
+
+The Google Test C testing framework has been updated to 1.15.2. One
+notable change is that GoogleTest 1.15.x now officially requires C-14
+(1.14.x required C++-11). 1d67cec52542⁴⁵
+
+The spleen vt(4)⁴⁶ console font has been updated to version 2.1.0.
+26336203d32c⁴⁷
+
+MIT KRB5 1.22.1 Kerberos replaces Heimdal 1.5.2 by default. Heimdal
+1.5.2 can still be built using the WITHOUT_MITKRB5 flag. Heimdal
+Kerberos will be entirely removed in FreeBSD 16. See also the note about
+the -f flag to kadmin -l dump under section Userland Application
+Changes⁴⁸. ee3960cba106⁴⁹, 0b9a631e0724⁵⁰, 60f970b85e44⁵¹,
+0d1496f0f1e7⁵², cbb6e747af98⁵³, 0559f30a882d⁵⁴, ae07a5805b19⁵⁵,
+f58febc4cefa⁵⁶, 805498e49ae4⁵⁷, 4cb1baa7d85c⁵⁸, 188138106b9f⁵⁹,
+4680e7fcc70a⁶⁰, e447c252d0ec⁶¹, 5f8493bbf479⁶², 110111a6cca1⁶³,
+2a454b05f2c1⁶⁴, 98d46e05ab08⁶⁵, 6b28571cb6ba⁶⁶, ca9ccf0ce9ad⁶⁷,
+b98d0566b2bd⁶⁸, fb1ccc04adfe⁶⁹, dd0ec030f8fd⁷⁰, 6c4771c73470⁷¹,
+7b68893ffa9b⁷², 624b7beed5ac⁷³, 04764f21855a⁷⁴, 73ed0c7992fd⁷⁵,
+40a5abfc3f66⁷⁶, 543b875a8ee4⁷⁷, c791ea80b5f7⁷⁸, 383e7290c0b5⁷⁹,
+9a726ef24134⁸⁰, a245dc5d68c7⁸¹, e26259f48afe⁸², 7d2cfb27d62f⁸³,
+619feb9dd00e⁸⁴, 10eecc467f32⁸⁵, 0c13e9c3c464⁸⁶, 89c82750da1a⁸⁷,
+18a870751b03⁸⁸, ce9c325a2e92⁸⁹, cb3eac927b5d⁹⁰, 5105e1ebecc7⁹¹,
+b9b0e105c357⁹², 929f5966a9fd⁹³ (Sponsored by The FreeBSD Foundation)
+
+The rtw88(4)⁹⁴ driver has been updated to Linux v6.17. A possible issue
+that devices cannot authenticate is still being investigated.
+c1d365f39e08⁹⁵ (Sponsored by The FreeBSD Foundation)
+
+The rtw89(4)⁹⁶ driver has been updated to Linux v6.17. The driver is
+under-tested and may still have issues. b35044b38f74⁹⁷ (Sponsored by The
+FreeBSD Foundation)
+
+The iwlwifi(4)⁹⁸ driver has been updated to Linux v6.17. The BE200 based
+chipsets will need newer firmware requiring further driver fixes which
+are not in this release. 69caa1cf3ce5⁹⁹ (Sponsored by The FreeBSD
+Foundation)
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=awk&sektion=1&format=html
+ ² https://cgit.freebsd.org/src/commit/?id=b45a181a74c8
+ ³ https://man.freebsd.org/cgi/man.cgi?query=mandoc&sektion=1&format=html
+ ⁴ https://cgit.freebsd.org/src/commit/?id=c1c95add8c80
+ ⁵ https://cgit.freebsd.org/src/commit/?id=80c12959679a
+ ⁶ https://cgit.freebsd.org/src/commit/?id=4c07abdbacf4
+ ⁷ https://cgit.freebsd.org/src/commit/?id=06410c1b5163
+ ⁸ https://cgit.freebsd.org/src/commit/?id=59fc2b0166f7
+ ⁹ https://man.freebsd.org/cgi/man.cgi?query=jemalloc&sektion=3&format=html
+¹⁰ https://cgit.freebsd.org/src/commit/?id=c43cad871720
+¹¹ https://man.freebsd.org/cgi/man.cgi?query=bmake&sektion=1&format=html
+¹² https://man.freebsd.org/cgi/man.cgi?query=sendmail&sektion=8&format=html
+¹³ https://cgit.freebsd.org/src/commit/?id=58ae50f31e95
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=bc&sektion=1&format=html
+¹⁵ https://cgit.freebsd.org/src/commit/?id=fdc4a7c8012b
+¹⁶ https://cgit.freebsd.org/src/commit/?id=4afb96fdd272
+¹⁷ https://man.freebsd.org/cgi/man.cgi?query=bsddialog&sektion=1&format=html
+¹⁸ https://cgit.freebsd.org/src/commit/?id=0595e10ec773
+¹⁹ https://man.freebsd.org/cgi/man.cgi?query=byacc&sektion=1&format=html
+²⁰ https://cgit.freebsd.org/src/commit/?id=822ca3276345
+²¹ https://cgit.freebsd.org/src/commit/?id=8a0b57ba54f0
+²² https://cgit.freebsd.org/src/commit/?id=1755b9daa693
+²³ https://cgit.freebsd.org/src/commit/?id=d0dcee46d971
+²⁴ https://cgit.freebsd.org/src/commit/?id=128bace5102e
+²⁵ https://cgit.freebsd.org/src/commit/?id=26f21a6494b4
+²⁶ https://man.freebsd.org/cgi/man.cgi?query=ncurses&sektion=3&format=html
+²⁷ https://cgit.freebsd.org/src/commit/?id=21817992b331
+²⁸ https://man.freebsd.org/cgi/man.cgi?query=tcpdump&sektion=1&format=html
+²⁹ https://cgit.freebsd.org/src/commit/?id=ec3da16d8bc1
+³⁰ https://cgit.freebsd.org/src/commit/?id=a988846174e0
+³¹ https://cgit.freebsd.org/src/commit/?id=dc3f24ea8a25
+³² https://cgit.freebsd.org/src/commit/?id=7b5b0f43eb06
+³³ https://man.freebsd.org/cgi/man.cgi?query=xz&sektion=1&format=html
+³⁴ https://cgit.freebsd.org/src/commit/?id=128836d304d9
+³⁵ https://man.freebsd.org/cgi/man.cgi?query=less&sektion=1&format=html
+³⁶ https://cgit.freebsd.org/src/commit/?id=76bafc906926
+³⁷ https://man.freebsd.org/cgi/man.cgi?query=file&sektion=1&format=html
+³⁸ https://cgit.freebsd.org/src/commit/?id=ae316d1d1cff
+³⁹ https://man.freebsd.org/cgi/man.cgi?query=zlib&sektion=3&format=html
+⁴⁰ https://cgit.freebsd.org/src/commit/?id=6255c67c3d1a
+⁴¹ https://cgit.freebsd.org/src/commit/?id=475082194ac8
+⁴² https://cgit.freebsd.org/src/commit/?id=8e28d84935f2
+⁴³ https://cgit.freebsd.org/src/commit/?id=c0366f908ff4
+⁴⁴ https://cgit.freebsd.org/src/commit/?id=3068d706eabe
+⁴⁵ https://cgit.freebsd.org/src/commit/?id=1d67cec52542
+⁴⁶ https://man.freebsd.org/cgi/man.cgi?query=vt&sektion=4&format=html
+⁴⁷ https://cgit.freebsd.org/src/commit/?id=26336203d32c
+⁴⁸ #userland-programs
+⁴⁹ https://cgit.freebsd.org/src/commit/?id=ee3960cba106
+⁵⁰ https://cgit.freebsd.org/src/commit/?id=0b9a631e0724
+⁵¹ https://cgit.freebsd.org/src/commit/?id=60f970b85e44
+⁵² https://cgit.freebsd.org/src/commit/?id=0d1496f0f1e7
+⁵³ https://cgit.freebsd.org/src/commit/?id=cbb6e747af98
+⁵⁴ https://cgit.freebsd.org/src/commit/?id=0559f30a882d
+⁵⁵ https://cgit.freebsd.org/src/commit/?id=ae07a5805b19
+⁵⁶ https://cgit.freebsd.org/src/commit/?id=f58febc4cefa
+⁵⁷ https://cgit.freebsd.org/src/commit/?id=805498e49ae4
+⁵⁸ https://cgit.freebsd.org/src/commit/?id=4cb1baa7d85c
+⁵⁹ https://cgit.freebsd.org/src/commit/?id=188138106b9f
+⁶⁰ https://cgit.freebsd.org/src/commit/?id=4680e7fcc70a
+⁶¹ https://cgit.freebsd.org/src/commit/?id=e447c252d0ec
+⁶² https://cgit.freebsd.org/src/commit/?id=5f8493bbf479
+⁶³ https://cgit.freebsd.org/src/commit/?id=110111a6cca1
+⁶⁴ https://cgit.freebsd.org/src/commit/?id=2a454b05f2c1
+⁶⁵ https://cgit.freebsd.org/src/commit/?id=98d46e05ab08
+⁶⁶ https://cgit.freebsd.org/src/commit/?id=6b28571cb6ba
+⁶⁷ https://cgit.freebsd.org/src/commit/?id=ca9ccf0ce9ad
+⁶⁸ https://cgit.freebsd.org/src/commit/?id=b98d0566b2bd
+⁶⁹ https://cgit.freebsd.org/src/commit/?id=fb1ccc04adfe
+⁷⁰ https://cgit.freebsd.org/src/commit/?id=dd0ec030f8fd
+⁷¹ https://cgit.freebsd.org/src/commit/?id=6c4771c73470
+⁷² https://cgit.freebsd.org/src/commit/?id=7b68893ffa9b
+⁷³ https://cgit.freebsd.org/src/commit/?id=624b7beed5ac
+⁷⁴ https://cgit.freebsd.org/src/commit/?id=04764f21855a
+⁷⁵ https://cgit.freebsd.org/src/commit/?id=73ed0c7992fd
+⁷⁶ https://cgit.freebsd.org/src/commit/?id=40a5abfc3f66
+⁷⁷ https://cgit.freebsd.org/src/commit/?id=543b875a8ee4
+⁷⁸ https://cgit.freebsd.org/src/commit/?id=c791ea80b5f7
+⁷⁹ https://cgit.freebsd.org/src/commit/?id=383e7290c0b5
+⁸⁰ https://cgit.freebsd.org/src/commit/?id=9a726ef24134
+⁸¹ https://cgit.freebsd.org/src/commit/?id=a245dc5d68c7
+⁸² https://cgit.freebsd.org/src/commit/?id=e26259f48afe
+⁸³ https://cgit.freebsd.org/src/commit/?id=7d2cfb27d62f
+⁸⁴ https://cgit.freebsd.org/src/commit/?id=619feb9dd00e
+⁸⁵ https://cgit.freebsd.org/src/commit/?id=10eecc467f32
+⁸⁶ https://cgit.freebsd.org/src/commit/?id=0c13e9c3c464
+⁸⁷ https://cgit.freebsd.org/src/commit/?id=89c82750da1a
+⁸⁸ https://cgit.freebsd.org/src/commit/?id=18a870751b03
+⁸⁹ https://cgit.freebsd.org/src/commit/?id=ce9c325a2e92
+⁹⁰ https://cgit.freebsd.org/src/commit/?id=cb3eac927b5d
+⁹¹ https://cgit.freebsd.org/src/commit/?id=5105e1ebecc7
+⁹² https://cgit.freebsd.org/src/commit/?id=b9b0e105c357
+⁹³ https://cgit.freebsd.org/src/commit/?id=929f5966a9fd
+⁹⁴ https://man.freebsd.org/cgi/man.cgi?query=rtw88&sektion=4&format=html
+⁹⁵ https://cgit.freebsd.org/src/commit/?id=c1d365f39e08
+⁹⁶ https://man.freebsd.org/cgi/man.cgi?query=rtw89&sektion=4&format=html
+⁹⁷ https://cgit.freebsd.org/src/commit/?id=b35044b38f74
+⁹⁸ https://man.freebsd.org/cgi/man.cgi?query=iwlwifi&sektion=4&format=html
+⁹⁹ https://cgit.freebsd.org/src/commit/?id=69caa1cf3ce5
+
+Runtime Libraries and API
+-------------------------
+
+The setusercontext(3)¹ routine in libutil will now set the process
+priority (nice) from the .login.conf file from the home directory under
+appropriate conditions, as well as the system login.conf(5)². The
+priority can now have the value inherit, indicating that the priority
+should be unchanged from that of the parent process. Similarly, the
+umask can have the value inherit. c328e6c6ccaa³, d162d7e2ad32⁴,
+f2a0277d3e51⁵ (Sponsored by Kumacom SAS)
+
+Many string and memory operations in the C library now use SIMD (single
+instruction multiple data) extensions for improved performance when
+available on amd64 systems; see simd(7)⁶. (Sponsored by The FreeBSD
+Foundation)
+
+There is now a much better implementation of the 128-bit tgammal
+function in the math library, math(3)⁷, on platforms that support it.
+8df6c930c151⁸
+
+fma(3)⁹ now returns correctly-signed zero when provided certain small
+inputs (as observed in the Python test suite). dc39004bc670¹⁰ (Sponsored
+by The FreeBSD Foundation)
+
+The cap_rights_is_empty function has been added. It reports whether a
+cap_rights_t has no rights set. e77813f7e4a3¹¹ (Sponsored by The FreeBSD
+Foundation)
+
+libcxxrt has been updated to upstream 6f2fdfebcd62. d9901a23bd2f¹²
+
+The accuracy of asinf(3)¹³ and acosf(3)¹⁴ has improved. 33c82f11c267¹⁵
+
+The setgroups(2)¹⁶ and getgroups(2)¹⁷ system calls and the
+initgroups(3)¹⁸ library function have been changed to avoid setting or
+reporting the effective group ID, now only concerning themselves with
+the supplementary groups. The main purpose of this change is to avoid
+security issues going forward by becoming compatible with Linux/glibc,
+OpenBSD, NetBSD and illumos-based systems. Consequently, almost all
+portable applications should already be compliant with this new behavior
+and will continue to work correctly or even get fixed in the process
+(see, e.g., 239e8c98636a¹⁹ for an example affecting OpenSSH). However,
+out of caution, porters, system administrators and users are advised to
+audit their applications using setgroups(2)¹⁶, getgroups(2)¹⁷ and
+initgroups(3)¹⁸, watching out for the following points. Applications
+must be using setgid(2)²⁰ or setegid(2)²¹ in addition to setgroups(2)¹⁶
+or initgroups(3)¹⁸ to set the effective group ID. They must not treat
+the first element of the array returned by getgroups(2)¹⁷ specially, but
+instead as any other supplementary group. For more information, please
+consult the SECURITY CONSIDERATIONS sections that have been added to the
+setgroups(2)¹⁶, getgroups(2)¹⁷ and initgroups(3)¹⁸ manual pages.
+Compatibility system calls and library functions have been provided so
+that binaries and libraries compiled on FreeBSD 14 systems or earlier
+will continue to work exactly as before. 9da2fe96ff2e²², 8878569103a3²³,
+7132fb5edbc9²⁴, 2932e6f59bff²⁵, 8878569103a3²³ (Sponsored by The FreeBSD
+Foundation)
+
+libc contains compatibility functions enabling running
+executables/libraries compiled for older versions of FreeBSD. Those that
+are themselves using compatibility system calls would not reference them
+correctly, causing misbehavior at runtime. This has been fixed.
+47f5f89dbd27²⁶ (Sponsored by The FreeBSD Foundation)
+
+The readdir_r(3)²⁷ function is deprecated and may be removed in future
+releases. Using it in a program will result in compile-time and
+link-time warnings. 2bd157bc732a²⁸ (Sponsored by Klara, Inc.)
+
+The runtime linker rtld(1)²⁹ has grown support for the static linker
+flag specified by -z initfirst. 78aaab9f1cf3³⁰ (Sponsored by The FreeBSD
+Foundation)
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=setusercontext&sektion=3&format=html
+ ² https://man.freebsd.org/cgi/man.cgi?query=login.conf&sektion=5&format=html
+ ³ https://cgit.freebsd.org/src/commit/?id=c328e6c6ccaa
+ ⁴ https://cgit.freebsd.org/src/commit/?id=d162d7e2ad32
+ ⁵ https://cgit.freebsd.org/src/commit/?id=f2a0277d3e51
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=simd&sektion=7&format=html
+ ⁷ https://man.freebsd.org/cgi/man.cgi?query=math&sektion=3&format=html
+ ⁸ https://cgit.freebsd.org/src/commit/?id=8df6c930c151
+ ⁹ https://man.freebsd.org/cgi/man.cgi?query=fma&sektion=3&format=html
+¹⁰ https://cgit.freebsd.org/src/commit/?id=dc39004bc670
+¹¹ https://cgit.freebsd.org/src/commit/?id=e77813f7e4a3
+¹² https://cgit.freebsd.org/src/commit/?id=d9901a23bd2f
+¹³ https://man.freebsd.org/cgi/man.cgi?query=asinf&sektion=3&format=html
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=acosf&sektion=3&format=html
+¹⁵ https://cgit.freebsd.org/src/commit/?id=33c82f11c267
+¹⁶ https://man.freebsd.org/cgi/man.cgi?query=setgroups&sektion=2&format=html
+¹⁷ https://man.freebsd.org/cgi/man.cgi?query=getgroups&sektion=2&format=html
+¹⁸ https://man.freebsd.org/cgi/man.cgi?query=initgroups&sektion=3&format=html
+¹⁹ https://cgit.freebsd.org/src/commit/?id=239e8c98636a
+²⁰ https://man.freebsd.org/cgi/man.cgi?query=setgid&sektion=2&format=html
+²¹ https://man.freebsd.org/cgi/man.cgi?query=setegid&sektion=2&format=html
+²² https://cgit.freebsd.org/src/commit/?id=9da2fe96ff2e
+²³ https://cgit.freebsd.org/src/commit/?id=8878569103a3
+²⁴ https://cgit.freebsd.org/src/commit/?id=7132fb5edbc9
+²⁵ https://cgit.freebsd.org/src/commit/?id=2932e6f59bff
+²⁶ https://cgit.freebsd.org/src/commit/?id=47f5f89dbd27
+²⁷ https://man.freebsd.org/cgi/man.cgi?query=readdir_r&sektion=3&format=html
+²⁸ https://cgit.freebsd.org/src/commit/?id=2bd157bc732a
+²⁹ https://man.freebsd.org/cgi/man.cgi?query=rtld&sektion=1&format=html
+³⁰ https://cgit.freebsd.org/src/commit/?id=78aaab9f1cf359f
+
+Miscellaneous
+-------------
+
+The Gallant font for vt(4)¹ has been updated with more than 4300 new
+glyphs, including support for Greek, Cyrillic, International Phonetic
+Association Extensions, Extended Latin characters, Zapf Dingbats, Tons
+of arrows, Tons of mathematical symbols, Letterlike symbols and enclosed
+alphanumerics, Pixel-perfect box drawing, Currency symbols, More
+punctuation, Just enough Katakana to say コンニチハ, Powerline glyphs in the
+Private Use Area at U+e0a0. 9e8c1ab0976c²
+
+Unicode support has been updated to 16.0.0 and CLDR to 45.0.0.
+ddfc6f84f242³
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=vt&sektion=4&format=html
+² https://cgit.freebsd.org/src/commit/?id=9e8c1ab0976c
+³ https://cgit.freebsd.org/src/commit/?id=ddfc6f84f242
+
+Deprecated Applications
+-----------------------
+
+fdisk(8)¹ has been deprecated in favor of gpart(8)² for a long time but
+has not been removed, running this application will show a warning to
+migrate to gpart(8)². 3958be5c29da³ (Sponsored by The FreeBSD
+Foundation)
+
+Deprecation notice for syscons(4)⁴ has been added. syscons(4)⁴ is not
+compatible with UEFI, does not support UTF-8, and is Giant-locked. There
+is no specific timeline yet for removing it, but support for the Giant
+lock is expected to go away in one or two major release cycles.
+8c922db4f3d9⁵ (Sponsored by The FreeBSD Foundation)
+
+The shar utility has been removed. It lives on as a port at
+sysutils/freebsd-shar⁶. 3fde39073c72⁷
+
+The cryptographically weak DSA signature algorithm was removed from
+OpenSSH, following upstream.
+
+The publickey(5)⁸ database has been removed, This uses DES and we hope
+that nobody uses that in 2025. 9197c04a251b⁹
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=fdisk&sektion=8&format=html
+² https://man.freebsd.org/cgi/man.cgi?query=gpart&sektion=8&format=html
+³ https://cgit.freebsd.org/src/commit/?id=3958be5c29da
+⁴ https://man.freebsd.org/cgi/man.cgi?query=syscons&sektion=4&format=html
+⁵ https://cgit.freebsd.org/src/commit/?id=8c922db4f3d9
+⁶ https://cgit.freebsd.org/ports/tree/sysutils/freebsd-shar/
+⁷ https://cgit.freebsd.org/src/commit/?id=3fde39073c72
+⁸ https://man.freebsd.org/cgi/man.cgi?query=publickey&sektion=5&format=html
+⁹ https://cgit.freebsd.org/src/commit/?id=9197c04a251b
+
+
+Cloud Support
+=============
+
+
+This section covers changes in support for cloud environments.
+
+15.0-RELEASE supports cloudinit, including the nuageinit startup script
+and support for a config-drive partition. It is compatible with
+OpenStack and many hosting facilities. See the cloud-init¹ web site and
+the commit messages, 16a6da44e28d² 227e7a205edf³ (Sponsored by OVHcloud)
+
+Basic Cloudinit images no longer generate RSA host keys by default for
+SSH. b22be3bbb2de⁴
+
+The FreeBSD project is now publishing OCI-compatible container images.
+8a688fcc242e⁵
+
+The FreeBSD project is now publishing Oracle Cloud Infrastructure
+images. See the Oracle Cloud Infrastructure FreeBSD Listing⁶ for more
+information. 77b296a2582b⁷
+
+The "shutdown" and "reboot" API in the Amazon EC2 cloud now work for
+arm64 ("Graviton") instances. 28b881840df7⁸ (Sponsored by Amazon)
+
+Several bug fixes and configuration changes collectively allow device
+hotplug on both x86 and arm64 ("Graviton") EC2 instances. ce9a34b1614e⁹
+55c3348ed78f¹⁰ d70bac252d30¹¹ (Sponsored by Amazon)
+
+Users upgrading EC2 instances from earlier FreeBSD releases should set
+hw.pci.intx_reroute=0 and debug.acpi.quirks="56" in /boot/loader.conf.
+
+The FreeBSD project now publishes "small" EC2 images; these are the
+"base" images minus debug symbols, tests, 32-bit libraries, the LLDB
+debugger, the Amazon SSM Agent, and the AWS CLI. 953142d6baf3¹²
+(Sponsored by Amazon)
+
+The FreeBSD project now publishes "builder" EC2 images; these boot into
+a memory disk and extract a clean "base" image onto the root disk
+(mounted at /mnt) to be customized before creating an AMI.
+584265890303¹³ (Sponsored by Amazon)
+
+FreeBSD "base" EC2 images now boot up to 76% faster than corresponding
+14.0-RELEASE images, with the largest improvements found on arm64
+("Graviton") instances.
+
+EC2 AMIs no longer generate RSA host keys by default for SSH. RSA host
+key generation can be re-enabled by setting sshd_rsa_enable="YES" in
+/etc/rc.conf if it is necessary to support very old SSH clients.
+0aabcd75dbc2¹⁴ (Sponsored by Amazon)
+
+FreeBSD 15.0-RELEASE now supports Google Cloud Compute Engine C4
+machines. 7b32f4f0a7fe¹⁵ (Sponsored by Google)
+
+ ¹ https://cloud-init.io
+ ² https://cgit.freebsd.org/src/commit/?id=16a6da44e28d
+ ³ https://cgit.freebsd.org/src/commit/?id=227e7a205edf
+ ⁴ https://cgit.freebsd.org/src/commit/?id=b22be3bbb2de
+ ⁵ https://cgit.freebsd.org/src/commit/?id=8a688fcc242e
+ ⁶ https://cloudmarketplace.oracle.com/marketplace/app/freebsd-release
+ ⁷ https://cgit.freebsd.org/src/commit/?id=77b296a2582b
+ ⁸ https://cgit.freebsd.org/src/commit/?id=28b881840df7
+ ⁹ https://cgit.freebsd.org/src/commit/?id=ce9a34b1614e
+¹⁰ https://cgit.freebsd.org/src/commit/?id=55c3348ed78f
+¹¹ https://cgit.freebsd.org/src/commit/?id=d70bac252d30
+¹² https://cgit.freebsd.org/src/commit/?id=953142d6baf3
+¹³ https://cgit.freebsd.org/src/commit/?id=584265890303
+¹⁴ https://cgit.freebsd.org/src/commit/?id=0aabcd75dbc2
+¹⁵ https://cgit.freebsd.org/src/commit/?id=7b32f4f0a7fe
+
+
+Kernel
+======
+
+
+This section covers changes to kernel configurations, system tuning, and
+system control parameters that are not otherwise categorized.
+
+
+General Kernel Changes
+----------------------
+
+ktrace(2) will now record detailed information about capability mode
+violations. The kdump(1) utility has been updated to display such
+information. 9bec84131215¹, 96c8b3e50988², 05296a0ff616³, 6a4616a529c1⁴,
+0cd9cde767c3⁵, aa32d7cbc92c⁶
+
+FreeBSD now natively implements the Linux inotify(2)⁷ interface. The
+system calls themselves are not API-compatible, but libc provides an
+API-compatible interface, so software which relies on inotify can be run
+unmodified. f1f230439fa4⁸, (Sponsored by Klara, Inc.)
+
+The fpu_kern_enter and fpu_kern_leave routines have been implemented for
+powerpc, allowing the use of ossl(4)⁹ crypto functions in the kernel
+that use floating point and vector registers. 91e53779b4fc¹⁰
+
+Support legacy PCI hotplug on arm64. 355f02cddbf0¹¹. (Sponsored by Arm
+Ltd)
+
+Jails can now be accessed via jail descriptors in jail_set(2)¹² and
+jail_get(2)¹³, as well as the new jail_attach_jd(2) and
+jail_remove_jd(2) syscalls. They allow manipulation of jails through the
+file descriptor interface without the race conditions inherent in jail
+IDs, and can also optionally control jail lifetime. 851dc7f859c2¹⁴
+
+Jails and jail descriptors now have associated kevent(2)¹⁵ filters that
+allow tracking jail creation, changes, attachment, and removal.
+1bd74d201a53¹⁶ 9d7f89ef2607¹⁷
+
+A new common 'mac' node for MAC modules' jail parameters has been
+created. All future MAC modules' jail parameters will appear under this
+node. See mac(4)¹⁸ for an introduction to MAC. First consumer is
+mac_do(4)¹⁹. 5041b20503db²⁰, f3a06ced2568²¹ (Sponsored by The FreeBSD
+Foundation)
+
+mac_do(4)¹⁹ is now considered production-ready, after a number of
+important fixes. bbf8af664dc9²², 292c814931d9²³, 53d2e0d48549²⁴,
+add521c1a5d2²⁵, 2a20ce91dc29²⁶, fa4352b74580²⁷, 3d8d91a5b32c²⁸,
+8f7e8726e3f5²⁹, 89958992b618³⁰ (Sponsored by The FreeBSD Foundation)
+
+mac_do(4)¹⁹ now supports changing rules within jails with the
+security.mac.do.rules sysctl(8)³¹ knob. b3f93680e39b³² (Sponsored by The
+FreeBSD Foundation)
+
+Introduce the setcred(2)³³ system call and associated MAC hooks. This
+new system call allows to set all necessary credentials of a process in
+one go: Effective, real and saved user IDs, effective, real and saved
+group IDs, supplementary groups and the MAC label. Besides providing
+atomicity, its advantage over standard credentials-setting system calls,
+such as setuid(), seteuid(), etc., is that it enables MAC modules, such
+as mac_do(4)¹⁹, to restrict the set of credentials some process may gain
+in a fine-grained manner, as they can now see the final desired state
+and compare it with the initial one. ddb3eb4efe55³⁴ (Sponsored by The
+FreeBSD Foundation)
+
+Support multiple users and groups as single rule’s targets in
+mac_do(4)¹⁹. Supporting group targets is a requirement for mac_do(4)¹⁹
+to be able to enforce a limited set of valid new groups in the target
+credentials and to allow group-only credentials transitions. The allowed
+groups are tied to one or multiple user IDs. Multiple users and groups
+in a rule’s target part are treated as alternatives (inclusive
+disjunction), except for the clauses expressing the mandatory presence
+or absence of a supplementary group. The rules syntax has been changed
+incompatibly, but migrating existing rules is just a matter of adding
+uid= in front of the target part, substituting commas (,) with
+semi-colons (;) and colons (:) with greater-than signs (>). Please
+consult the mac_do(4)¹⁹ manual page for more information.
+83ffc412b2e9³⁵, 8f7e8726e3f5²⁹, f01d26dec67f³⁶ (Sponsored by The FreeBSD
+Foundation)
+
+Teach sysctl(8)³¹ to attach and run itself in a jail. This allows the
+parent jail to retrieve or set kernel state when child does not have
+sysctl(8)³¹ installed (for example light weighted OCI containers or slim
+jails). This is especially useful when manipulating jail prison or vnet
+sysctls. For example, sysctl -j foo -Ja or sysctl -j foo net.fibs=2.
+8d5d7e2ba3a6³⁷.
+
+Enable vnet sysctl(9)³⁸ variables to be loader tunable. In
+3da1cf1e88f8³⁹, the meaning of the flag CTLFLAG_TUN is extended to
+automatically check if there is a kernel environment variable which
+shall initialize the SYSCTL during early boot. It works for all SYSCTL
+types both statically and dynamically created ones, except for the
+SYSCTLs which belong to VNETs. Note that the implementation has a
+limitation. It behaves the same way as that of non-vnet loader tunables.
+That is, after the kernel or modules being initialized, any changes (for
+example via kenv) to kernel environment variable will not affect the
+corresponding vnet variable of subsequently created VNETs. To overcome
+it, TUNABLE_XXX_FETCH can be used to fetch the kernel environment
+variable into those vnet variables during vnet constructing.
+894efae09de4⁴⁰
+
+sound(4)⁴¹: Allocate vchans on-demand. Refactor pcm_chnalloc() and merge
+with parts of vchan_setnew() (now removed) and dsp_open()’s channel
+creation into a new dsp_chn_alloc() function. The function is
+responsible for either using a free HW channel (if vchans are disabled),
+or allocating a new vchan. hw.snd.vchans_enable (previously
+hw.snd.maxautovchans) and dev.pcm.X.{play|rec}.vchans now work as
+tunables to only enable/disable vchans, as opposed to setting their
+number and/or (de-)allocating vchans. Since these sysctls do not trigger
+any (de-)allocations anymore, their effect is instantaneous, whereas
+before it could have frozen the machine (when trying to allocate new
+vchans) when setting dev.pcm.X.{play|rec}.vchans to a very large value.
+960ee8094913⁴². (Sponsored by The FreeBSD Foundation)
+
+The hw.snd.version sysctl(8)³¹ knob was removed. 7398d1ece5cf⁴³
+(Sponsored by The FreeBSD Foundation)
+
+The unit.* code in sound(4)⁴¹ was retired, and as part of that the
+hw.snd.maxunit loader(8)⁴⁴ tunable was removed. 25723d66369f⁴⁵
+(Sponsored by The FreeBSD Foundation)
+
+Gradual slowdowns and freezes experienced by owners of some AMD GPUs
+using the amdgpu DRM driver from the drm-kmod ports, starting with v5.15
+(graphics/drm-515-kmod port), have been fixed. In particular, owners of
+graphics cards with Green Sardine, Polaris 10 and 20 and Vega chips were
+known to be affected. Recent Intel-based GPUs (gen 13+) may also have
+been affected. 718d1928f874⁴⁶, 4ca9190251bb⁴⁷, 986edb19a49c⁴⁸,
+9d1f3ce79d85⁴⁹, da257e519bc0⁵⁰ (Sponsored by The FreeBSD Foundation)
+
+The code iterating over memory domains (NUMA) was improved and fixed in
+a number of ways, resulting in particular in decreased latency for some
+graphical operations with DRM drivers. da257e519bc0⁵⁰, 83ad6d8d8eee⁵¹,
+b15ff7214020⁵² (Sponsored by The FreeBSD Foundation)
+
+The effective group ID is now stored in the new cr_gid field of struct
+cred and has been removed as the first element of cr_groups[], which now
+only contains the supplementary groups. All downstream and out-of-tree
+modules using cr_groups[0] must be fixed to use cr_gid instead, and
+surrounding code that loops on cr_groups[] elements excluding
+cr_groups[0], i.e., that intends to act on supplementary groups only,
+also needs to be adjusted as now supplementary groups start at
+&cr_groups[0] instead of &cr_groups[1]. Code that needs to be portable
+to both 15.0 and earlier versions can use cr_gid, which existed also
+previously as a macro, and can test the truth value of &cr_groups[0] !=
+&cr_gid to know how to browse the supplementary groups adequately.
+be1f7435ef21⁵³ (Sponsored by the FreeBSD Foundation)
+
+ ¹ https://cgit.freebsd.org/src/commit/?id=9bec84131215
+ ² https://cgit.freebsd.org/src/commit/?id=96c8b3e50988
+ ³ https://cgit.freebsd.org/src/commit/?id=05296a0ff616
+ ⁴ https://cgit.freebsd.org/src/commit/?id=6a4616a529c1
+ ⁵ https://cgit.freebsd.org/src/commit/?id=0cd9cde767c3
+ ⁶ https://cgit.freebsd.org/src/commit/?id=aa32d7cbc92c
+ ⁷ https://man.freebsd.org/cgi/man.cgi?query=inotify&sektion=2&format=html
+ ⁸ https://cgit.freebsd.org/src/commit/?id=f1f230439fa4
+ ⁹ https://man.freebsd.org/cgi/man.cgi?query=ossl&sektion=4&format=html
+¹⁰ https://cgit.freebsd.org/src/commit/?id=91e53779b4fc
+¹¹ https://cgit.freebsd.org/src/commit/?id=355f02cddbf0
+¹² https://man.freebsd.org/cgi/man.cgi?query=jail_set&sektion=2&format=html
+¹³ https://man.freebsd.org/cgi/man.cgi?query=jail_get&sektion=2&format=html
+¹⁴ https://cgit.freebsd.org/src/commit/?id=851dc7f859c2
+¹⁵ https://man.freebsd.org/cgi/man.cgi?query=kevent&sektion=2&format=html
+¹⁶ https://cgit.freebsd.org/src/commit/?id=1bd74d201a53
+¹⁷ https://cgit.freebsd.org/src/commit/?id=9d7f89ef2607
+¹⁸ https://man.freebsd.org/cgi/man.cgi?query=mac&sektion=4&format=html
+¹⁹ https://man.freebsd.org/cgi/man.cgi?query=mac_do&sektion=4&format=html
+²⁰ https://cgit.freebsd.org/src/commit/?id=5041b20503db
+²¹ https://cgit.freebsd.org/src/commit/?id=f3a06ced2568
+²² https://cgit.freebsd.org/src/commit/?id=bbf8af664dc9
+²³ https://cgit.freebsd.org/src/commit/?id=292c814931d9
+²⁴ https://cgit.freebsd.org/src/commit/?id=53d2e0d48549
+²⁵ https://cgit.freebsd.org/src/commit/?id=add521c1a5d2
+²⁶ https://cgit.freebsd.org/src/commit/?id=2a20ce91dc29
+²⁷ https://cgit.freebsd.org/src/commit/?id=fa4352b74580
+²⁸ https://cgit.freebsd.org/src/commit/?id=3d8d91a5b32c
+²⁹ https://cgit.freebsd.org/src/commit/?id=8f7e8726e3f5
+³⁰ https://cgit.freebsd.org/src/commit/?id=89958992b618
+³¹ https://man.freebsd.org/cgi/man.cgi?query=sysctl&sektion=8&format=html
+³² https://cgit.freebsd.org/src/commit/?id=b3f93680e39b
+³³ https://man.freebsd.org/cgi/man.cgi?query=setcred&sektion=2&format=html
+³⁴ https://cgit.freebsd.org/src/commit/?id=ddb3eb4efe55
+³⁵ https://cgit.freebsd.org/src/commit/?id=83ffc412b2e9
+³⁶ https://cgit.freebsd.org/src/commit/?id=f01d26dec67f
+³⁷ https://cgit.freebsd.org/src/commit/?id=8d5d7e2ba3a6
+³⁸ https://man.freebsd.org/cgi/man.cgi?query=sysctl&sektion=9&format=html
+³⁹ https://cgit.freebsd.org/src/commit/?id=3da1cf1e88f8
+⁴⁰ https://cgit.freebsd.org/src/commit/?id=894efae09de4
+⁴¹ https://man.freebsd.org/cgi/man.cgi?query=sound&sektion=4&format=html
+⁴² https://cgit.freebsd.org/src/commit/?id=960ee8094913
+⁴³ https://cgit.freebsd.org/src/commit/?id=7398d1ece5cf
+⁴⁴ https://man.freebsd.org/cgi/man.cgi?query=loader&sektion=8&format=html
+⁴⁵ https://cgit.freebsd.org/src/commit/?id=25723d66369f
+⁴⁶ https://cgit.freebsd.org/src/commit/?id=718d1928f874
+⁴⁷ https://cgit.freebsd.org/src/commit/?id=4ca9190251bb
+⁴⁸ https://cgit.freebsd.org/src/commit/?id=986edb19a49c
+⁴⁹ https://cgit.freebsd.org/src/commit/?id=9d1f3ce79d85
+⁵⁰ https://cgit.freebsd.org/src/commit/?id=da257e519bc0
+⁵¹ https://cgit.freebsd.org/src/commit/?id=83ad6d8d8eee
+⁵² https://cgit.freebsd.org/src/commit/?id=b15ff7214020
+⁵³ https://cgit.freebsd.org/src/commit/?id=be1f7435ef218b1df35
+
+Architecture-Specific Changes
+-----------------------------
+
+On amd64, FreeBSD now supports more than 4TB of RAM on modern machines
+that have the LA57 CPU feature. d390633cf8cf¹ (Sponsored by the FreeBSD
+Foundation)
+
+On amd64, handling of the %fsbase/%gsbase registers and tls base were
+reworked, making it more useful for apps that directly manipulate CPU
+context. 68ba38dad3² (Sponsored by the FreeBSD Foundation)
+
+¹ https://cgit.freebsd.org/src/commit/?id=d390633cf8cf
+² https://cgit.freebsd.org/src/commit/?id=68ba38dad3
+
+
+Devices and Drivers
+===================
+
+
+This section covers changes and additions to devices and device drivers
+since 14.0-RELEASE.
+
+
+Device Drivers
+--------------
+
+The tty(4)¹ terminal interface now has the IUTF8 flag, which enables
+proper UTF-8 backspacing handling, set by default, suiting the default
+UTF-8 locale. bb830e346bd5²
+
+A driver is available for ice(4)³ Ethernet network controllers in the
+Intel E800 series, which support 100 Gb/s operation. It was upgraded to
+version 1.43.2-k. 38a1655adcb3⁴ (Sponsored by Intel Corporation)
+
+Numerous stability improvements have been in the iwlwifi(4)⁵ driver for
+Intel Wi-Fi devices. (Sponsored by The FreeBSD Foundation)
+
+Multiple PCI MCFG regions are now supported on amd64, allowing PCI
+configuration space access for domains (segments) other than 0.
+4b5f64408804⁶
+
+The smsc(4)⁷ Ethernet driver can now fetch the value of smsc95xx.macaddr
+passed by some Raspberry Pi models and use it for the MAC address. It
+always uses a stable MAC address even if there is no address in EEPROM.
+028e4c6548e4⁸
+
+The snd_clone framework has been removed from the sound subsystem,
+including related sysctls, simplifying the system. The per-channel nodes
+(/dev/dspX.Y) are no longer created, just the primary device
+(/dev/dspX). e6c51f6db8d7⁹ (Sponsored by The FreeBSD Foundation)
+
+Audio now supports asynchronous device detach. This greatly simplifies
+hot plugging and unplugging of things such as USB headsets, and eases
+use of PulseAudio in cases that require operating system sleep and wake
+(suspend and resume). d692c314d29a¹⁰ (Sponsored by The FreeBSD
+Foundation)
+
+ice_ddp has been upgraded to 1.3.41.0. a9d78bb714e3¹¹ (Sponsored by
+Intel Corporation)
+
+Tiger Lake-H support has been added to the hda(4)¹² driver.
+dbb6f488df6e¹³
+
+Meteor Lake support has been added to the ichsmb(4)¹⁴ driver.
+14c22e28e4ee¹⁵ (Sponsored by Framework Computer Inc) (Sponsored by The
+FreeBSD Foundation)
+
+Meteor Lake support has been added to the ig4(4)¹⁶ driver.
+56f0fc0011c2¹⁷
+
+Support for Realtek 8156/8156B has been moved from cdce(4)¹⁸ to ure(4)¹⁹
+for improved performance and reliability. 630077a84186²⁰ (Sponsored by
+The FreeBSD Foundation)
+
+Support for ACPI GPIO _AEI objects has been added. 1db6ffb2a482²¹
+(Sponsored by Amazon)
+
+nvme(4)²² and nvmecontrol(8)²³ have been enabled on all architectures.
+24687a65dd7f²⁴, aba2d7f89dcf²⁵ (Sponsored by Chelsio Communications and
+Netflix)
+
+mpi3mr(4)²⁶ driver version has been updated to 8.14.0.2.0.
+e6d4b221ba7c²⁷
+
+mpi3mr(4)²⁶ MPI Header has been updated to Version 36. This aligns with
+the latest MPI specification. This includes updated structures, field
+definitions, and constants required for compatibility with updated
+firmware. 60cf1576501d²⁸
+
+The mpi3mr(4)²⁶ driver is now in GENERIC. e2b8fb2202c2²⁹
+
+iwmbtfw(4)³⁰: Add support for 9260/9560 bluetooth adapters. Required
+firmware files are already included in to comms/iwmbt-firmware³¹ port.
+8e62ae9693bd³²
+
+ena(4)³³ driver version has been updated to v2.8.1. a1685d25601e³⁴
+(Sponsored by Amazon, Inc.)
+
+bnxt(4)³⁵: Enable NPAR support on BCM57504 10/25GbE NICs. 54f842ed8897³⁶
+
+bnxt(4)³⁵: Add 5760X (Thor2) PCI IDs support. Add Thor2 PCI IDs.
+45e161020c2d³⁷
+
+bnxt(4)³⁵: Add support for 400G speed modules. 32fdad17f060³⁸
+
+ix(4)³⁹: Add support for 1000BASE-BX SFP modules. Add support for 1Gbit
+BiDi modules. Add support for Intel Ethernet Network Adapter E610.
+89d4096950c4⁴⁰ dea5f973d0c8⁴¹
+
+igc(4)⁴²: Fix attach for I226-K and LMVP devices. The device IDs for
+these were in the driver’s list of PCI ids to attach to, but
+igc_set_mac_type() had never been setup to set the correct mac type for
+these devices. Fix this by adding these IDs to the switch block in order
+for them to be recognized by the driver instead of returning an error.
+This fixes the igc(4)⁴² attach for the I226-K LOM on the ASRock Z790
+PG-ITX/TB4 motherboard, allowing it to be recognized and used.
+f034ddd2fa38⁴³.
+
+Remove old itr sysctl handler from em(4)⁴⁴. This implementation had
+various bugs. The unit conversion/scaling was wrong, and it also did not
+handle 82574L or igb(4)⁴⁵ devices correctly. With the new AIM code, it
+is expected most users will not need to manually tune this.
+edf50670e215⁴⁶ (Sponsored by BBOX.io)
+
+Added support for Brainboxes USB-to-Serial adapters in uftdi(4)⁴⁷.
+47db906375b5⁴⁸
+
+The iwx(4)⁴⁹ driver has been added, supporting the Intel Wi-Fi 6 series
+of M.2 wireless network adapters. 2ad0f7e91582⁵⁰ (Sponsored by The
+FreeBSD Foundation)
+
+A new cellular modem driver supports USB network devices implementing
+the Mobile Broadband Interface Model (MBIM): umb(4)⁵¹. The accompanying
+umbctl(8)⁵² tool is used to display or set MBIM cellular modem interface
+parameters (4G/LTE). 0f1bf1c22a0c⁵³ (Sponsored by The FreeBSD
+Foundation)
+
+smbios(4)⁵⁴ now searches for the SMBIOS v3 (64-bit) entry point first
+also if booted from BIOS. This allows to detect and report the proper
+SMBIOS version with BIOSes that only provide the v3 table, as happens on
+Hetzner virtual machines. For machines that provide both, leverage the
+v3 table in priority consistently with the EFI case. bc7f6508363c⁵⁵
+(Sponsored by The FreeBSD Foundation)
+
+The usbhid(4)⁵⁶ driver is now enabled by default, and is used in
+preference to other USB HID drivers like ukbd(4)⁵⁷, ums(4)⁵⁸, and
+uhid(4)⁵⁹. Supported device classes now include:
+
+ • Absolute‐positioning mice in virtualized environments via hms(4)⁶⁰
+
+ • Digitizers and stylus devices via hpen(4)⁶¹
+
+ • Compound HID devices, such as keyboards and mice that share a single
+   USB interface
+
+ • Special keyboard function keys (volume, brightness, etc.) via
+   hcons(4)⁶² and hsctrl(4)⁶³
+
+ • Game controllers, including Xbox 360 and PS4 gamepads via
+   xb360gp(4)⁶⁴ and ps4dshock(4)⁶⁵, and generic controllers via
+   hgame(4)⁶⁶
+
+ • Raw HID devices via hidraw(4)⁶⁷
+
+FIDO/U2F security tokens continue to be supported through the autoloaded
+u2f(4)⁶⁸ driver. Device names and protocol handling for these devices
+are unchanged. 74072e9f16c1⁶⁹ (Sponsored by The FreeBSD Foundation)
+
+The udbc(4)⁷⁰ driver has been added enabling host side debugging of
+targets using xHC debug. d566b6a70bcb⁷¹ (Sponsored by The FreeBSD
+Foundation)
+
+The ufshci(4)⁷² driver has been added, supporting Universal Flash
+Storage (UFS) host controllers. 1349a733cf28⁷³ (Sponsored by Samsung
+Electronics)
+
+The mlx5(4)⁷⁴ driver now supports inline IPSEC offload on Nvidia
+ConnectX-6+ network cards, leveraging the new in-kernel IPSEC offload
+infrastructure. e23731db48ef⁷⁵ (Sponsored by NVIDIA networking)
+
+Support for the watchdog timer in Intel 6300ESB I/O controller hub has
+been included in the ichwd(4)⁷⁶ driver. This is intended primarily for
+QEMU users, where that watchdog timer serves as the default and only one
+for x86 virtual machines. 2b74ff5fceb6⁷⁷
+
+The qat(4)⁷⁸ driver has grown support for the 402xx device with ID
+0x4944/0x4945. 138e36514fe8⁷⁹ (Sponsored by Intel Corporation)
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=tty&sektion=4&format=html
+ ² https://cgit.freebsd.org/src/commit/?id=bb830e346bd5
+ ³ https://man.freebsd.org/cgi/man.cgi?query=ice&sektion=4&format=html
+ ⁴ https://cgit.freebsd.org/src/commit/?id=38a1655adcb3
+ ⁵ https://man.freebsd.org/cgi/man.cgi?query=iwlwifi&sektion=4&format=html
+ ⁶ https://cgit.freebsd.org/src/commit/?id=4b5f64408804
+ ⁷ https://man.freebsd.org/cgi/man.cgi?query=smsc&sektion=4&format=html
+ ⁸ https://cgit.freebsd.org/src/commit/?id=028e4c6548e4
+ ⁹ https://cgit.freebsd.org/src/commit/?id=e6c51f6db8d7
+¹⁰ https://cgit.freebsd.org/src/commit/?id=d692c314d29a
+¹¹ https://cgit.freebsd.org/src/commit/?id=a9d78bb714e3
+¹² https://man.freebsd.org/cgi/man.cgi?query=hda&sektion=4&format=html
+¹³ https://cgit.freebsd.org/src/commit/?id=dbb6f488df6e
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=ichsmb&sektion=4&format=html
+¹⁵ https://cgit.freebsd.org/src/commit/?id=14c22e28e4ee
+¹⁶ https://man.freebsd.org/cgi/man.cgi?query=ig4&sektion=4&format=html
+¹⁷ https://cgit.freebsd.org/src/commit/?id=56f0fc0011c2
+¹⁸ https://man.freebsd.org/cgi/man.cgi?query=cdce&sektion=4&format=html
+¹⁹ https://man.freebsd.org/cgi/man.cgi?query=ure&sektion=4&format=html
+²⁰ https://cgit.freebsd.org/src/commit/?id=630077a84186
+²¹ https://cgit.freebsd.org/src/commit/?id=1db6ffb2a482
+²² https://man.freebsd.org/cgi/man.cgi?query=nvme&sektion=4&format=html
+²³ https://man.freebsd.org/cgi/man.cgi?query=nvmecontrol&sektion=8&format=html
+²⁴ https://cgit.freebsd.org/src/commit/?id=24687a65dd7f
+²⁵ https://cgit.freebsd.org/src/commit/?id=aba2d7f89dcf
+²⁶ https://man.freebsd.org/cgi/man.cgi?query=mpi3mr&sektion=4&format=html
+²⁷ https://cgit.freebsd.org/src/commit/?id=e6d4b221ba7c
+²⁸ https://cgit.freebsd.org/src/commit/?id=60cf1576501d
+²⁹ https://cgit.freebsd.org/src/commit/?id=e2b8fb2202c2
+³⁰ https://man.freebsd.org/cgi/man.cgi?query=iwmbtfw&sektion=4&format=html
+³¹ https://cgit.freebsd.org/ports/tree/comms/iwmbt-firmware/
+³² https://cgit.freebsd.org/src/commit/?id=8e62ae9693bd
+³³ https://man.freebsd.org/cgi/man.cgi?query=ena&sektion=4&format=html
+³⁴ https://cgit.freebsd.org/src/commit/?id=a1685d25601e
+³⁵ https://man.freebsd.org/cgi/man.cgi?query=bnxt&sektion=4&format=html
+³⁶ https://cgit.freebsd.org/src/commit/?id=54f842ed8897
+³⁷ https://cgit.freebsd.org/src/commit/?id=45e161020c2d
+³⁸ https://cgit.freebsd.org/src/commit/?id=32fdad17f060
+³⁹ https://man.freebsd.org/cgi/man.cgi?query=ix&sektion=4&format=html
+⁴⁰ https://cgit.freebsd.org/src/commit/?id=89d4096950c4
+⁴¹ https://cgit.freebsd.org/src/commit/?id=dea5f973d0c8
+⁴² https://man.freebsd.org/cgi/man.cgi?query=igc&sektion=4&format=html
+⁴³ https://cgit.freebsd.org/src/commit/?id=f034ddd2fa38
+⁴⁴ https://man.freebsd.org/cgi/man.cgi?query=em&sektion=4&format=html
+⁴⁵ https://man.freebsd.org/cgi/man.cgi?query=igb&sektion=4&format=html
+⁴⁶ https://cgit.freebsd.org/src/commit/?id=edf50670e215
+⁴⁷ https://man.freebsd.org/cgi/man.cgi?query=uftdi&sektion=4&format=html
+⁴⁸ https://cgit.freebsd.org/src/commit/?id=47db906375b5
+⁴⁹ https://man.freebsd.org/cgi/man.cgi?query=iwx&sektion=4&format=html
+⁵⁰ https://cgit.freebsd.org/src/commit/?id=2ad0f7e91582
+⁵¹ https://man.freebsd.org/cgi/man.cgi?query=umb&sektion=4&format=html
+⁵² https://man.freebsd.org/cgi/man.cgi?query=umbctl&sektion=8&format=html
+⁵³ https://cgit.freebsd.org/src/commit/?id=0f1bf1c22a0c
+⁵⁴ https://man.freebsd.org/cgi/man.cgi?query=smbios&sektion=4&format=html
+⁵⁵ https://cgit.freebsd.org/src/commit/?id=bc7f6508363c
+⁵⁶ https://man.freebsd.org/cgi/man.cgi?query=usbhid&sektion=4&format=html
+⁵⁷ https://man.freebsd.org/cgi/man.cgi?query=ukbd&sektion=4&format=html
+⁵⁸ https://man.freebsd.org/cgi/man.cgi?query=ums&sektion=4&format=html
+⁵⁹ https://man.freebsd.org/cgi/man.cgi?query=uhid&sektion=4&format=html
+⁶⁰ https://man.freebsd.org/cgi/man.cgi?query=hms&sektion=4&format=html
+⁶¹ https://man.freebsd.org/cgi/man.cgi?query=hpen&sektion=4&format=html
+⁶² https://man.freebsd.org/cgi/man.cgi?query=hcons&sektion=4&format=html
+⁶³ https://man.freebsd.org/cgi/man.cgi?query=hsctrl&sektion=4&format=html
+⁶⁴ https://man.freebsd.org/cgi/man.cgi?query=xb360gp&sektion=4&format=html
+⁶⁵ https://man.freebsd.org/cgi/man.cgi?query=ps4dshock&sektion=4&format=html
+⁶⁶ https://man.freebsd.org/cgi/man.cgi?query=hgame&sektion=4&format=html
+⁶⁷ https://man.freebsd.org/cgi/man.cgi?query=hidraw&sektion=4&format=html
+⁶⁸ https://man.freebsd.org/cgi/man.cgi?query=u2f&sektion=4&format=html
+⁶⁹ https://cgit.freebsd.org/src/commit/?id=74072e9f16c1
+⁷⁰ https://man.freebsd.org/cgi/man.cgi?query=udbc&sektion=4&format=html
+⁷¹ https://cgit.freebsd.org/src/commit/?id=d566b6a70bcb
+⁷² https://man.freebsd.org/cgi/man.cgi?query=ufshci&sektion=4&format=html
+⁷³ https://cgit.freebsd.org/src/commit/?id=1349a733cf28
+⁷⁴ https://man.freebsd.org/cgi/man.cgi?query=mlx5&sektion=4&format=html
+⁷⁵ https://cgit.freebsd.org/src/commit/?id=e23731db48ef
+⁷⁶ https://man.freebsd.org/cgi/man.cgi?query=ichwd&sektion=4&format=html
+⁷⁷ https://cgit.freebsd.org/src/commit/?id=2b74ff5fceb6623f6
+⁷⁸ https://man.freebsd.org/cgi/man.cgi?query=qat&sektion=4&format=html
+⁷⁹ https://cgit.freebsd.org/src/commit/?id=138e36514fe8
+
+Deprecated and Removed Drivers
+------------------------------
+
+The agp(4)¹ bus driver has been deprecated and planned for removal in
+FreeBSD 16.0. 92af7c97e197² cadadd1a0398³
+
+The IBM PC floppy disk controller, fdc(4)⁴, and related utilities have
+been deprecated and planned for removal in FreeBSD 16.0. 4c736cfc69a7⁵
+(Sponsored by The FreeBSD Foundation)
+
+The firewire(4)⁶ bus and related drivers have been deprecated and
+planned for removal in FreeBSD 16.0. fc889167c319⁷ (Sponsored by The
+FreeBSD Foundation)
+
+The le(4)⁸ Ethernet driver has been deprecated and planned for removal
+in FreeBSD 16.0. e4d6433e9c03⁹ (Sponsored by The FreeBSD Foundation)
+
+syscons(4)¹⁰ has been planned for removal in future releases, and has
+been noted as deprecated in the manual pages to notify users to migrate
+to vt(4)¹¹. 2bc5b1d60512¹² (Sponsored by The FreeBSD Foundation)
+
+The upgt(4)¹³ USB 802.11g driver has been deprecated and planned for
+removal in FreeBSD 16.0. 7f8a5c5a1585¹⁴ (Sponsored by The FreeBSD
+Foundation)
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=agp&sektion=4&format=html
+ ² https://cgit.freebsd.org/src/commit/?id=92af7c97e197
+ ³ https://cgit.freebsd.org/src/commit/?id=cadadd1a0398
+ ⁴ https://man.freebsd.org/cgi/man.cgi?query=fdc&sektion=4&format=html
+ ⁵ https://cgit.freebsd.org/src/commit/?id=4c736cfc69a7
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=firewire&sektion=4&format=html
+ ⁷ https://cgit.freebsd.org/src/commit/?id=fc889167c319
+ ⁸ https://man.freebsd.org/cgi/man.cgi?query=le&sektion=4&format=html
+ ⁹ https://cgit.freebsd.org/src/commit/?id=e4d6433e9c03
+¹⁰ https://man.freebsd.org/cgi/man.cgi?query=syscons&sektion=4&format=html
+¹¹ https://man.freebsd.org/cgi/man.cgi?query=vt&sektion=4&format=html
+¹² https://cgit.freebsd.org/src/commit/?id=2bc5b1d60512
+¹³ https://man.freebsd.org/cgi/man.cgi?query=upgt&sektion=4&format=html
+¹⁴ https://cgit.freebsd.org/src/commit/?id=7f8a5c5a1585
+
+
+Storage
+=======
+
+
+This section covers changes and additions to file systems and other
+storage subsystems, both local and networked.
+
+
+NFS
+---
+
+The default value of the nfs_reserved_port_only rc.conf(5)¹ setting has
+changed. The FreeBSD NFS server now requires the source port of requests
+to be in the privileged port range (i.e., ≤ 1023), which generally
+requires the client to have elevated privileges on their local system.
+The previous behavior can be restored by setting
+nfs_reserved_port_only=NO in rc.conf(5)¹. 6d5ce2bb6344² (Sponsored by
+The FreeBSD Foundation)
+
+Define a new -a command line option mountd(8)³ that prevents exporting a
+file system with the -alldirs flag if the directory path is not a server
+file system mount point. 07cd69e272da⁴
+
+The layout of NFS file handles for the tarfs(4)⁵, tmpfs(4)⁶, cd9660(4)⁷,
+and ext2fs(4)⁸ file systems has changed. An NFS server that exports any
+of these file systems will need its clients to unmount and remount the
+exports. 4db1b113b151⁹, 1ccbdf561f41¹⁰, 205659c43d87¹¹, cf0ede720391¹²,
+8ae6247aa966¹³ (Sponsored by The FreeBSD Foundation)
+
+The mountd(8)³ server has been modified to use strunvis(3)¹⁴ to decode
+directory names in exports(5)¹⁵ file(s). This allows special characters,
+such as blanks, to be embedded in the directory name. vis -M may be used
+to encode such directory names; see vis(1)¹⁶. 2c83f1ada435¹⁷
+
+New sysctl(8)¹⁸ variables have been added under kern.rpc.unenc and
+kern.rpc.tls, which allow an NFS server administrator to determine how
+much NFS-over-TLS is being used. A large number of failed handshakes
+might indicate an NFS configuration problem. b8e137d8d32d¹⁹
+
+The utilization of NFSv4.1/4.2 delegations was improved when the nocto
+mount option is used. This requires an up-to-date NFSv4.1/4.2 server
+with delegations enabled. For example, when building a FreeBSD kernel
+with both src and obj NFSv4 mounted, the total RPC count drops from
+5461286 to 945643, with a 20% drop in elapsed time. 171f66b0c2ca²⁰,
+50e733f19b37²¹
+
+New support for the NFSv4.2 Clone operation, which uses block cloning to
+"copy on write" files on an NFS server. This only works for exported ZFS
+file systems that have block cloning enabled, at this time.
+cce64f2e6851²²
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=rc.conf&sektion=5&format=html
+ ² https://cgit.freebsd.org/src/commit/?id=6d5ce2bb6344
+ ³ https://man.freebsd.org/cgi/man.cgi?query=mountd&sektion=8&format=html
+ ⁴ https://cgit.freebsd.org/src/commit/?id=07cd69e272da
+ ⁵ https://man.freebsd.org/cgi/man.cgi?query=tarfs&sektion=4&format=html
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=tmpfs&sektion=4&format=html
+ ⁷ https://man.freebsd.org/cgi/man.cgi?query=cd9660&sektion=4&format=html
+ ⁸ https://man.freebsd.org/cgi/man.cgi?query=ext2fs&sektion=4&format=html
+ ⁹ https://cgit.freebsd.org/src/commit/?id=4db1b113b151
+¹⁰ https://cgit.freebsd.org/src/commit/?id=1ccbdf561f41
+¹¹ https://cgit.freebsd.org/src/commit/?id=205659c43d87
+¹² https://cgit.freebsd.org/src/commit/?id=cf0ede720391
+¹³ https://cgit.freebsd.org/src/commit/?id=8ae6247aa966
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=strunvis&sektion=3&format=html
+¹⁵ https://man.freebsd.org/cgi/man.cgi?query=exports&sektion=5&format=html
+¹⁶ https://man.freebsd.org/cgi/man.cgi?query=vis&sektion=1&format=html
+¹⁷ https://cgit.freebsd.org/src/commit/?id=2c83f1ada435
+¹⁸ https://man.freebsd.org/cgi/man.cgi?query=sysctl&sektion=8&format=html
+¹⁹ https://cgit.freebsd.org/src/commit/?id=b8e137d8d32d
+²⁰ https://cgit.freebsd.org/src/commit/?id=171f66b0c2ca
+²¹ https://cgit.freebsd.org/src/commit/?id=50e733f19b37
+²² https://cgit.freebsd.org/src/commit/?id=cce64f2e6851
+
+UFS
+---
+
+Soft updates are now enabled by default when creating a new UFS file
+system with newfs(8)¹. 6b2af2d88ffd²
+
+Reliability of UFS on volumes with more than 2G of inodes is
+significantly improved. The underlying issue was the invalid
+interpretation of the 32-bit inode number as signed, which got
+sign-extended into ino_t. c069ca085bd1³, e36f069ecb47⁴ (Sponsored by The
+FreeBSD Foundation)
+
+Defer the January 19, 2038 date limit in UFS1 filesystems to February 7,
+2106. This affects only filesystems with old UFS1 format. See the commit
+message for details. 1111a44301da⁵
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=newfs&sektion=8&format=html
+² https://cgit.freebsd.org/src/commit/?id=6b2af2d88ffd
+³ https://cgit.freebsd.org/src/commit/?id=c069ca085bd1
+⁴ https://cgit.freebsd.org/src/commit/?id=e36f069ecb47
+⁵ https://cgit.freebsd.org/src/commit/?id=1111a44301da
+
+ZFS
+---
+
+Add support to VOP_COPY_FILE_RANGE() for block cloning. At this time,
+ZFS is the only local file system that supports this and only if block
+cloning is enabled. NFSv4.2 also supports it. See pathconf(2) and
+copy_file_range(2) for more information. 37b2cb5ecb0f¹
+
+¹ https://cgit.freebsd.org/src/commit/?id=37b2cb5ecb0f
+
+GEOM
+----
+
+Support for vinum volumes has been removed. f87bb5967670¹, e51036fbf3f8²
+
+¹ https://cgit.freebsd.org/src/commit/?id=f87bb5967670
+² https://cgit.freebsd.org/src/commit/?id=e51036fbf3f8
+
+General Storage
+---------------
+
+Add Solaris style extended attributes (called named attributes in
+NFSv4). At this time, only ZFS when the ZFS property called xattr=dir
+and NFSv4 support them. The attributes are presented in a directory as
+regular files. See named_attribute(7) for more information.
+2ec2ba7e232d¹, df58e8b1506f², f61844833ee8³, b1b607bd200f⁴,
+ee95e4d02dbd⁵
+
+Allow to specify as many groups as configured to be supported by the
+system in -maproot or -mapall options in exports(5)⁶. Previously, the
+cap was NGROUPS_MAX + 1, where NGROUPS_MAX is just the minimum maximum
+of the number of allowed supplementary groups. Now use the proper
+{NGROUPS_MAX} + 1 value, with {NGROUPS_MAX} being fetched at runtime via
+sysconf(3)⁷. e87848a8150e⁸ (Sponsored by The FreeBSD Foundation)
+
+Add support for accessing remote NVMe over Fabrics controllers over the
+TCP transport. New commands added to nvmecontrol(8)⁹ are used to
+establish connections to remote controllers. Once connections are
+established they are handed off to the nvmf(4)¹⁰ kernel module which
+creates nvmeX devices and exports remote namespaces as nda(4)¹¹ disks.
+a1eda74167b5¹², 1058c12197ab¹³ (Sponsored by Chelsio Communications)
+
+Add support for exporting namespaces to remote NVMe over Fabrics hosts
+over the TCP transport. The nvmft(4)¹⁴ kernel module adds a new frontend
+to the CAM target layer which exports ctl(4)¹⁵ LUNs as NVMe namespaces
+to remote hosts. The ctld(8)¹⁶ daemon now supports NVMe controllers in
+addition to iSCSI targets and is responsible for accepting incoming
+connection requests and handing off connected queue pairs to nvmft(4)¹⁴.
+a15f7c96a276¹⁷, 66b5296f1b29¹⁸ (Sponsored by Chelsio Communications)
+
+Add support for dynamically resizing NVMe namespaces. The nvd(4)¹⁹ and
+nda(4)¹¹ drivers now notify geom of sizes changes in real time.
+86d3ec359a56²⁰ (Sponsored by Netflix)
+
+ ¹ https://cgit.freebsd.org/src/commit/?id=2ec2ba7e232d
+ ² https://cgit.freebsd.org/src/commit/?id=df58e8b1506f
+ ³ https://cgit.freebsd.org/src/commit/?id=f61844833ee8
+ ⁴ https://cgit.freebsd.org/src/commit/?id=b1b607bd200f
+ ⁵ https://cgit.freebsd.org/src/commit/?id=ee95e4d02dbd
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=exports&sektion=5&format=html
+ ⁷ https://man.freebsd.org/cgi/man.cgi?query=sysconf&sektion=3&format=html
+ ⁸ https://cgit.freebsd.org/src/commit/?id=e87848a8150e
+ ⁹ https://man.freebsd.org/cgi/man.cgi?query=nvmecontrol&sektion=8&format=html
+¹⁰ https://man.freebsd.org/cgi/man.cgi?query=nvmf&sektion=4&format=html
+¹¹ https://man.freebsd.org/cgi/man.cgi?query=nda&sektion=4&format=html
+¹² https://cgit.freebsd.org/src/commit/?id=a1eda74167b5
+¹³ https://cgit.freebsd.org/src/commit/?id=1058c12197ab
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=nvmft&sektion=4&format=html
+¹⁵ https://man.freebsd.org/cgi/man.cgi?query=ctl&sektion=4&format=html
+¹⁶ https://man.freebsd.org/cgi/man.cgi?query=ctld&sektion=8&format=html
+¹⁷ https://cgit.freebsd.org/src/commit/?id=a15f7c96a276
+¹⁸ https://cgit.freebsd.org/src/commit/?id=66b5296f1b29
+¹⁹ https://man.freebsd.org/cgi/man.cgi?query=nvd&sektion=4&format=html
+²⁰ https://cgit.freebsd.org/src/commit/?id=86d3ec359a56
+
+
+Boot Loader Changes
+===================
+
+
+This section covers the boot loader, boot menu, and other boot-related
+changes.
+
+The ASCII loader(8)¹ art may once again be enabled on graphical systems
+via an optional loader_gfx variable in loader.conf(5)². bef6d85b6de5³
+
+The loader(8)¹ now reads local configuration files listed in the
+variable local_loader_conf_files after other configuration files,
+defaulting to /boot/loader.conf.local. a25531db0fc2⁴
+
+The loader(8)¹ can now be configured to read specific configuration
+files based on the planar maker, planar product, system product and
+uboot m_product variables from the SMBIOS. For the moment, the best
+documentation is the git commit message, 3eb3a802a31b⁵.
+
+Console detection in loader(8)¹ has been improved on EFI systems. If
+there is no ConOut variable, ConIn is checked. If multiple devices are
+found, serial is preferred. 20a6f4779ac6⁶ (Sponsored by Netflix)
+
+Frame buffer support in loader(8)¹ can now use a text-only video driver,
+resulting in space savings. 57ca2848c0aa⁷ (Sponsored by Netflix)
+
+The detection of ACPI is now done earlier in loader.efi(8)⁸ on arm64
+systems. The copy of loader.efi on the EFI partition should be updated
+on arm64 systems using ACPI. 05cf4dda599a⁹ 16c09de80135¹⁰
+
+The LinuxBoot loader can be used to boot FreeBSD from Linux on aarch64
+and amd64. 46010641267¹¹ (Sponsored by Netflix)
+
+The BIOS boot loader added back support for gzip and bzip2, but removed
+support for graphics mode (by default) to address size problems. (The
+EFI boot loader is unchanged with support for all of those.)
+4d3b05a8530e¹² (Sponsored by Netflix)
+
+The BIOS boot loader can now use the SMBIOS v3 (64-bit) entry point if
+its table is below 4GB. The BIOS boot loader is compiled 32-bit as a
+client of BTX even on amd64, so cannot access addresses beyond 4GB.
+However, the 64-bit entry point may refer to a structure table below
+4GB, which can be used if the BIOS does not provide a 32-bit entry
+point, as happens on Hetzner virtual machines. 7f005c6699f4¹³ (Sponsored
+by The FreeBSD Foundation)
+
+The BIOS boot loader now favors the SMBIOS v3 (64-bit) entry point. When
+both the 32-bit and 64-bit entry points are present, the SMBIOS
+specification says that the 64-bit entry point always has at least all
+the structures the 32-bit entry point refers to. In other words, the
+32-bit entry point is provided for compatibility, so it is assumed the
+64-bit one has more chances to be filled with adequate values.
+3f744fb8b2c5¹⁴ (Sponsored by The FreeBSD Foundation)
+
+The EFI boot loader now favors the SMBIOS v3 (64-bit) entry point.
+Consistently with what is done with BIOS boot. There is a difference
+though: As the EFI loader runs in 64-bit mode on 64-bit platforms, there
+is no restriction that the v3 entry point’s structure table should be
+below 4GB. 96f77576e9ea¹⁵ (Sponsored by The FreeBSD Foundation)
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=loader&sektion=8&format=html
+ ² https://man.freebsd.org/cgi/man.cgi?query=loader.conf&sektion=5&format=html
+ ³ https://cgit.freebsd.org/src/commit/?id=bef6d85b6de5
+ ⁴ https://cgit.freebsd.org/src/commit/?id=a25531db0fc2
+ ⁵ https://cgit.freebsd.org/src/commit/?id=3eb3a802a31b
+ ⁶ https://cgit.freebsd.org/src/commit/?id=20a6f4779ac6
+ ⁷ https://cgit.freebsd.org/src/commit/?id=57ca2848c0aa
+ ⁸ https://man.freebsd.org/cgi/man.cgi?query=loader.efi&sektion=8&format=html
+ ⁹ https://cgit.freebsd.org/src/commit/?id=05cf4dda599a
+¹⁰ https://cgit.freebsd.org/src/commit/?id=16c09de80135
+¹¹ https://cgit.freebsd.org/src/commit/?id=46010641267
+¹² https://cgit.freebsd.org/src/commit/?id=4d3b05a8530e
+¹³ https://cgit.freebsd.org/src/commit/?id=7f005c6699f4
+¹⁴ https://cgit.freebsd.org/src/commit/?id=3f744fb8b2c5
+¹⁵ https://cgit.freebsd.org/src/commit/?id=96f77576e9ea
+
+
+Networking
+==========
+
+
+This section describes changes that affect networking in FreeBSD.
+
+
+General Network
+---------------
+
+FreeBSD now implements the SO_SPLICE interface, originally from OpenBSD.
+This features allows userspace applications to splice two connected TCP
+sockets together, after which data arriving on one socket is
+automatically forwarded through the socket to which it is spliced,
+instead of being delivered to the application. a1da7dc1cdad¹ (Sponsored
+by Klara, Inc.) (Sponsored by Stormshield)
+
+The ifconfig(8)² utility will no longer accept assigning IP addresses to
+the underlying member interfaces of a bridge(4)³. To temporarily bypass
+this safeguard, use the net.link.bridge.member_ifaddrs sysctl(8)⁴. This
+sysctl is expected to be removed in FreeBSD 16. b61850c4e6f6⁵
+
+ARP (arp(4)⁶) support for 802-standard networks has been restored; it
+had been accidentally removed with FDDI support. (This is different than
+the Ethernet standard encapsulation.) d776dd5fbd48⁷
+
+It is possible to build a kernel with IPv6 support (INET6) without IPv4
+(INET). 6df9fa1c6b83⁸ and others
+
+The netgraph ng_ipfw(4)⁹ module no longer truncates cookies to 16 bits,
+allowing a full 32 bits. dadf64c5586e¹⁰
+
+AIM (Adaptive Interrupt Moderation) support has been added to the
+igc(4)¹¹ driver. 472a0ccf847a¹² (Sponsored by Rubicon Communications,
+LLC ("Netgate") and BBOX.io)
+
+This feature has also been added to the lem(4)¹³, em(4)¹⁴ and igb(4)¹⁵
+drivers. A major regression in UDP performance introduced in FreeBSD
+12.0, including NFS over UDP, is believed to be fixed with this change.
+49f12d5b38f6¹⁶ (Sponsored by Rubicon Communications, LLC ("Netgate") and
+BBOX.io)
+
+Teach ip6addrctl(8)¹⁷ to attach and run itself in a jail. This will make
+it easier to manage address selection policies of vnet jails, especially
+for those light weighted OCI containers or slim jails. b709f7b38cc4¹⁸
+
+The pf(4)¹⁹ packet filter has learned a new runtime loader.conf(5)²⁰
+tunable, 'net.pf.default_to_drop', as well as a compile time option,
+PF_DEFAULT_TO_DROP, making the default rule to drop. 7f7ef494f11d²¹,
+3965be101c43²²
+
+A new pf(4)¹⁹ route-to pool option "prefer-ipv6-nexthop" allows for
+routing IPv4 packets over IPv6 gateways. 65c318630123²³ d2761422eb0a²⁴
+(Sponsored by InnoGames GmbH)
+
+pf(4)¹⁹ now supports the OpenBSD style NAT syntax. It is possible to use
+"nat-to", "rdr-to" and "binat-to" on "pass" and "match" rules. The old
+"nat on …​" syntax can still be used. e0fe26691fc9²⁵ (Sponsored by
+InnoGames GmbH)
+
+The pfsync(4)²⁶ protocol has been updated to synchronize multiple
+missing attributes. This fixes synchronizing of states with route-to,
+af-to, rtable, dummynet, tags, and scrub options. If synchronization
+with an older version of FreeBSD is needed the protocol version can be
+configured with ifconfig pfsync0 version $VERSION where $VERSION is 1301
+for 13.X relases or 1400 for 14.X. It defaults to 1500 for
+synchronization between hosts running FreeBSD 15.0. 99475087d63b²⁷
+(Sponsored by InnoGames GmbH)
+
+Kernel TLS support is now enabled by default in GENERIC (default)
+kernels for aarch64, amd64, powerpc64, and powerpc64le. b2f7c53430c3²⁸
+(Sponsored by Chelsio Communications)
+
+The net.inet.{tcp,udp,raw}.bind_all_fibs tunables have been added. They
+default to 1 for backwards compatibility. Setting them to 0 modifies the
+corresponding protocol’s socket behavior such that packets not
+originating from an interface in the same FIB as the socket are ignored.
+In this case, TCP and UDP sockets belonging to different FIBs may also
+be bound to the same address. The default behavior is unmodified.
+5dc99e9bb985²⁹, 08e638c089ab³⁰, 4009a98fe80b³¹ (Sponsored by Klara,
+Inc.) (Sponsored by Stormshield)
+
+Making a connection to INADDR_ANY, i.e., using it as an alias for
+localhost, is now disabled by default. This functionality can be
+re-enabled by setting the net.inet.ip.connect_inaddr_wild sysctl to 1.
+cd240957d7ba³² (Sponsored by The FreeBSD Foundation)
+
+New in-kernel inline IPSEC offload infrastructure. See also the note
+about the mlx5(4)³³ driver supporting it. ef2a572bf6³⁴ (Sponsored by
+NVIDIA networking)
+
+A new ngctl(8)³⁵ flag, -j, allows it to attach and run inside a jail,
+making it possible to manipulate netgraph nodes in a jail even if
+ngctl(8)³⁵ is not installed inside it. 72d01e62b082³⁶
+
+sockstat(4)³⁷ will show UDP-Lite endpoints by default. 978615d7bf7c³⁸
+
+Kernel compatibility code supporting ipfw(8)³⁹ binaries from FreeBSD 7
+and 8 has been removed. 660255be1ed9⁴⁰ (Sponsored by The FreeBSD
+Foundation)
+
+ ¹ https://cgit.freebsd.org/src/commit/?id=a1da7dc1cdad
+ ² https://man.freebsd.org/cgi/man.cgi?query=ifconfig&sektion=8&format=html
+ ³ https://man.freebsd.org/cgi/man.cgi?query=bridge&sektion=4&format=html
+ ⁴ https://man.freebsd.org/cgi/man.cgi?query=sysctl&sektion=8&format=html
+ ⁵ https://cgit.freebsd.org/src/commit/?id=b61850c4e6f6
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=arp&sektion=4&format=html
+ ⁷ https://cgit.freebsd.org/src/commit/?id=d776dd5fbd48
+ ⁸ https://cgit.freebsd.org/src/commit/?id=6df9fa1c6b83
+ ⁹ https://man.freebsd.org/cgi/man.cgi?query=ng_ipfw&sektion=4&format=html
+¹⁰ https://cgit.freebsd.org/src/commit/?id=dadf64c5586e
+¹¹ https://man.freebsd.org/cgi/man.cgi?query=igc&sektion=4&format=html
+¹² https://cgit.freebsd.org/src/commit/?id=472a0ccf847a
+¹³ https://man.freebsd.org/cgi/man.cgi?query=lem&sektion=4&format=html
+¹⁴ https://man.freebsd.org/cgi/man.cgi?query=em&sektion=4&format=html
+¹⁵ https://man.freebsd.org/cgi/man.cgi?query=igb&sektion=4&format=html
+¹⁶ https://cgit.freebsd.org/src/commit/?id=49f12d5b38f6
+¹⁷ https://man.freebsd.org/cgi/man.cgi?query=ip6addrctl&sektion=8&format=html
+¹⁸ https://cgit.freebsd.org/src/commit/?id=b709f7b38cc4
+¹⁹ https://man.freebsd.org/cgi/man.cgi?query=pf&sektion=4&format=html
+²⁰ https://man.freebsd.org/cgi/man.cgi?query=loader.conf&sektion=5&format=html
+²¹ https://cgit.freebsd.org/src/commit/?id=7f7ef494f11d
+²² https://cgit.freebsd.org/src/commit/?id=3965be101c43
+²³ https://cgit.freebsd.org/src/commit/?id=65c318630123
+²⁴ https://cgit.freebsd.org/src/commit/?id=d2761422eb0a
+²⁵ https://cgit.freebsd.org/src/commit/?id=e0fe26691fc9
+²⁶ https://man.freebsd.org/cgi/man.cgi?query=pfsync&sektion=4&format=html
+²⁷ https://cgit.freebsd.org/src/commit/?id=99475087d63b
+²⁸ https://cgit.freebsd.org/src/commit/?id=b2f7c53430c3
+²⁹ https://cgit.freebsd.org/src/commit/?id=5dc99e9bb985
+³⁰ https://cgit.freebsd.org/src/commit/?id=08e638c089ab
+³¹ https://cgit.freebsd.org/src/commit/?id=4009a98fe80b
+³² https://cgit.freebsd.org/src/commit/?id=cd240957d7ba
+³³ https://man.freebsd.org/cgi/man.cgi?query=mlx5&sektion=4&format=html
+³⁴ https://cgit.freebsd.org/src/commit/?id=ef2a572bf6
+³⁵ https://man.freebsd.org/cgi/man.cgi?query=ngctl&sektion=8&format=html
+³⁶ https://cgit.freebsd.org/src/commit/?id=72d01e62b082
+³⁷ https://man.freebsd.org/cgi/man.cgi?query=sockstat&sektion=4&format=html
+³⁸ https://cgit.freebsd.org/src/commit/?id=978615d7bf7c
+³⁹ https://man.freebsd.org/cgi/man.cgi?query=ipfw&sektion=8&format=html
+⁴⁰ https://cgit.freebsd.org/src/commit/?id=660255be1ed9
+
+Network Protocols
+-----------------
+
+Lots of improvements to the network stack, including performance
+improvements and bug fixes for the sctp(4)¹ stack.
+
+Descriptors returned by sctp_peeloff(2)² now inherit Capsicum capability
+rights(4)³ from the parent socket. ae3d7e27abc9⁴ (Sponsored by The
+FreeBSD Foundation)
+
+The default value of the sysctl variable net.inet.tcp.nolocaltimewait
+has changed from 1 to 0. This means that FreeBSD does not skip the
+TIME_WAIT state anymore for endpoints for which the remote address is
+local. The new sysctl variable net.inet.tcp.msl_local can be used to
+control the time these endpoints stay in the TIME_WAIT state. The sysctl
+variable net.inet.tcp.nolocaltimewait is deprecated and intended to be
+removed in FreeBSD 16. c3fc0db3bc50⁵ (Sponsored by Netflix)
+
+The local stream (AF_UNIX/SOCK_STREAM) and sequenced packet stream
+(AF_UNIX/SOCK_SEQPACKET) sockets have been improved for better bulk
+transfer and round trip times. The SOCK_SEQPACKET socket has been
+brought to the specification and now behaves as a true stream socket,
+while in previous FreeBSD releases it could exhibit features of a
+datagram socket. Applications that were using SOCK_SEQPACKET incorrectly
+and relied on old implementation bugs may need to be adjusted.
+d15792780760⁶
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=sctp&sektion=4&format=html
+² https://man.freebsd.org/cgi/man.cgi?query=sctp_peeloff&sektion=2&format=html
+³ https://man.freebsd.org/cgi/man.cgi?query=rights&sektion=4&format=html
+⁴ https://cgit.freebsd.org/src/commit/?id=ae3d7e27abc9
+⁵ https://cgit.freebsd.org/src/commit/?id=c3fc0db3bc50
+⁶ https://cgit.freebsd.org/src/commit/?id=d15792780760
+
+Wireless Networking
+-------------------
+
+The LinuxKPI 802.11 compatibility layer linuxkpi_wlan(4)¹ gained support
+for the Galois/Counter Mode Protocol (GCMP) from wlan_gcmp(4)².
+(Sponsored by The FreeBSD Foundation)
+
+Following other drivers iwlwififw(4)³ firmware was removed from the base
+system in favor of the ports based solution and fwget(8)⁴ support. In
+case of updating from earlier releases, users must install the firmware
+packages upfront. (Sponsored by The FreeBSD Foundation)
+
+The iwlwifi(4)⁵ wireless driver supports 802.11ac (VHT) for some Intel
+Wi-Fi 5, and all of Intel Wi-Fi 6 and Wi-Fi 7 hardware. (Sponsored by
+The FreeBSD Foundation) The iwx(4)⁶ wireless driver supports 802.11ac
+(VHT) for Intel Wi-Fi 6 hardware. (Sponsored by The FreeBSD Foundation)
+The rtwn(4)⁷ wireless driver supports 802.11ac (VHT) for the RTL8812A
+and RTL8821A chipsets. The rtw89(4)⁸ wireless driver supports 802.11g
+for some Realtek Wi-Fi 6 and Wi-Fi 7 hardware. a2d1e07f6451⁹ (Sponsored
+by The FreeBSD Foundation)
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=linuxkpi_wlan&sektion=4&format=html
+² https://man.freebsd.org/cgi/man.cgi?query=wlan_gcmp&sektion=4&format=html
+³ https://man.freebsd.org/cgi/man.cgi?query=iwlwififw&sektion=4&format=html
+⁴ https://man.freebsd.org/cgi/man.cgi?query=fwget&sektion=8&format=html
+⁵ https://man.freebsd.org/cgi/man.cgi?query=iwlwifi&sektion=4&format=html
+⁶ https://man.freebsd.org/cgi/man.cgi?query=iwx&sektion=4&format=html
+⁷ https://man.freebsd.org/cgi/man.cgi?query=rtwn&sektion=4&format=html
+⁸ https://man.freebsd.org/cgi/man.cgi?query=rtw89&sektion=4&format=html
+⁹ https://cgit.freebsd.org/src/commit/?id=a2d1e07f6451
+
+
+Hardware Support
+================
+
+
+This section covers general hardware support for physical machines,
+hypervisors, and virtualization environments, as well as hardware
+changes and updates that do not otherwise fit in other sections of this
+document.
+
+Please see the list of hardware¹ supported by 15.0-RELEASE, as well as
+the platforms page² for the complete list of supported CPU
+architectures.
+
+¹ https://www.freebsd.org/releases/15.0R/hardware
+² https://www.freebsd.org/platforms/
+
+Virtualization Support
+----------------------
+
+bhyve(8)¹ and vmm(4)² now support the arm64 and riscv platforms. The
+sysutils/u-boot-bhyve-arm64 and sysutils/u-boot-bhyve-riscv ports
+provide boot loaders for use on these platforms. 47e073941f4e³
+d3916eace506⁴ (Sponsored by Arm Ltd) (Sponsored by Innovate UK)
+(Sponsored by The FreeBSD Foundation) (Sponsored by University
+Politehnica of Bucharest)
+
+bhyve(4)⁵ now supports a "slirp" networking backend, which enables
+unprivileged user networking. Currently only inbound connections to the
+guest are supported, outbound connections from the guest are not. This
+feature requires the net/libslirp port. c5359e2af5ab⁶ (Sponsored by
+Innovate UK)
+
+bhyve(4)⁵ now may configure a NUMA topology for guest memory.
+Furthermore, it is possible to define a domainset(9)⁷ policy for each
+guest NUMA domain, wherein the host memory used to back the guest
+physical memory of each guest NUMA domain can be specified, akin to
+cpuset(1)⁸'s -n option. This is supported only for amd64 guests for now.
+f1d705d4f431⁹
+
+The VNC server in bhyve(8)¹ will now show the correct colors when using
+the www/novnc¹⁰ client. f9e09dc5b1d5¹¹
+
+When running bhyve(8)¹ guests with a boot ROM, i.e., bhyveload(8) is not
+used, bhyve now assumes that the boot ROM will enable PCI BAR decoding.
+This is incompatible with some boot ROMs, particularly outdated builds
+of edk2-bhyve. To restore the old behavior, add pci.enable_bars='true'
+to your bhyve configuration. Note that the uefi-edk2-bhyve package has
+been renamed to edk2-bhyve. e962b37bf0ff¹² (Sponsored by Innovate UK)
+
+amd64 bhyve(8)¹'s lpc.bootrom and lpc.bootvars options are deprecated.
+Use the top-level bootrom and bootvars options instead. 43caa2e805c2¹³
+(Sponsored by Innovate UK)
+
+The NVMM hypervisor is now detected. 34f40baca641¹⁴
+
+Under Hyper-V, TLB flushes are now performed using hypercalls rather
+than IPIs, providing up to a 40% improvement in TLB performance.
+7ece5993b787¹⁵ (Sponsored by Microsoft)
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=bhyve&sektion=8&format=html
+ ² https://man.freebsd.org/cgi/man.cgi?query=vmm&sektion=4&format=html
+ ³ https://cgit.freebsd.org/src/commit/?id=47e073941f4e
+ ⁴ https://cgit.freebsd.org/src/commit/?id=d3916eace506
+ ⁵ https://man.freebsd.org/cgi/man.cgi?query=bhyve&sektion=4&format=html
+ ⁶ https://cgit.freebsd.org/src/commit/?id=c5359e2af5ab
+ ⁷ https://man.freebsd.org/cgi/man.cgi?query=domainset&sektion=9&format=html
+ ⁸ https://man.freebsd.org/cgi/man.cgi?query=cpuset&sektion=1&format=html
+ ⁹ https://cgit.freebsd.org/src/commit/?id=f1d705d4f431
+¹⁰ https://cgit.freebsd.org/ports/tree/www/novnc/
+¹¹ https://cgit.freebsd.org/src/commit/?id=f9e09dc5b1d5
+¹² https://cgit.freebsd.org/src/commit/?id=e962b37bf0ff
+¹³ https://cgit.freebsd.org/src/commit/?id=43caa2e805c2
+¹⁴ https://cgit.freebsd.org/src/commit/?id=34f40baca641
+¹⁵ https://cgit.freebsd.org/src/commit/?id=7ece5993b787
+
+Linux Binary Compatibility
+--------------------------
+
+The AT_NO_AUTOMOUNT flag is now ignored for all Linuxulator stat()
+variants (as the behavior specified by the flag already matches
+FreeBSD’s), improving Linux application compatibility. 99d3ce80ba07¹
+(Sponsored by The FreeBSD Foundation)
+
+The Linux inotify(2)² system calls are now implemented in the
+Linuxulator. (Sponsored by Klara, Inc.)
+
+¹ https://cgit.freebsd.org/src/commit/?id=99d3ce80ba07
+² https://man.freebsd.org/cgi/man.cgi?query=inotify&sektion=2&format=html
+
+
+Multimedia
+==========
+
+
+Many improvements to the audio stack including support for hot-swapping
+in mixer(8)¹, and the addition of mididump(1)². cf9d2fb18433³ (Sponsored
+by The FreeBSD Foundation) 7224e9f2d4af⁴ (Sponsored by The FreeBSD
+Foundation)
+
+A new utility sndctl(8)⁵ has been added to concentrate the various
+interfaces for viewing and manipulating audio device settings (sysctls,
+/dev/sndstat), into a single utility with a similar control-driven
+interface to that of mixer(8). 44e5a0150835⁶, 9a37f1024ceb⁷ (Sponsored
+by The FreeBSD Foundation)
+
+virtual_oss is imported to base. The audio/virtual_oss port will stop
+being built from FreeBSD 15.0 onwards. Regarding user-facing changes,
+the only practical difference is the installation process. Everything is
+provided by the base system, except for the following optional
+components, which can be installed from ports:
+
+ • sndio backend support: audio/virtual_oss_sndio
+
+ • bluetooth backend support: audio/virtual_oss_bluetooth
+
+ • virtual_equalizer(8): audio/virtual_oss_equalizer
+
+Apart from that, virtual_oss should work as expected. Users of
+virtual_oss can uninstall audio/virtual_oss and instead use the base
+system version from now on. 5a31c623143f⁸ (Sponsored by The FreeBSD
+Foundation)
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=mixer&sektion=8&format=html
+² https://man.freebsd.org/cgi/man.cgi?query=mididump&sektion=1&format=html
+³ https://cgit.freebsd.org/src/commit/?id=cf9d2fb18433
+⁴ https://cgit.freebsd.org/src/commit/?id=7224e9f2d4af
+⁵ https://man.freebsd.org/cgi/man.cgi?query=sndctl&sektion=8&format=html
+⁶ https://cgit.freebsd.org/src/commit/?id=44e5a0150835
+⁷ https://cgit.freebsd.org/src/commit/?id=9a37f1024ceb
+⁸ https://cgit.freebsd.org/src/commit/?id=5a31c623143f
+
+
+Documentation
+=============
+
+
+This section covers changes to manual (man(1)¹) pages and other
+documentation shipped with the base system.
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=man&sektion=1&format=html
+
+Manual Pages
+------------
+
+A new freebsd-base(7)¹ manual provides details on the layout of base
+system packages and how to update a system with them. e1632b827b1a²
+
+Manual pages on filesystems have been moved to section four, the Kernel
+Interfaces Manual. 1687d77197c0³
+
+The builtin(1)⁴ manual has been rewritten featuring streamlined
+information and a new section on keybindings that are built into the
+FreeBSD CLI. 42df4faf7004⁵
+
+A new networking(7)⁶ manual page provides a quickstart guide to
+connecting the system to networks including Wi-Fi, and links to other
+manual pages and the handbook. 39f92a4c4c49⁷
+
+The build(7)⁸ manual has been revised to incorporate instructions on
+building the system from source. 275f61111f43⁹
+
+Refer to graid(8)¹⁰ and zfs(8)¹¹ instead of gvinum(8)¹² in
+ccdconfig(8)¹³. 55cb3a33d920¹⁴
+
+The ps(1)¹⁵ manual page has been revamped to explain the general
+principles, and descriptions in there have been updated to match
+reality. The preamble has been revamped to give a thorough overview of
+the different aspects of the ps(1)¹⁵ command. The description of several
+options and some keywords have been fixed to match their actual behavior
+and/or expanded. The STANDARDS and BUGS sections have been expanded.
+ddf144a04b53¹⁶ (Sponsored by The FreeBSD Foundation)
+
+The mac_do(4)¹⁷ manual page has been revamped as part of adding support
+for multiple users and groups as single rule’s targets, which lead to
+changing the rules syntax. In particular, it has grown a JAIL SUPPORT
+and SECURITY CONSIDERATIONS sections. bc201841d139¹⁸ (Sponsored by The
+FreeBSD Foundation)
+
+The existing content of the mdo(1)¹⁹ manual page has been enriched as
+part of documenting the new support for fully specifying all users and
+groups in the target credentials. It has now a longer introduction and a
+new SECURITY CONSIDERATIONS section. 20ebb6ec5ac0²⁰ (Sponsored by The
+FreeBSD Foundation) (Sponsored by Google LLC (GSoC 2025))
+
+The ethernet switch controllers, mtkswitch(4)²¹, ip17x(4)²²,
+ar40xx(4)²³, and e6000sw(4)²⁴ have gained initial manual pages.
+37f00bc257d²⁵, f750a114d2c²⁶, 91c975c3913²⁷, 6da793a8caa²⁸
+
+mount(8)²⁹ has gained an example for remounting all filesystems
+read/write in single-user mode. c3e06b23b417³⁰
+
+Manual pages for the lua loader(8)³¹ modules have had their descriptions
+reworded to optimize apropos(1)³² results. 5d59c1b4f14e³³
+
+The manual pages style guide, style.mdoc(5)³⁴, has gained a section for
+listing supported hardware. When listed this way, the supported hardware
+will be listed in the supported hardware notes³⁵. Many manuals have had
+this section added or reworded in this release.
+
+Much work has gone into adding sysctl(8)³⁶s and environment variables to
+the manual. Try searching for them with apropos Va=here.is.the.sysctl or
+apropos Ev=here_is_the_environment_variable.
+
+The intro(1)³⁷ to the General Commands manual has been revised,
+incorporating a statement about installing additional commands, and a
+listing of cannonical command directories. cc0af6d5a6c2³⁸
+
+The intro(2)³⁹ to the System Calls manual has been revised,
+incorporating links and a HISTORY section from OpenBSD. 9a62cdc01327⁴⁰,
+69ff2d754c1c⁴¹, 6dfbe695c322⁴², de525c502a3a⁴³, d846f33bb6d4⁴⁴,
+4696ca7baf2f⁴⁵, 9e8df7900f52⁴⁶, bcc57e971597⁴⁷
+
+The intro(5)⁴⁸ to the File Formats manual has been revised,
+incorporating improvements from OpenBSD. 8d65152cbfc8⁴⁹, 26ec37653662⁵⁰,
+37508388d066⁵¹, a6175f28da70⁵²
+
+The filesystem hierarchy index manual, hier(7)⁵³, has been revised,
+incorporating a great deal of crossreferences, and increased detail on
+/usr/local.
+
+ ¹ https://man.freebsd.org/cgi/man.cgi?query=freebsd-base&sektion=7&format=html
+ ² https://cgit.freebsd.org/src/commit/?id=e1632b827b1a
+ ³ https://cgit.freebsd.org/src/commit/?id=1687d77197c0
+ ⁴ https://man.freebsd.org/cgi/man.cgi?query=builtin&sektion=1&format=html
+ ⁵ https://cgit.freebsd.org/src/commit/?id=42df4faf7004
+ ⁶ https://man.freebsd.org/cgi/man.cgi?query=networking&sektion=7&format=html
+ ⁷ https://cgit.freebsd.org/src/commit/?id=39f92a4c4c49
+ ⁸ https://man.freebsd.org/cgi/man.cgi?query=build&sektion=7&format=html
+ ⁹ https://cgit.freebsd.org/src/commit/?id=275f61111f435
+¹⁰ https://man.freebsd.org/cgi/man.cgi?query=graid&sektion=8&format=html
+¹¹ https://man.freebsd.org/cgi/man.cgi?query=zfs&sektion=8&format=html
+¹² https://man.freebsd.org/cgi/man.cgi?query=gvinum&sektion=8&format=html
+¹³ https://man.freebsd.org/cgi/man.cgi?query=ccdconfig&sektion=8&format=html
+¹⁴ https://cgit.freebsd.org/src/commit/?id=55cb3a33d920
+¹⁵ https://man.freebsd.org/cgi/man.cgi?query=ps&sektion=1&format=html
+¹⁶ https://cgit.freebsd.org/src/commit/?id=ddf144a04b53
+¹⁷ https://man.freebsd.org/cgi/man.cgi?query=mac_do&sektion=4&format=html
+¹⁸ https://cgit.freebsd.org/src/commit/?id=bc201841d139
+¹⁹ https://man.freebsd.org/cgi/man.cgi?query=mdo&sektion=1&format=html
+²⁰ https://cgit.freebsd.org/src/commit/?id=20ebb6ec5ac0
+²¹ https://man.freebsd.org/cgi/man.cgi?query=mtkswitch&sektion=4&format=html
+²² https://man.freebsd.org/cgi/man.cgi?query=ip17x&sektion=4&format=html
+²³ https://man.freebsd.org/cgi/man.cgi?query=ar40xx&sektion=4&format=html
+²⁴ https://man.freebsd.org/cgi/man.cgi?query=e6000sw&sektion=4&format=html
+²⁵ https://cgit.freebsd.org/src/commit/?id=37f00bc257d
+²⁶ https://cgit.freebsd.org/src/commit/?id=f750a114d2c
+²⁷ https://cgit.freebsd.org/src/commit/?id=91c975c3913
+²⁸ https://cgit.freebsd.org/src/commit/?id=6da793a8caa
+²⁹ https://man.freebsd.org/cgi/man.cgi?query=mount&sektion=8&format=html
+³⁰ https://cgit.freebsd.org/src/commit/?id=c3e06b23b417
+³¹ https://man.freebsd.org/cgi/man.cgi?query=loader&sektion=8&format=html
+³² https://man.freebsd.org/cgi/man.cgi?query=apropos&sektion=1&format=html
+³³ https://cgit.freebsd.org/src/commit/?id=5d59c1b4f14e
+³⁴ https://man.freebsd.org/cgi/man.cgi?query=style.mdoc&sektion=5&format=html
+³⁵ https://www.freebsd.org/releases/15.0R/hardware
+³⁶ https://man.freebsd.org/cgi/man.cgi?query=sysctl&sektion=8&format=html
+³⁷ https://man.freebsd.org/cgi/man.cgi?query=intro&sektion=1&format=html
+³⁸ https://cgit.freebsd.org/src/commit/?id=cc0af6d5a6c2
+³⁹ https://man.freebsd.org/cgi/man.cgi?query=intro&sektion=2&format=html
+⁴⁰ https://cgit.freebsd.org/src/commit/?id=9a62cdc01327
+⁴¹ https://cgit.freebsd.org/src/commit/?id=69ff2d754c1c
+⁴² https://cgit.freebsd.org/src/commit/?id=6dfbe695c322
+⁴³ https://cgit.freebsd.org/src/commit/?id=de525c502a3a
+⁴⁴ https://cgit.freebsd.org/src/commit/?id=d846f33bb6d4
+⁴⁵ https://cgit.freebsd.org/src/commit/?id=4696ca7baf2f
+⁴⁶ https://cgit.freebsd.org/src/commit/?id=9e8df7900f52
+⁴⁷ https://cgit.freebsd.org/src/commit/?id=bcc57e971597
+⁴⁸ https://man.freebsd.org/cgi/man.cgi?query=intro&sektion=5&format=html
+⁴⁹ https://cgit.freebsd.org/src/commit/?id=8d65152cbfc8
+⁵⁰ https://cgit.freebsd.org/src/commit/?id=26ec37653662
+⁵¹ https://cgit.freebsd.org/src/commit/?id=37508388d066
+⁵² https://cgit.freebsd.org/src/commit/?id=a6175f28da70
+⁵³ https://man.freebsd.org/cgi/man.cgi?query=hier&sektion=7&format=html
+
+
+Ports Collection and Package Infrastructure
+===========================================
+
+
+This section covers changes to the FreeBSD Ports Collection, package
+infrastructure, and package maintenance and installation tools.
+
+A new FreeBSD-kmods repository is included in the default
+/etc/pkg/FreeBSD.conf pkg(8)¹ configuration file. This repository
+contains kernel modules compiled specifically for 15.0-RELEASE rather
+than for the 15-STABLE branch. Installing kernel modules from this
+repository allows drivers with unstable kernel interfaces, in particular
+graphics drivers, to work even when the main 15-STABLE repository has
+packages build on a previous release. a47542f71511²
+
+The FreeBSD and FreeBSD-kmods repositories defined in
+/etc/pkg/FreeBSD.conf have been renamed to FreeBSD-ports and
+FreeBSD-ports-kmods respectively. Users who override these in
+/usr/local/etc/pkg/repos will need to adjust their configuration to
+match the new names.
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=pkg&sektion=8&format=html
+² https://cgit.freebsd.org/src/commit/?id=a47542f71511
+
+Installer
+---------
+
+The FreeBSD installer, bsdinstall(8)¹, now supports downloading and
+installing firmware packages after the FreeBSD base system installation
+is complete. 03c07bdc8b31² (Sponsored by The FreeBSD Foundation)
+
+¹ https://man.freebsd.org/cgi/man.cgi?query=bsdinstall&sektion=8&format=html
+² https://cgit.freebsd.org/src/commit/?id=03c07bdc8b31
+
+Packaging Changes
+-----------------
+
+The bootonly ISO and mini-memstick image now include the
+net/wifi-firmware-iwlwifi-kmod¹ and net/wifi-firmware-rtw88-kmod²
+packages, making installations possible over a wireless connection (on
+systems supported by these firmware packages). 655fcdde1aff³ (Sponsored
+by The FreeBSD Foundation)
+
+The net/wifi-firmware-kmod@release⁴ package has been added to the DVD
+ISO, providing firmware for a broader set of Wi-Fi drivers.
+8c6df7ead19c⁵ (Sponsored by The FreeBSD Foundation)
+
+¹ https://cgit.freebsd.org/ports/tree/net/wifi-firmware-iwlwifi-kmod/
+² https://cgit.freebsd.org/ports/tree/net/wifi-firmware-rtw88-kmod/
+³ https://cgit.freebsd.org/src/commit/?id=655fcdde1aff
+⁴ https://cgit.freebsd.org/ports/tree/net/wifi-firmware-kmod/
+⁵ https://cgit.freebsd.org/src/commit/?id=8c6df7ead19c
+
+
+General Notes Regarding Future FreeBSD Releases
+===============================================
+
+
+Last modified on: December 1, 2025 by Alexander Ziaee¹
+
+Legal Notices² | © 1995-2025 The FreeBSD Project All rights reserved.
+The mark FreeBSD is a registered trademark of The FreeBSD Foundation and
+is used by The FreeBSD Project with the permission of The FreeBSD
+Foundation³. Contact⁴
+
+¹ https://cgit.freebsd.org/doc/commit/?id=4105335197
+² https://www.freebsd.org/copyright/
+³ https://www.freebsdfoundation.org/legal/trademark-usage-terms-and-conditions/
+⁴ https://www.freebsd.org/mailto/

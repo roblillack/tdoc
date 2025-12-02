@@ -1,0 +1,7 @@
+---
+source: tests/html_import.rs
+assertion_line: 64
+expression: rendered
+extension: txt
+snapshot_kind: binary
+---
