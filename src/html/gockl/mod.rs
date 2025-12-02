@@ -65,6 +65,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         let mut state = State::TagName;
+        let mut awaiting_attribute_value = false;
         let start = self.position;
         let len = self.bytes.len();
         let mut i = self.position + 1;
@@ -75,6 +76,7 @@ impl<'a> Tokenizer<'a> {
                 State::DoubleQuote => {
                     if curr == b'"' {
                         state = State::TagName;
+                        awaiting_attribute_value = false;
                     }
                     i += 1;
                     continue;
@@ -82,6 +84,7 @@ impl<'a> Tokenizer<'a> {
                 State::SingleQuote => {
                     if curr == b'\'' {
                         state = State::TagName;
+                        awaiting_attribute_value = false;
                     }
                     i += 1;
                     continue;
@@ -92,12 +95,18 @@ impl<'a> Tokenizer<'a> {
             match curr {
                 b' ' | b'\t' | b'\r' | b'\n' => match state {
                     State::TagName => state = State::TagContent,
-                    State::AttributeValue => state = State::TagContent,
+                    State::AttributeValue => {
+                        if !awaiting_attribute_value {
+                            state = State::TagContent;
+                            awaiting_attribute_value = false;
+                        }
+                    }
                     _ => {}
                 },
                 b'=' => {
                     if let State::AttributeName = state {
                         state = State::AttributeValue;
+                        awaiting_attribute_value = true;
                     }
                 }
                 b'<' => {
@@ -114,16 +123,20 @@ impl<'a> Tokenizer<'a> {
                 b'"' => {
                     if let State::AttributeValue = state {
                         state = State::DoubleQuote;
+                        awaiting_attribute_value = false;
                     }
                 }
                 b'\'' => {
                     if let State::AttributeValue = state {
                         state = State::SingleQuote;
+                        awaiting_attribute_value = false;
                     }
                 }
                 _ => {
                     if let State::TagContent = state {
                         state = State::AttributeName;
+                    } else if let State::AttributeValue = state {
+                        awaiting_attribute_value = false;
                     }
                 }
             }
@@ -1020,6 +1033,61 @@ mod tests {
                     "Token mismatch at pos {pos} for input {name}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn test_attribute_value_with_leading_newline() {
+        let token =
+            StartElementToken::new("<a href=\n\"https://example.com/path?foo=1&amp;bar=2\">");
+
+        assert_eq!(
+            token.attribute("href"),
+            Some("https://example.com/path?foo=1&amp;bar=2".into()),
+        );
+    }
+
+    #[test]
+    fn test_fixture_attribute_value() {
+        let html = std::fs::read_to_string("tests/data/html/freebsd-15-relnotes.html")
+            .expect("failed to read fixture");
+        let needle = "freebsd-update";
+        let needle_pos = html
+            .find(needle)
+            .expect("expected freebsd-update in fixture");
+        let start_tag_pos = html[..needle_pos]
+            .rfind("<a ")
+            .or_else(|| html[..needle_pos].rfind("<a\n"))
+            .expect("expected anchor before needle");
+        let end_pos = html[start_tag_pos..]
+            .find('>')
+            .map(|idx| start_tag_pos + idx + 1)
+            .expect("expected closing bracket");
+        let start_tag = &html[start_tag_pos..end_pos];
+
+        let token = StartElementToken::new(start_tag);
+        assert_eq!(
+            token.attribute("href"),
+            Some(
+                "https://man.freebsd.org/cgi/man.cgi?query=freebsd-update&amp;sektion=8&amp;format=html"
+                    .into()
+            )
+        );
+    }
+
+    #[test]
+    fn tokenizer_handles_newline_before_attribute_value() {
+        let input = "<a href=\n\"https://example.com\">link</a>";
+        let mut tokenizer = Tokenizer::new(input);
+        match tokenizer.next_token().expect("expected token") {
+            Token::StartElement(start) => {
+                assert_eq!(
+                    start.raw(),
+                    "<a href=\n\"https://example.com\">",
+                    "unexpected raw start element"
+                );
+            }
+            other => panic!("expected start element, got {other:?}"),
         }
     }
 }

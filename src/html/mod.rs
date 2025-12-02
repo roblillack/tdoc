@@ -1183,6 +1183,23 @@ mod tests {
     }
 
     #[test]
+    fn handles_link_href_with_leading_newline() {
+        let input = "<p><a href=\n\"https://example.com/resource\">Example</a></p>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.content().len(), 1);
+
+        let span = &paragraph.content()[0];
+        assert_eq!(span.style, InlineStyle::Link);
+        assert_eq!(
+            span.link_target.as_deref(),
+            Some("https://example.com/resource")
+        );
+    }
+
+    #[test]
     fn trims_trailing_line_breaks_from_text_paragraphs() {
         let input = "<p>Hello<br></p>";
         let document = parse(Cursor::new(input)).unwrap();
