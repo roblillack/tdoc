@@ -1,3 +1,4 @@
+use std::fs;
 use std::io::Cursor;
 
 use tdoc::ftml;
@@ -5,6 +6,7 @@ use tdoc::html;
 use tdoc::test_helpers::*;
 use tdoc::writer::Writer;
 use tdoc::Document;
+use tdoc::Paragraph;
 use tdoc::ParagraphType;
 use tdoc::Span;
 
@@ -240,6 +242,62 @@ fn parsing_and_writing_styles() {
             input
         );
     }
+}
+
+fn spans_contain_link(spans: &[Span], needle: &str) -> bool {
+    spans.iter().any(|span| span_contains_link(span, needle))
+}
+
+fn span_contains_link(span: &Span, needle: &str) -> bool {
+    if span
+        .link_target
+        .as_deref()
+        .is_some_and(|target| target.contains(needle))
+    {
+        return true;
+    }
+
+    span.children
+        .iter()
+        .any(|child| span_contains_link(child, needle))
+}
+
+fn paragraph_contains_link(paragraph: &Paragraph, needle: &str) -> bool {
+    if spans_contain_link(paragraph.content(), needle) {
+        return true;
+    }
+
+    if paragraph
+        .children()
+        .iter()
+        .any(|child| paragraph_contains_link(child, needle))
+    {
+        return true;
+    }
+
+    matches!(
+        paragraph.paragraph_type(),
+        ParagraphType::OrderedList | ParagraphType::UnorderedList | ParagraphType::Checklist
+    ) && paragraph
+        .entries()
+        .iter()
+        .flatten()
+        .any(|entry| paragraph_contains_link(entry, needle))
+}
+
+#[test]
+fn freebsd_release_notes_include_freebsd_update_links() {
+    let html = fs::read_to_string("tests/data/html/freebsd-15-relnotes.html")
+        .expect("expected HTML fixture to exist");
+    let document = parse(&html);
+
+    assert!(
+        document
+            .paragraphs
+            .iter()
+            .any(|paragraph| paragraph_contains_link(paragraph, "freebsd-update")),
+        "expected freebsd release notes to contain at least one freebsd-update link"
+    );
 }
 
 #[test]

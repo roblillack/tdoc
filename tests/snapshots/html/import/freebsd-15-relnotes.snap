@@ -1,0 +1,7 @@
+---
+source: tests/html_import.rs
+assertion_line: 113
+expression: rendered
+extension: ftml
+snapshot_kind: binary
+---
