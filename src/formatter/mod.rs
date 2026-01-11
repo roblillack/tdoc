@@ -508,12 +508,7 @@ impl<W: Write> Formatter<W> {
         let mut code_text = Self::collect_code_text(spans);
         if !code_text.is_empty() {
             code_text = code_text.replace("\r\n", "\n").replace('\r', "\n");
-            let mut lines = code_text.split('\n').peekable();
-            while let Some(line) = lines.next() {
-                let is_last = lines.peek().is_none();
-                if is_last && line.is_empty() {
-                    break;
-                }
+            for line in code_text.split('\n') {
                 self.write_hard_wrapped_code_line(line, continuation_prefix)?;
             }
         }
