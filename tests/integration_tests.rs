@@ -202,7 +202,8 @@ fn test_formatter_code_block_wrapping() {
 fn test_markdown_code_block_roundtrip() {
     let input = "```\nfn main() {}\nprintln!(\"hi\");\n```\n";
     let doc = markdown::parse(Cursor::new(input)).unwrap();
-    let expected = ftml! { code { "fn main() {}\nprintln!(\"hi\");\n" } };
+    // Trailing newline from markdown syntax is stripped during parsing
+    let expected = ftml! { code { "fn main() {}\nprintln!(\"hi\");" } };
     assert_eq!(doc, expected);
 
     let mut output = Vec::new();
@@ -223,6 +224,7 @@ fn test_markdown_code_block_trims_leading_newline() {
     markdown::write(&mut output, &doc).unwrap();
     let markdown_out = String::from_utf8(output).unwrap();
 
+    // Trailing newline is stripped, but writer adds one before closing fence
     assert_eq!(
         markdown_out,
         "```\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
@@ -238,6 +240,7 @@ fn test_markdown_code_block_preserves_blank_first_line() {
     markdown::write(&mut output, &doc).unwrap();
     let markdown_out = String::from_utf8(output).unwrap();
 
+    // Trailing newline is stripped, but writer adds one before closing fence
     assert_eq!(
         markdown_out,
         "```\n\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
@@ -248,7 +251,8 @@ fn test_markdown_code_block_preserves_blank_first_line() {
 fn test_parse_code_block_trims_leading_newline() {
     let input = "<pre>\nfn main() {}\n</pre>";
     let doc = parse(Cursor::new(input)).unwrap();
-    let expected = ftml! { code { "fn main() {}\n" } };
+    // Both leading and trailing newlines are stripped
+    let expected = ftml! { code { "fn main() {}" } };
     assert_eq!(doc, expected);
 }
 
@@ -256,7 +260,8 @@ fn test_parse_code_block_trims_leading_newline() {
 fn test_parse_code_block_preserves_blank_first_line() {
     let input = "<pre>\n\nfn main() {}\n</pre>";
     let doc = parse(Cursor::new(input)).unwrap();
-    let expected = ftml! { code { "\nfn main() {}\n" } };
+    // Leading newline is stripped, but blank line after it is preserved; trailing newline is stripped
+    let expected = ftml! { code { "\nfn main() {}" } };
     assert_eq!(doc, expected);
 }
 

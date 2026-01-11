@@ -1653,4 +1653,18 @@ mod tests {
             ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } },
         );
     }
+
+    #[test]
+    fn test_parse_code_block_no_trailing_newline() {
+        let input = "<pre>\nhello\nworld\n</pre>";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed.paragraphs.len(), 1);
+        if let crate::Paragraph::CodeBlock { content } = &parsed.paragraphs[0] {
+            assert_eq!(content.len(), 1);
+            // Trailing newline should be stripped
+            assert_eq!(content[0].text, "hello\nworld");
+        } else {
+            panic!("Expected code block");
+        }
+    }
 }
