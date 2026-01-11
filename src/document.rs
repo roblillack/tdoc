@@ -1,5 +1,6 @@
 //! Defines the [`Document`] root node for FTML content.
 
+use crate::metadata::Metadata;
 use crate::Paragraph;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,6 +24,9 @@ use crate::Paragraph;
 /// assert!(!doc.is_empty());
 /// ```
 pub struct Document {
+    /// Optional document metadata (e.g., YAML frontmatter in Markdown).
+    pub metadata: Option<Metadata>,
+    /// The document's content as a list of paragraphs.
     pub paragraphs: Vec<Paragraph>,
 }
 
@@ -30,6 +34,7 @@ impl Document {
     /// Creates an empty document with no paragraphs.
     pub fn new() -> Self {
         Self {
+            metadata: None,
             paragraphs: Vec::new(),
         }
     }
@@ -37,6 +42,12 @@ impl Document {
     /// Replaces the document's paragraphs, returning the updated document.
     pub fn with_paragraphs(mut self, paragraphs: Vec<Paragraph>) -> Self {
         self.paragraphs = paragraphs;
+        self
+    }
+
+    /// Sets the document's metadata, returning the updated document.
+    pub fn with_metadata(mut self, metadata: Metadata) -> Self {
+        self.metadata = Some(metadata);
         self
     }
 
