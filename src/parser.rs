@@ -936,10 +936,17 @@ impl Parser {
     }
 
     fn normalize_code_block_text(text: &mut String) {
+        // Strip leading newline
         if text.starts_with("\r\n") {
             text.drain(..2);
         } else if text.starts_with('\n') || text.starts_with('\r') {
             text.drain(..1);
+        }
+        // Strip trailing newline
+        if text.ends_with("\r\n") {
+            text.truncate(text.len() - 2);
+        } else if text.ends_with('\n') || text.ends_with('\r') {
+            text.pop();
         }
     }
 

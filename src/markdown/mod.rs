@@ -815,6 +815,15 @@ impl ParagraphContext {
             self.push_span(span);
         }
 
+        // Strip trailing newline from code block content (added by pulldown_cmark)
+        if self.paragraph_type == ParagraphType::CodeBlock {
+            if let Some(last) = self.spans.last_mut() {
+                if last.text.ends_with('\n') {
+                    last.text.pop();
+                }
+            }
+        }
+
         Paragraph::new(self.paragraph_type).with_content(self.spans)
     }
 }
@@ -1756,5 +1765,19 @@ mod tests {
             r("[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA ](TARGET)\nBBBB\n"),
             ftml! { p { link { "TARGET" word } " BBBB"} },
         );
+    }
+
+    #[test]
+    fn test_parse_code_block_no_trailing_newline() {
+        let input = "```\nhello\nworld\n```";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed.paragraphs.len(), 1);
+        if let crate::Paragraph::CodeBlock { content } = &parsed.paragraphs[0] {
+            assert_eq!(content.len(), 1);
+            // Trailing newline from pulldown_cmark should be stripped
+            assert_eq!(content[0].text, "hello\nworld");
+        } else {
+            panic!("Expected code block");
+        }
     }
 }
