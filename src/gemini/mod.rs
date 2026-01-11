@@ -208,6 +208,7 @@ impl GeminiBuilder {
         self.flush_quote();
 
         Document {
+            metadata: None,
             paragraphs: self.paragraphs,
         }
     }

@@ -74,7 +74,10 @@ impl<'a> Parser<'a> {
 
         paragraphs.retain(|paragraph| !is_empty_list(paragraph));
 
-        Ok(Document { paragraphs })
+        Ok(Document {
+            metadata: None,
+            paragraphs,
+        })
     }
 
     fn process_token(&mut self, token: Token) -> Result<(), HtmlError> {

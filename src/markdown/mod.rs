@@ -1,11 +1,12 @@
 //! Convert between Markdown text and FTML [`Document`](crate::Document) trees.
 
+use crate::metadata;
 use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::borrow::Cow;
 use std::io::{Read, Write};
 
-/// Parses Markdown into a [`Document`].
+/// Parses Markdown into a [`Document`], including YAML metadata (frontmatter) if present.
 ///
 /// # Examples
 ///
@@ -16,7 +17,48 @@ use std::io::{Read, Write};
 /// let doc = markdown::parse(Cursor::new("# Heading")).unwrap();
 /// assert_eq!(doc.paragraphs[0].paragraph_type(), ParagraphType::Header1);
 /// ```
+///
+/// With metadata (frontmatter):
+///
+/// ```
+/// use std::io::Cursor;
+/// use tdoc::markdown;
+///
+/// let input = "---\ntitle: Hello\n---\n\n# Heading";
+/// let doc = markdown::parse(Cursor::new(input)).unwrap();
+/// assert!(doc.metadata.is_some());
+/// let meta = doc.metadata.as_ref().unwrap();
+/// assert_eq!(meta.get("title").unwrap().as_str(), Some("Hello"));
+/// ```
 pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
+    let mut input = String::new();
+    reader.read_to_string(&mut input)?;
+
+    // Extract metadata (frontmatter) if present
+    let (metadata, content) = metadata::extract(&input)?;
+
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TASKLISTS);
+    options.insert(Options::ENABLE_WIKILINKS);
+
+    let parser = Parser::new_ext(content, options);
+    let mut builder = MarkdownBuilder::new();
+
+    for event in parser {
+        builder.handle_event(event);
+    }
+
+    let mut doc = builder.finish();
+    doc.metadata = metadata;
+    Ok(doc)
+}
+
+/// Parses Markdown into a [`Document`] without processing metadata.
+///
+/// Use this if you want to parse metadata separately or don't expect
+/// metadata (frontmatter) in the input.
+pub fn parse_without_metadata<R: Read>(mut reader: R) -> crate::Result<Document> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
 
@@ -111,7 +153,10 @@ impl MarkdownBuilder {
                         self.add_paragraph_to_parent(paragraph);
                     }
                     Some(BlockContext::Document { paragraphs }) => {
-                        return Document { paragraphs };
+                        return Document {
+                            metadata: None,
+                            paragraphs,
+                        };
                     }
                     None => break,
                 }
@@ -119,7 +164,10 @@ impl MarkdownBuilder {
         }
 
         match self.stack.pop() {
-            Some(BlockContext::Document { paragraphs }) => Document { paragraphs },
+            Some(BlockContext::Document { paragraphs }) => Document {
+                metadata: None,
+                paragraphs,
+            },
             _ => Document::new(),
         }
     }
@@ -773,7 +821,7 @@ impl ParagraphContext {
 
 const LINE_WIDTH: usize = 80;
 
-/// Serializes a [`Document`] structure back to Markdown.
+/// Serializes a [`Document`] structure back to Markdown, including metadata.
 ///
 /// # Examples
 ///
@@ -788,7 +836,39 @@ const LINE_WIDTH: usize = 80;
 /// markdown::write(&mut output, &document).unwrap();
 /// assert_eq!(String::from_utf8(output).unwrap(), "Hello\n");
 /// ```
+///
+/// With metadata:
+///
+/// ```
+/// use tdoc::{Document, Paragraph, Span};
+/// use tdoc::markdown;
+/// use tdoc::metadata::{Metadata, Value};
+///
+/// let mut meta = Metadata::new();
+/// meta.insert("title".to_string(), Value::String("Test".to_string()));
+///
+/// let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("Hello")]);
+/// let document = Document::new()
+///     .with_metadata(meta)
+///     .with_paragraphs(vec![paragraph]);
+///
+/// let mut output = Vec::new();
+/// markdown::write(&mut output, &document).unwrap();
+/// let result = String::from_utf8(output).unwrap();
+/// assert!(result.starts_with("---\n"));
+/// assert!(result.contains("title: Test"));
+/// ```
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    // Write metadata if present
+    if let Some(ref meta) = document.metadata {
+        let yaml = metadata::serialize(meta).map_err(std::io::Error::other)?;
+        if !yaml.is_empty() {
+            writer.write_all(yaml.as_bytes())?;
+            // Add a blank line after metadata
+            writer.write_all(b"\n")?;
+        }
+    }
+
     write_paragraphs(writer, &document.paragraphs, "", "")
 }
 

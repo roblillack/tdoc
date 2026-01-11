@@ -26,6 +26,7 @@ pub mod gemini;
 pub mod html;
 pub mod inline;
 pub mod markdown;
+pub mod metadata;
 pub mod pager;
 pub mod paragraph;
 pub mod parser;
