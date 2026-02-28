@@ -1,13 +1,19 @@
+#[cfg(feature = "remote")]
 mod gemini_client;
 
 use clap::{Parser, ValueEnum, ValueHint};
 use crossterm::terminal;
+#[cfg(feature = "remote")]
 use reqwest::blocking::Client;
+#[cfg(feature = "remote")]
 use reqwest::header::USER_AGENT;
 use std::fs::File;
-use std::io::{self, BufReader, Cursor, Read, Write};
+#[cfg(feature = "remote")]
+use std::io::Cursor;
+use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "remote")]
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
 use tdoc::{gemini, html, markdown, pager, parse, write, Document};
@@ -66,6 +72,7 @@ impl From<InputFormatArg> for InputFormat {
 
 #[derive(Clone)]
 enum ContentOrigin {
+    #[cfg_attr(not(feature = "remote"), allow(dead_code))]
     Url(Url),
     File(PathBuf),
     Stdin,
@@ -133,69 +140,79 @@ fn create_reader(
         }),
         Some(value) => {
             if let Ok(url) = Url::parse(value) {
-                if url.scheme() == "http" || url.scheme() == "https" {
-                    let client = Client::builder()
-                        .timeout(Duration::from_secs(10))
-                        .build()
-                        .map_err(|err| format!("Unable to initialize HTTP client: {err}"))?;
-                    let response = client
-                        .get(value)
-                        .header(
-                            USER_AGENT,
-                            concat!(
-                                "tdoc/",
-                                env!("CARGO_PKG_VERSION"),
-                                " (https://github.com/roblillack/tdoc)"
-                            ),
-                        )
-                        .send()
-                        .map_err(|err| format!("Unable to fetch {value}: {err}"))?;
-                    let final_url = response.url().clone();
-                    let origin = ContentOrigin::Url(final_url.clone());
-                    let extension = Path::new(final_url.path())
-                        .extension()
-                        .and_then(|ext| ext.to_str());
-                    let format = override_format
-                        .or_else(|| detect_input_format(extension))
-                        .unwrap_or(InputFormat::Html);
-                    return Ok(InputSource {
-                        format,
-                        reader: Box::new(response),
-                        display_name: final_url.to_string(),
-                        origin,
-                    });
-                } else if url.scheme() == "gemini" {
-                    // Fetch via Gemini protocol
-                    let response = gemini_client::fetch(value)
-                        .map_err(|err| format!("Unable to fetch {value}: {err}"))?;
+                #[cfg(feature = "remote")]
+                {
+                    if url.scheme() == "http" || url.scheme() == "https" {
+                        let client = Client::builder()
+                            .timeout(Duration::from_secs(10))
+                            .build()
+                            .map_err(|err| format!("Unable to initialize HTTP client: {err}"))?;
+                        let response = client
+                            .get(value)
+                            .header(
+                                USER_AGENT,
+                                concat!(
+                                    "tdoc/",
+                                    env!("CARGO_PKG_VERSION"),
+                                    " (https://github.com/roblillack/tdoc)"
+                                ),
+                            )
+                            .send()
+                            .map_err(|err| format!("Unable to fetch {value}: {err}"))?;
+                        let final_url = response.url().clone();
+                        let origin = ContentOrigin::Url(final_url.clone());
+                        let extension = Path::new(final_url.path())
+                            .extension()
+                            .and_then(|ext| ext.to_str());
+                        let format = override_format
+                            .or_else(|| detect_input_format(extension))
+                            .unwrap_or(InputFormat::Html);
+                        return Ok(InputSource {
+                            format,
+                            reader: Box::new(response),
+                            display_name: final_url.to_string(),
+                            origin,
+                        });
+                    } else if url.scheme() == "gemini" {
+                        // Fetch via Gemini protocol
+                        let response = gemini_client::fetch(value)
+                            .map_err(|err| format!("Unable to fetch {value}: {err}"))?;
 
-                    // Handle redirects
-                    if response.is_redirect() {
-                        if let Some(redirect_url) = response.redirect_url() {
+                        // Handle redirects
+                        if response.is_redirect() {
+                            if let Some(redirect_url) = response.redirect_url() {
+                                return Err(format!(
+                                    "Gemini redirect to: {} (status {})\nPlease follow the redirect manually.",
+                                    redirect_url, response.status
+                                ));
+                            }
+                        }
+
+                        // Check for success status
+                        if !response.is_success() {
                             return Err(format!(
-                                "Gemini redirect to: {} (status {})\nPlease follow the redirect manually.",
-                                redirect_url, response.status
+                                "Gemini request failed with status {}: {}",
+                                response.status, response.meta
                             ));
                         }
+
+                        // Gemini responses default to text/gemini (gemtext)
+                        let format = override_format.unwrap_or(InputFormat::Gemini);
+
+                        return Ok(InputSource {
+                            format,
+                            reader: Box::new(Cursor::new(response.body)),
+                            display_name: url.to_string(),
+                            origin: ContentOrigin::Url(url.clone()),
+                        });
                     }
+                }
 
-                    // Check for success status
-                    if !response.is_success() {
-                        return Err(format!(
-                            "Gemini request failed with status {}: {}",
-                            response.status, response.meta
-                        ));
-                    }
-
-                    // Gemini responses default to text/gemini (gemtext)
-                    let format = override_format.unwrap_or(InputFormat::Gemini);
-
-                    return Ok(InputSource {
-                        format,
-                        reader: Box::new(Cursor::new(response.body)),
-                        display_name: url.to_string(),
-                        origin: ContentOrigin::Url(url.clone()),
-                    });
+                #[cfg(not(feature = "remote"))]
+                if matches!(url.scheme(), "http" | "https" | "gemini") {
+                    return Err(format!(
+                        "Remote URL support is not available (built without the \"remote\" feature)"
+                    ));
                 }
             }
 
