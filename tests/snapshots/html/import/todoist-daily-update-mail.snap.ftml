@@ -4,71 +4,244 @@
   &nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿
 </p>
 
-<p>
-  <a href="https://example.example/TRACKINGLINK/">Im Browser anzeigen</a>&emsp14;
-</p>
+<table>
+  <tr>
+    <td>
+      <a href="https://example.example/TRACKINGLINK/">Im Browser anzeigen</a>
+    </td>
+  </tr>
+</table>
 
-<p>Tagesbericht</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td>Tagesbericht</td>
+  </tr>
+</table>
 
-<p>Heute</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Heute</td>
+  </tr>
+</table>
 
-<p>My Todo</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+</table>
 
-<p>My Todo &emsp14;</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>My Todo</td>
+  </tr>
+</table>
 
-<p>171 überfällige Aufgaben</p>
+<table>
+  <tr>
+    <td></td>
+    <td>My Todo</td>
+  </tr>
+</table>
 
-<p><a href="https://app.todoist.com/app/today">Todoist öffnen</a>&emsp14;</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>171 überfällige Aufgaben</td>
+  </tr>
+</table>
 
-<p>Deine Produktivitätsziele</p>
+<table>
+  <tr>
+    <td><a href="https://app.todoist.com/app/today">Todoist öffnen</a></td>
+  </tr>
+</table>
 
-<p>Ziel von gestern</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Deine Produktivitätsziele</td>
+  </tr>
+</table>
 
-<p>0/3 Aufgaben</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td>
+      Ziel von gestern<br />
+      0/3 Aufgaben
+    </td>
+    <td></td>
+    <td>
+      Wochenziel<br />
+      0/20 Aufgaben
+    </td>
+    <td></td>
+    <td>
+      Dein Level<br />
+      Meister:in*
+    </td>
+  </tr>
+</table>
 
-<p>Wochenziel</p>
+<table>
+  <tr>
+    <td>*Noch 7324 Punkte, um das Level Großmeister:in zu erreichen</td>
+  </tr>
+</table>
 
-<p>0/20 Aufgaben</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Deine Nutzung</td>
+  </tr>
+</table>
 
-<p>Dein Level</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td><b>34</b> aktive Projekte</td>
+    <td></td>
+  </tr>
+</table>
 
-<p>Meister:in*</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td><b>3</b> geteilte Projekte</td>
+    <td></td>
+  </tr>
+</table>
 
-<p>*Noch 7324 Punkte, um das Level Großmeister:in zu erreichen</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td><b>13</b> Filteransichten</td>
+    <td></td>
+  </tr>
+</table>
 
-<p>Deine Nutzung</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td><b>2</b> Erinnerungen</td>
+  </tr>
+</table>
 
-<p><b>34</b> aktive Projekte</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Todoist-Tipp des Tages</td>
+  </tr>
+</table>
 
-<p><b>3</b> geteilte Projekte</p>
+<table>
+  <tr>
+    <td>
+      [Android] Todoist unterstützt eine Schnelleinstellungs-Kachel für
+      „Aufgabe hinzufügen“.
+    </td>
+  </tr>
+</table>
 
-<p><b>13</b> Filteransichten</p>
+<table>
+  <tr>
+    <td>
+      <a href="https://example.example/TRACKINGLINK/">So funktioniert das Einrichten</a>
+    </td>
+  </tr>
+</table>
 
-<p><b>2</b> Erinnerungen</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td>Team-Aufgaben managen leicht gemacht</td>
+  </tr>
+</table>
 
-<p>Todoist-Tipp des Tages</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td>
+      Vergiss deine komplexe Teamarbeits-Software.<br />
+      Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen
+      sind.<br />
+      <a href="https://example.example/TRACKINGLINK/">Vereinfache deine Teamarbeit</a>
+    </td>
+  </tr>
+</table>
 
-<p>
-  [Android] Todoist unterstützt eine Schnelleinstellungs-Kachel für „Aufgabe
-  hinzufügen“.
-</p>
-
-<p>
-  <a href="https://example.example/TRACKINGLINK/">So funktioniert das Einrichten</a>&emsp14;
-</p>
-
-<p>Team-Aufgaben managen leicht gemacht</p>
-
-<p>
-  Vergiss deine komplexe Teamarbeits-Software.<br />
-  Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.
-</p>
-
-<p>
-  <a href="https://example.example/TRACKINGLINK/">Vereinfache deine Teamarbeit</a>&emsp14;
-</p>
-
-<p>&emsp14; &emsp14;</p>
+<table>
+  <tr>
+    <td></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
 
 <p>
   <a href="https://example.example/TRACKINGLINK/">Inspiration Hub</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a href="https://example.example/TRACKINGLINK/">Apps herunterladen</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a href="https://example.example/TRACKINGLINK/">Help Center</a>

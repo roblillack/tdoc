@@ -1,10 +1,11 @@
 //! Render documents to formatted plain text suitable for terminals or logs.
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::Write;
+use unicode_width::UnicodeWidthStr;
 
 const DEFAULT_WRAP_WIDTH: usize = 72;
 const DEFAULT_QUOTE_PREFIX: &str = "| ";
@@ -451,7 +452,105 @@ impl<W: Write> Formatter<W> {
                 continuation_prefix,
                 continuation_prefix,
             )?,
+            ParagraphType::Table => {
+                self.write_table_paragraph(paragraph.rows(), prefix, continuation_prefix)?;
+            }
         }
+        Ok(())
+    }
+
+    fn write_table_paragraph(
+        &mut self,
+        rows: &[TableRow],
+        prefix: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+
+        let column_count = rows.iter().map(|row| row.cells.len()).max().unwrap_or(0);
+        if column_count == 0 {
+            return Ok(());
+        }
+
+        // Pre-render each cell to its formatted string representation. Newlines
+        // within cell content are flattened to spaces so rendering stays
+        // rectangular.
+        let mut cell_text: Vec<Vec<String>> = Vec::with_capacity(rows.len());
+        for row in rows {
+            let mut texts = Vec::with_capacity(column_count);
+            for col in 0..column_count {
+                let rendered = match row.cells.get(col) {
+                    Some(cell) => {
+                        let mut parts = Vec::new();
+                        for span in &cell.content {
+                            self.collect_formatted_text(span, &mut parts)?;
+                        }
+                        let mut joined = String::new();
+                        for part in parts {
+                            if part == "\n" {
+                                joined.push(' ');
+                            } else {
+                                joined.push_str(&part);
+                            }
+                        }
+                        joined
+                    }
+                    None => String::new(),
+                };
+                texts.push(rendered);
+            }
+            cell_text.push(texts);
+        }
+
+        let mut header_flags: Vec<Vec<bool>> = Vec::with_capacity(rows.len());
+        for row in rows {
+            let mut flags = Vec::with_capacity(column_count);
+            for col in 0..column_count {
+                flags.push(row.cells.get(col).map(|c| c.is_header).unwrap_or(false));
+            }
+            header_flags.push(flags);
+        }
+
+        let mut widths = vec![0usize; column_count];
+        for row in &cell_text {
+            for (col, text) in row.iter().enumerate() {
+                let w = self.visible_width(text);
+                if w > widths[col] {
+                    widths[col] = w;
+                }
+            }
+        }
+
+        let border_prefix = continuation_prefix.to_string();
+
+        let mut horizontal = String::new();
+        horizontal.push('+');
+        for &w in &widths {
+            horizontal.push_str(&"-".repeat(w + 2));
+            horizontal.push('+');
+        }
+
+        writeln!(self.writer, "{}{}", prefix, horizontal)?;
+
+        for (idx, row) in cell_text.iter().enumerate() {
+            write!(self.writer, "{}|", border_prefix)?;
+            for (col, text) in row.iter().enumerate() {
+                let visible = self.visible_width(text);
+                let pad = widths[col].saturating_sub(visible);
+                let bold = header_flags[idx][col];
+                let styled_text = if bold {
+                    self.apply_bold(text)
+                } else {
+                    text.clone()
+                };
+                write!(self.writer, " {}{} |", styled_text, " ".repeat(pad))?;
+            }
+            writeln!(self.writer)?;
+            writeln!(self.writer, "{}{}", border_prefix, horizontal)?;
+        }
+
         Ok(())
     }
 
@@ -1396,7 +1495,7 @@ impl<W: Write> Formatter<W> {
         // Remove ANSI escape sequences for width calculation
         let without_ansi = ANSI_ESCAPE_REGEX.replace_all(text, "");
         let visible_text = OSC8_ESCAPE_REGEX.replace_all(&without_ansi, "");
-        visible_text.chars().count()
+        UnicodeWidthStr::width(visible_text.as_ref())
     }
 }
 
@@ -2413,6 +2512,41 @@ mod tests {
         let blank_count = h3_idx.saturating_sub(h2_underline_idx + 1);
         assert_eq!(blank_count, 2);
         assert!(lines[h3_idx + 1].chars().all(|c| c == '-'));
+    }
+
+    #[test]
+    fn renders_table_as_ascii_grid() {
+        use crate::{Paragraph, TableCell, TableRow};
+
+        let rows = vec![
+            TableRow::new().with_cells(vec![
+                TableCell::new_header().with_content(vec![Span::new_text("Name")]),
+                TableCell::new_header().with_content(vec![Span::new_text("Age")]),
+            ]),
+            TableRow::new().with_cells(vec![
+                TableCell::new_data().with_content(vec![Span::new_text("Alice")]),
+                TableCell::new_data().with_content(vec![Span::new_text("30")]),
+            ]),
+            TableRow::new().with_cells(vec![
+                TableCell::new_data().with_content(vec![Span::new_text("Bob")]),
+                TableCell::new_data().with_content(vec![Span::new_text("25")]),
+            ]),
+        ];
+        let table = Paragraph::new_table().with_rows(rows);
+        let doc = Document::new().with_paragraphs(vec![table]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output).write_document(&doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let expected = "+-------+-----+\n\
+                        | Name  | Age |\n\
+                        +-------+-----+\n\
+                        | Alice | 30  |\n\
+                        +-------+-----+\n\
+                        | Bob   | 25  |\n\
+                        +-------+-----+\n";
+        assert_eq!(result, expected);
     }
 
     #[test]

@@ -1407,6 +1407,13 @@ fn normalize_paragraph_spaces(paragraph: &mut Paragraph) {
                 }
             }
         }
+        Paragraph::Table { rows } => {
+            for row in rows {
+                for cell in &mut row.cells {
+                    normalize_spans_spaces(&mut cell.content);
+                }
+            }
+        }
         Paragraph::Checklist { .. }
         | Paragraph::Text { .. }
         | Paragraph::Header1 { .. }

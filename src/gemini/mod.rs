@@ -312,6 +312,18 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
                 }
             }
         }
+        Paragraph::Table { rows } => {
+            // Gemini has no native table syntax; emit pipe-separated rows.
+            for row in rows {
+                write!(writer, "|")?;
+                for cell in &row.cells {
+                    write!(writer, " ")?;
+                    write_spans_plain(writer, &cell.content)?;
+                    write!(writer, " |")?;
+                }
+                writeln!(writer)?;
+            }
+        }
     }
     Ok(())
 }

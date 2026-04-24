@@ -1,6 +1,6 @@
 //! Serialize [`Document`](crate::Document) trees back into FTML/HTML.
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -94,6 +94,10 @@ impl Writer {
     ) -> io::Result<()> {
         let paragraph_type = paragraph.paragraph_type();
         let tag = paragraph_type.html_tag();
+
+        if paragraph_type == ParagraphType::Table {
+            return self.write_table_paragraph(writer, paragraph.rows(), level);
+        }
 
         if paragraph_type.is_leaf() {
             if paragraph_type == ParagraphType::CodeBlock {
@@ -199,6 +203,65 @@ impl Writer {
 
         self.write_indent(writer, level + 1)?;
         self.write_spans(writer, content, level + 1, true, true)?;
+        writeln!(writer)?;
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</{}>", tag)
+    }
+
+    fn write_table_paragraph<W: Write>(
+        &self,
+        writer: &mut W,
+        rows: &[TableRow],
+        level: usize,
+    ) -> io::Result<()> {
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<table>")?;
+
+        for row in rows {
+            self.write_table_row(writer, row, level + 1)?;
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</table>")
+    }
+
+    fn write_table_row<W: Write>(
+        &self,
+        writer: &mut W,
+        row: &TableRow,
+        level: usize,
+    ) -> io::Result<()> {
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<tr>")?;
+
+        for cell in &row.cells {
+            self.write_table_cell(writer, cell, level + 1)?;
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</tr>")
+    }
+
+    fn write_table_cell<W: Write>(
+        &self,
+        writer: &mut W,
+        cell: &TableCell,
+        level: usize,
+    ) -> io::Result<()> {
+        let tag = if cell.is_header { "th" } else { "td" };
+        let single_line = self.render_single_line(&cell.content, tag, level);
+
+        if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
+            write!(writer, "{}", single_line)?;
+            return Ok(());
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<{}>", tag)?;
+
+        self.write_indent(writer, level + 1)?;
+        self.write_spans(writer, &cell.content, level + 1, true, true)?;
         writeln!(writer)?;
 
         self.write_indent(writer, level)?;
@@ -704,6 +767,30 @@ mod tests {
         assert_eq!(
             w(ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } }),
             "<p><a href=\"yadayada\">Hier kommt ein Test! </a></p>\n",
+        );
+    }
+
+    #[test]
+    fn test_table_writer() {
+        let rows = vec![
+            TableRow::new().with_cells(vec![
+                TableCell::new_header().with_content(vec![Span::new_text("Name")]),
+                TableCell::new_header().with_content(vec![Span::new_text("Age")]),
+            ]),
+            TableRow::new().with_cells(vec![
+                TableCell::new_data().with_content(vec![Span::new_text("Alice")]),
+                TableCell::new_data().with_content(vec![Span::new_text("30")]),
+            ]),
+        ];
+        let paragraph = Paragraph::new_table().with_rows(rows);
+        let doc = Document::new().with_paragraphs(vec![paragraph]);
+
+        let writer = Writer::new();
+        let result = writer.write_to_string(&doc).unwrap();
+
+        assert_eq!(
+            result,
+            "<table>\n  <tr>\n    <th>Name</th>\n    <th>Age</th>\n  </tr>\n  <tr>\n    <td>Alice</td>\n    <td>30</td>\n  </tr>\n</table>\n",
         );
     }
 

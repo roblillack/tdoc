@@ -2,61 +2,117 @@ Starte gelassen und mit einem Gefühl von Kontrolle in den Tag.
 
 &nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿&nbsp;‌​‍‎‏﻿
 
-[Im Browser anzeigen](https://example.example/TRACKINGLINK/)&emsp14;
+|                                                              |
+|--------------------------------------------------------------|
+| [Im Browser anzeigen](https://example.example/TRACKINGLINK/) |
 
-Tagesbericht
+|     |              |
+|-----|--------------|
+|     |              |
+|     |              |
+|     | Tagesbericht |
 
-Heute
+|       |
+|-------|
+|       |
+| Heute |
 
-My Todo
+|     |
+|-----|
+|     |
 
-My Todo &emsp14;
+|         |     |
+|---------|-----|
+|         |     |
+|         |     |
+| My Todo |     |
 
-171 überfällige Aufgaben
+|     |         |
+|-----|---------|
+|     | My Todo |
 
-[Todoist öffnen](https://app.todoist.com/app/today)&emsp14;
+|                          |     |
+|--------------------------|-----|
+|                          |     |
+|                          |     |
+| 171 überfällige Aufgaben |     |
 
-Deine Produktivitätsziele
+|                                                     |
+|-----------------------------------------------------|
+| [Todoist öffnen](https://app.todoist.com/app/today) |
 
-Ziel von gestern
+|                           |
+|---------------------------|
+|                           |
+| Deine Produktivitätsziele |
 
-0/3 Aufgaben
+|                                |     |                           |     |                          |
+|--------------------------------|-----|---------------------------|-----|--------------------------|
+|                                |     |                           |     |                          |
+|                                |     |                           |     |                          |
+| Ziel von gestern\ 0/3 Aufgaben |     | Wochenziel\ 0/20 Aufgaben |     | Dein Level\ Meister:in\* |
 
-Wochenziel
+|                                                              |
+|--------------------------------------------------------------|
+| \*Noch 7324 Punkte, um das Level Großmeister:in zu erreichen |
 
-0/20 Aufgaben
+|               |
+|---------------|
+|               |
+| Deine Nutzung |
 
-Dein Level
+|                        |     |
+|------------------------|-----|
+|                        |     |
+| **34** aktive Projekte |     |
 
-Meister:in\*
+|                         |     |
+|-------------------------|-----|
+|                         |     |
+| **3** geteilte Projekte |     |
 
-\*Noch 7324 Punkte, um das Level Großmeister:in zu erreichen
+|                        |     |
+|------------------------|-----|
+|                        |     |
+| **13** Filteransichten |     |
 
-Deine Nutzung
+|                    |
+|--------------------|
+|                    |
+| **2** Erinnerungen |
 
-**34** aktive Projekte
+|                         |
+|-------------------------|
+|                         |
+|                         |
+|                         |
+| Todoist\-Tipp des Tages |
 
-**3** geteilte Projekte
+|                                                                                            |
+|--------------------------------------------------------------------------------------------|
+| \[Android\] Todoist unterstützt eine Schnelleinstellungs\-Kachel für „Aufgabe hinzufügen“. |
 
-**13** Filteransichten
+|                                                                         |
+|-------------------------------------------------------------------------|
+| [So funktioniert das Einrichten](https://example.example/TRACKINGLINK/) |
 
-**2** Erinnerungen
+|                                       |
+|---------------------------------------|
+|                                       |
+|                                       |
+|                                       |
+| Team\-Aufgaben managen leicht gemacht |
 
-Todoist\-Tipp des Tages
+|                                                                                                                                                                                                     |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|                                                                                                                                                                                                     |
+|                                                                                                                                                                                                     |
+| Vergiss deine komplexe Teamarbeits\-Software.\ Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.\ [Vereinfache deine Teamarbeit](https://example.example/TRACKINGLINK/) |
 
-\[Android\] Todoist unterstützt eine Schnelleinstellungs\-Kachel für „Aufgabe
-hinzufügen“.
-
-[So funktioniert das Einrichten](https://example.example/TRACKINGLINK/)&emsp14;
-
-Team\-Aufgaben managen leicht gemacht
-
-Vergiss deine komplexe Teamarbeits\-Software.\
-Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.
-
-[Vereinfache deine Teamarbeit](https://example.example/TRACKINGLINK/)&emsp14;
-
-  &emsp14;
+|     |     |     |     |
+|-----|-----|-----|-----|
+|     |     |     |     |
+|     |     |     |     |
 
 [Inspiration
 Hub](https://example.example/TRACKINGLINK/)&nbsp;&nbsp;&nbsp;\|&nbsp;&nbsp;&nbsp;[Apps

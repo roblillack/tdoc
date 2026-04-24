@@ -9,45 +9,58 @@ Mache realistische Pläne mit deinen Aufgaben und Terminen an einem Ort.
 ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
 ‌​‍‎‏﻿ ‌​‍‎‏﻿
 
-[Im Browser
-anzeigen](https://todoist.doist-emails.com/de/emails/todoist/cms/TDMonthly1024)
+|                                                                                             |
+|---------------------------------------------------------------------------------------------|
+| [Im Browser anzeigen](https://todoist.doist-emails.com/de/emails/todoist/cms/TDMonthly1024) |
 
-Die Todoist\-Monatsübersicht
+|     |
+|-----|
+|     |
+|     |
 
-Das Neueste aus dem Todoist\-Versum – Oktober 2024
+|     |
+|-----|
+|     |
+|     |
+|     |
 
-Verwalte deine als Zeitblöcke geplanten Todoist\-Aufgaben, z. B. _Kundenangebote
-durchgehen 14:00 für 2h_ oder _Kitty von Tierärztin abholen 10:00 für 30m_,
-indem du **diese Aufgaben direkt mit deinem Google Kalender synchronisierst** –
-verfügbar bei allen Abonnement\-Plänen!
+|                              |
+|------------------------------|
+|                              |
+| Die Todoist\-Monatsübersicht |
 
-Deine To\-dos und Termine an einem Ort
+|                                                    |
+|----------------------------------------------------|
+| Das Neueste aus dem Todoist\-Versum – Oktober 2024 |
 
-Jetzt kannst du deine Todoist\-Aufgaben neben deinen Zahnarztterminen,
-Vorstandssitzungen, Spieleabenden und allen anderen geplanten Aktivitäten sehen.
-So kannst du realistische Pläne erstellen und vermeiden, dass du zu vielen
-Verpflichtungen eingehst.
+|                                                                                                                                                                                                                                                                                      |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|                                                                                                                                                                                                                                                                                      |
+| Verwalte deine als Zeitblöcke geplanten Todoist\-Aufgaben, z. B. _Kundenangebote durchgehen 14:00 für 2h_ oder _Kitty von Tierärztin abholen 10:00 für 30m_, indem du **diese Aufgaben direkt mit deinem Google Kalender synchronisierst** – verfügbar bei allen Abonnement\-Plänen! |
 
-  Francesca zeigt dir, wie du mit der Synchronisierung beginnst:
+|                                        |
+|----------------------------------------|
+|                                        |
+| Deine To\-dos und Termine an einem Ort |
 
-So funktioniert’s
+|                                                                                                                                                                                                                                                                                                                                           |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Jetzt kannst du deine Todoist\-Aufgaben neben deinen Zahnarztterminen, Vorstandssitzungen, Spieleabenden und allen anderen geplanten Aktivitäten sehen. So kannst du realistische Pläne erstellen und vermeiden, dass du zu vielen Verpflichtungen eingehst.__\ \ &emsp14; Francesca zeigt dir, wie du mit der Synchronisierung beginnst: |
+|                                                                                                                                                                                                                                                                                                                                           |
 
-Die Synchronisierung von Aufgaben mit Google Kalender ist kinderleicht
-einzurichten \(definitiv einfacher als Kitty in ihre Transportbox für den
-Tierarzttermin zu locken\).
+|                   |
+|-------------------|
+|                   |
+| So funktioniert’s |
 
-- Wenn du es noch nicht getan hast, gehe zuerst zu den
-  [Kalender\-Einstellungen](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly),
-  um Todoist mit deinem Google Kalender\-Konto zu verbinden. Klicke auf **Google
-  Kalender verbinden** und folge den Anweisungen.
-- Sobald du mit Google Kalender verbunden bist, schalte unten in den
-  Kalender\-Einstellungen den Kippschalter um, um die Option **Aufgaben mit dem
-  Kalender synchronisieren** zu aktivieren.
-- Innerhalb von Sekunden wird ein „Todoist“\-Kalender in deinem Google
-  Kalender\-Konto angezeigt.
+|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Die Synchronisierung von Aufgaben mit Google Kalender ist kinderleicht einzurichten \(definitiv einfacher als Kitty in ihre Transportbox für den Tierarzttermin zu locken\).\ \ Wenn du es noch nicht getan hast, gehe zuerst zu den [Kalender\-Einstellungen](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly), um Todoist mit deinem Google Kalender\-Konto zu verbinden. Klicke auf **Google Kalender verbinden** und folge den Anweisungen.\ Sobald du mit Google Kalender verbunden bist, schalte unten in den Kalender\-Einstellungen den Kippschalter um, um die Option **Aufgaben mit dem Kalender synchronisieren** zu aktivieren.\ Innerhalb von Sekunden wird ein „Todoist“\-Kalender in deinem Google Kalender\-Konto angezeigt. |
+|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
-[Todoist
-öffnen](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
+|                                                                                                                                           |
+|-------------------------------------------------------------------------------------------------------------------------------------------|
+| [Todoist öffnen](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly) |
 
 Sobald das Feature „Aufgaben mit dem Kalender synchronisieren“ aktiviert ist,
 werden automatisch alle deine Todoist\-Aufgaben mit einem Fälligkeitsdatum und
@@ -64,31 +77,34 @@ Alternativ kannst du auch das [Video von Francesca
 ansehen](https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly),
 in dem sie es ausführlich erklärt.
 
-Erlebe, wie deine Aufgaben zu Triumphen werden
+|                                                |     |
+|------------------------------------------------|-----|
+|                                                |     |
+|                                                |     |
+|                                                |     |
+| Erlebe, wie deine Aufgaben zu Triumphen werden |     |
 
-Sobald eine Aufgabe erledigt ist, wird sie in deinem Kalender mit einem
-charmanten ✓ Häkchen markiert. So siehst du auf einen Blick, was du erreicht
-hast!
+|                                                                                                                                                            |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Sobald eine Aufgabe erledigt ist, wird sie in deinem Kalender mit einem charmanten ✓ Häkchen markiert. So siehst du auf einen Blick, was du erreicht hast! |
 
-Was kommt als Nächstes? \(Tipp: Es beginnt mit O und endet mit look\) 👀
+|                                                                         |
+|-------------------------------------------------------------------------|
+|                                                                         |
+| Was kommt als Nächstes? \(Tipp: Es beginnt mit O und endet mit look\) 👀 |
 
-Unsere Reise in die Welt der Kalender endet nicht bei Google.
+|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Unsere Reise in die Welt der Kalender endet nicht bei Google.\ \ Du hast richtig geraten – wir arbeiten intensiv an einer neuen Integration mit dem Outlook\-Kalender, die alle Outlook\-Fans begeistern wird und ihnen das Time Blocking erleichtern soll. Darüber hinaus werden wir Möglichkeiten erkunden, erledigte Aufgaben im Kalender\-Layout von Todoist anzuzeigen, damit du deine Erfolge im Laufe der Zeit mühelos verfolgen kannst.\ \ In der Zwischenzeit, [lass uns wissen, was du von dem neuen Feature zur Aufgaben\-Synchronisierung hältst](https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly). Wir freuen uns auf dein Feedback, während wir das Kalendererlebnis in Todoist weiter verbessern.\ \ Bis nächsten Monat! 👋 |
 
-Du hast richtig geraten – wir arbeiten intensiv an einer neuen Integration mit
-dem Outlook\-Kalender, die alle Outlook\-Fans begeistern wird und ihnen das Time
-Blocking erleichtern soll. Darüber hinaus werden wir Möglichkeiten erkunden,
-erledigte Aufgaben im Kalender\-Layout von Todoist anzuzeigen, damit du deine
-Erfolge im Laufe der Zeit mühelos verfolgen kannst.
+|                        |
+|------------------------|
+| Mit produktiven Grüßen |
 
-In der Zwischenzeit, [lass uns wissen, was du von dem neuen Feature zur
-Aufgaben\-Synchronisierung
-hältst](https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly).
-Wir freuen uns auf dein Feedback, während wir das Kalendererlebnis in Todoist
-weiter verbessern.
-
-Bis nächsten Monat! 👋
-
-Mit produktiven Grüßen
+|     |     |     |     |
+|-----|-----|-----|-----|
+|     |     |     |     |
+|     |     |     |     |
 
 [Inspiration
 Hub](https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)

@@ -2,7 +2,7 @@
 
 pub mod gockl;
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow};
 use gockl::{Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
 use std::cell::RefCell;
@@ -89,6 +89,10 @@ impl<'a> Parser<'a> {
             Token::StartElement(start) => {
                 let tag = lowercase_name(start.name());
 
+                if tag == "table" {
+                    return self.read_table();
+                }
+
                 if tag == "li" {
                     let parent = match self.parent() {
                         Some(parent) => parent,
@@ -127,6 +131,15 @@ impl<'a> Parser<'a> {
                     if self.list_item_level > 0 {
                         self.list_item_level -= 1;
                     }
+                    return Ok(());
+                }
+
+                // Stray table-structure closing tags are benign once the
+                // dedicated reader has consumed its `<table>`.
+                if matches!(
+                    tag.as_str(),
+                    "table" | "thead" | "tbody" | "tfoot" | "tr" | "td" | "th"
+                ) {
                     return Ok(());
                 }
 
@@ -483,6 +496,193 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn read_table(&mut self) -> Result<(), HtmlError> {
+        let node = self.down(ParagraphType::Table)?;
+        let rows = self.read_table_body()?;
+        let is_empty = rows.is_empty();
+        node.borrow_mut().table_rows = rows;
+
+        self.up(ParagraphType::Table)?;
+
+        if is_empty {
+            self.remove_leaf(&node);
+        }
+
+        Ok(())
+    }
+
+    fn read_table_body(&mut self) -> Result<Vec<TableRow>, HtmlError> {
+        let mut rows = Vec::new();
+
+        loop {
+            let Some(token) = self.next_table_token()? else {
+                return Ok(rows);
+            };
+
+            match token {
+                Token::StartElement(start) => {
+                    let name = lowercase_name(start.name());
+                    match name.as_str() {
+                        "thead" | "tbody" | "tfoot" | "colgroup" | "caption" | "col" => {}
+                        "tr" => {
+                            let row = self.read_table_row()?;
+                            if !row.cells.is_empty() {
+                                rows.push(row);
+                            }
+                        }
+                        "th" | "td" => {
+                            // Implicit row for orphan cells.
+                            let mut row = TableRow::new();
+                            let is_header = name == "th";
+                            let cell = self.read_table_cell(is_header, &name)?;
+                            row.cells.push(cell);
+                            let mut trailing = self.read_table_row()?;
+                            row.cells.append(&mut trailing.cells);
+                            if !row.cells.is_empty() {
+                                rows.push(row);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Token::EndElement(end) => {
+                    let name = lowercase_name(end.name());
+                    if name == "table" {
+                        return Ok(rows);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn read_table_row(&mut self) -> Result<TableRow, HtmlError> {
+        let mut row = TableRow::new();
+
+        loop {
+            let Some(token) = self.next_table_token()? else {
+                return Ok(row);
+            };
+
+            match token {
+                Token::StartElement(start) => {
+                    let name = lowercase_name(start.name());
+                    match name.as_str() {
+                        "th" => {
+                            let cell = self.read_table_cell(true, &name)?;
+                            row.cells.push(cell);
+                        }
+                        "td" => {
+                            let cell = self.read_table_cell(false, &name)?;
+                            row.cells.push(cell);
+                        }
+                        "tr" => {
+                            // Missing `</tr>`; yield control to the table reader.
+                            self.pending_token = Some(Token::StartElement(start));
+                            return Ok(row);
+                        }
+                        _ => {}
+                    }
+                }
+                Token::EndElement(end) => {
+                    let name = lowercase_name(end.name());
+                    if name == "tr" {
+                        return Ok(row);
+                    }
+                    if matches!(name.as_str(), "table" | "thead" | "tbody" | "tfoot") {
+                        self.pending_token = Some(Token::EndElement(end));
+                        return Ok(row);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn read_table_cell(
+        &mut self,
+        is_header: bool,
+        end_tag: &str,
+    ) -> Result<TableCell, HtmlError> {
+        // Real-world HTML frequently wraps cell content in `<div>`, `<p>`, and
+        // similar block-level containers. Flatten those wrappers so the cell
+        // ends up with the combined inline content rather than an empty shell.
+        let mut content: Vec<Span> = Vec::new();
+
+        loop {
+            let (mut spans, extra, closed) = self.read_content(Some(end_tag), None)?;
+
+            if !spans.is_empty() {
+                if !content.is_empty() {
+                    content.push(Span::new_text("\n"));
+                }
+                content.append(&mut spans);
+            }
+
+            if closed {
+                break;
+            }
+
+            let Some(token) = extra else {
+                break;
+            };
+
+            let name = match &token {
+                Token::StartElement(e) => lowercase_name(e.name()),
+                Token::EndElement(e) => lowercase_name(e.name()),
+                _ => {
+                    self.pending_token = Some(token);
+                    break;
+                }
+            };
+
+            if matches!(
+                name.as_str(),
+                "td" | "th" | "tr" | "table" | "thead" | "tbody" | "tfoot"
+            ) {
+                self.pending_token = Some(token);
+                break;
+            }
+
+            // Other block-level wrappers (div, p, li, h1..h3, blockquote, ul,
+            // ol, hr) are dropped; their inline text keeps flowing into the
+            // current cell.
+        }
+
+        trim_trailing_line_breaks(&mut content);
+        trim_trailing_inline_whitespace(&mut content);
+
+        Ok(TableCell {
+            is_header,
+            content,
+        })
+    }
+
+    fn next_table_token(&mut self) -> Result<Option<Token>, HtmlError> {
+        loop {
+            let token = if let Some(token) = self.pending_token.take() {
+                token
+            } else {
+                match self.tokenizer.next_token() {
+                    Ok(token) => token,
+                    Err(TokenizerError::Eof) => return Ok(None),
+                }
+            };
+
+            if self.process_skipped_tags(&token) {
+                continue;
+            }
+
+            if let Token::Text(ref raw) = token {
+                if raw.trim().is_empty() {
+                    continue;
+                }
+            }
+
+            return Ok(Some(token));
+        }
+    }
+
     fn read_text(&mut self) -> Result<(String, Option<Token>), HtmlError> {
         let mut buffer = String::new();
 
@@ -688,6 +888,7 @@ struct ParagraphBuilder {
     content: Vec<Span>,
     entries: Vec<Vec<ParagraphNode>>,
     checklist_states: Vec<Option<bool>>,
+    table_rows: Vec<TableRow>,
 }
 
 impl ParagraphBuilder {
@@ -698,6 +899,7 @@ impl ParagraphBuilder {
             content: Vec::new(),
             entries: Vec::new(),
             checklist_states: Vec::new(),
+            table_rows: Vec::new(),
         }
     }
 
@@ -785,6 +987,9 @@ impl ParagraphBuilder {
                 ParagraphType::Checklist => {
                     Paragraph::new_checklist().with_checklist_items(Vec::new())
                 }
+                ParagraphType::Table => {
+                    Paragraph::new_table().with_rows(borrowed.table_rows.clone())
+                }
             }
         }
     }
@@ -855,6 +1060,9 @@ fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {
             .iter()
             .any(|nested| list_entry_has_meaningful_content(nested)),
         Paragraph::Checklist { items } => !items.is_empty(),
+        Paragraph::Table { rows } => rows
+            .iter()
+            .any(|row| row.cells.iter().any(|cell| !cell.content.is_empty())),
     }
 }
 
@@ -1045,6 +1253,11 @@ fn is_block_level(tag: &str) -> bool {
             | "hr"
             | "tr"
             | "table"
+            | "thead"
+            | "tbody"
+            | "tfoot"
+            | "td"
+            | "th"
     )
 }
 
@@ -1292,5 +1505,54 @@ mod tests {
                 text_paragraph.content()
             );
         }
+    }
+
+    #[test]
+    fn parses_simple_table_with_header_row() {
+        let input = "<table><thead><tr><th>Name</th><th>Age</th></tr></thead>\
+                     <tbody><tr><td>Alice</td><td>30</td></tr>\
+                     <tr><td>Bob</td><td>25</td></tr></tbody></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.paragraph_type(), ParagraphType::Table);
+
+        let rows = paragraph.rows();
+        assert_eq!(rows.len(), 3);
+
+        assert!(rows[0].cells.iter().all(|cell| cell.is_header));
+        assert_eq!(rows[0].cells[0].content[0].text, "Name");
+        assert_eq!(rows[0].cells[1].content[0].text, "Age");
+
+        assert!(rows[1].cells.iter().all(|cell| !cell.is_header));
+        assert_eq!(rows[1].cells[0].content[0].text, "Alice");
+        assert_eq!(rows[1].cells[1].content[0].text, "30");
+
+        assert_eq!(rows[2].cells[0].content[0].text, "Bob");
+    }
+
+    #[test]
+    fn parses_table_with_inline_styles_in_cells() {
+        let input = "<table><tr><th>Col</th></tr><tr><td>hello <b>world</b></td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let table = &document.paragraphs[0];
+        let data_cell = &table.rows()[1].cells[0];
+        assert_eq!(data_cell.content.len(), 2);
+        assert_eq!(data_cell.content[0].text, "hello ");
+        assert_eq!(data_cell.content[1].style, InlineStyle::Bold);
+        assert_eq!(data_cell.content[1].children[0].text, "world");
+    }
+
+    #[test]
+    fn parses_table_without_explicit_tbody() {
+        let input = "<table><tr><td>A</td><td>B</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let table = &document.paragraphs[0];
+        assert_eq!(table.rows().len(), 1);
+        assert_eq!(table.rows()[0].cells.len(), 2);
+        assert!(!table.rows()[0].cells[0].is_header);
     }
 }

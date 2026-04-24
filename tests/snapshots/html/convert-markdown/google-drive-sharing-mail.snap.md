@@ -1,16 +1,28 @@
-Max Mustermann hat 1 Ordner freigegeben
+|                                         |                                                                                                                                              |
+|-----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+|                                         |                                                                                                                                              |
+|                                         |                                                                                                                                              |
+| Max Mustermann hat 1 Ordner freigegeben |                                                                                                                                              |
+|                                         | Max Mustermann \([max@example.example](mailto:max@example.example)\) hat Sie zum **Ansehen** des folgenden freigegebenen Ordners eingeladen: |
 
-Max Mustermann \([max@example.example](mailto:max@example.example)\) hat Sie zum
-**Ansehen** des folgenden freigegebenen Ordners eingeladen:
+|             |
+|-------------|
+| Folder Name |
 
-Folder Name
+|     |
+|-----|
+|     |
 
 [Öffnen](https://example.example/example)
+
+|     |
+|-----|
+|     |
 
 Wenn Sie keine Dateien von dieser Person erhalten möchten, [blockieren Sie den
 Absender](https://example.example/example) in Drive
 
-Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA\
-Sie erhalten diese E\-Mail, weil
-[max@example.example](mailto:max@example.example) eine Datei oder einen Ordner
-in Google Drive für Sie freigegeben hat.
+|                                                                                                                                                                                                                               |     |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----|
+|                                                                                                                                                                                                                               |     |
+| Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA\ Sie erhalten diese E\-Mail, weil [max@example.example](mailto:max@example.example) eine Datei oder einen Ordner in Google Drive für Sie freigegeben hat. |     |

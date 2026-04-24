@@ -24,6 +24,8 @@ pub enum ParagraphType {
     Checklist,
     /// A block quote (`<blockquote>`).
     Quote,
+    /// A tabular data block (`<table>`).
+    Table,
 }
 
 impl fmt::Display for ParagraphType {
@@ -38,6 +40,7 @@ impl fmt::Display for ParagraphType {
             ParagraphType::UnorderedList => "Unordered List",
             ParagraphType::Checklist => "Checklist",
             ParagraphType::Quote => "Quote",
+            ParagraphType::Table => "Table",
         };
         write!(f, "{}", s)
     }
@@ -68,6 +71,7 @@ impl ParagraphType {
             ParagraphType::UnorderedList => "ul",
             ParagraphType::Checklist => "ul",
             ParagraphType::Quote => "blockquote",
+            ParagraphType::Table => "table",
         }
     }
 
@@ -82,6 +86,7 @@ impl ParagraphType {
             "ol" => Some(ParagraphType::OrderedList),
             "ul" => Some(ParagraphType::UnorderedList),
             "blockquote" => Some(ParagraphType::Quote),
+            "table" => Some(ParagraphType::Table),
             _ => None,
         }
     }
@@ -142,6 +147,8 @@ pub enum Paragraph {
     Checklist { items: Vec<ChecklistItem> },
     /// A block quote paragraph that contains nested paragraphs.
     Quote { children: Vec<Paragraph> },
+    /// A table paragraph composed of rows of cells.
+    Table { rows: Vec<TableRow> },
 }
 
 impl Paragraph {
@@ -157,6 +164,7 @@ impl Paragraph {
             ParagraphType::UnorderedList => Self::new_unordered_list(),
             ParagraphType::Checklist => Self::new_checklist(),
             ParagraphType::Quote => Self::new_quote(),
+            ParagraphType::Table => Self::new_table(),
         }
     }
 
@@ -221,6 +229,11 @@ impl Paragraph {
         }
     }
 
+    /// Convenience constructor for [`ParagraphType::Table`].
+    pub fn new_table() -> Self {
+        Self::Table { rows: Vec::new() }
+    }
+
     /// Returns the [`ParagraphType`] of the current paragraph.
     pub fn paragraph_type(&self) -> ParagraphType {
         match self {
@@ -233,6 +246,7 @@ impl Paragraph {
             Paragraph::UnorderedList { .. } => ParagraphType::UnorderedList,
             Paragraph::Checklist { .. } => ParagraphType::Checklist,
             Paragraph::Quote { .. } => ParagraphType::Quote,
+            Paragraph::Table { .. } => ParagraphType::Table,
         }
     }
 
@@ -363,6 +377,99 @@ impl Paragraph {
     /// Appends a single checklist item. Only valid for checklist paragraphs.
     pub fn add_checklist_item(&mut self, item: ChecklistItem) {
         self.checklist_items_mut().push(item);
+    }
+
+    /// Returns the table rows for table paragraphs (or an empty slice).
+    pub fn rows(&self) -> &[TableRow] {
+        match self {
+            Paragraph::Table { rows } => rows,
+            _ => &[],
+        }
+    }
+
+    /// Returns mutable access to table rows for table paragraphs.
+    pub fn rows_mut(&mut self) -> &mut Vec<TableRow> {
+        match self {
+            Paragraph::Table { rows } => rows,
+            _ => panic!("only table paragraphs can hold rows"),
+        }
+    }
+
+    /// Replaces the paragraph's table rows.
+    pub fn with_rows(self, rows: Vec<TableRow>) -> Self {
+        match self {
+            Paragraph::Table { .. } => Paragraph::Table { rows },
+            _ => panic!("only table paragraphs can hold rows"),
+        }
+    }
+
+    /// Appends a single row to a table paragraph.
+    pub fn add_row(&mut self, row: TableRow) {
+        self.rows_mut().push(row);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+/// A single row inside a [`Paragraph::Table`].
+///
+/// Rows carry an ordered list of [`TableCell`]s. The same row may mix header
+/// and data cells freely; that distinction lives on the individual cell.
+pub struct TableRow {
+    pub cells: Vec<TableCell>,
+}
+
+impl TableRow {
+    /// Creates an empty table row.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Replaces the row's cells.
+    pub fn with_cells(mut self, cells: Vec<TableCell>) -> Self {
+        self.cells = cells;
+        self
+    }
+
+    /// Appends a single cell to the row.
+    pub fn add_cell(&mut self, cell: TableCell) {
+        self.cells.push(cell);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+/// A single cell inside a [`TableRow`].
+///
+/// Cells hold inline [`Span`](crate::Span) content and a flag distinguishing
+/// header cells (`<th>`) from data cells (`<td>`). Tables use left-aligned
+/// content by default and do not carry any explicit alignment information.
+pub struct TableCell {
+    pub is_header: bool,
+    pub content: Vec<Span>,
+}
+
+impl TableCell {
+    /// Creates a new cell with the given header flag.
+    pub fn new(is_header: bool) -> Self {
+        Self {
+            is_header,
+            content: Vec::new(),
+        }
+    }
+
+    /// Creates a data cell (`<td>`) with empty content.
+    pub fn new_data() -> Self {
+        Self::new(false)
+    }
+
+    /// Creates a header cell (`<th>`) with empty content.
+    pub fn new_header() -> Self {
+        Self::new(true)
+    }
+
+    /// Replaces the inline content of the cell.
+    pub fn with_content(mut self, content: Vec<Span>) -> Self {
+        self.content = content;
+        self
     }
 }
 
