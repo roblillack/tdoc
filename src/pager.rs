@@ -1741,11 +1741,9 @@ fn draw_scrollbar(
     let knob_size = ((viewport_height * viewport_height) / total_lines).max(1);
     let knob_size = knob_size.min(viewport_height);
     let max_scroll = total_lines - viewport_height;
-    let knob_start = if max_scroll == 0 {
-        0
-    } else {
-        (scroll_offset * (viewport_height - knob_size)) / max_scroll
-    };
+    let knob_start = (scroll_offset * (viewport_height - knob_size))
+        .checked_div(max_scroll)
+        .unwrap_or(0);
     let knob_end = knob_start + knob_size;
 
     for row in 0..viewport_height {
@@ -1954,10 +1952,8 @@ fn handle_key_event(
                 *needs_redraw = true;
             }
         }
-        KeyCode::BackTab => {
-            if state.focus_prev_link() {
-                *needs_redraw = true;
-            }
+        KeyCode::BackTab if state.focus_prev_link() => {
+            *needs_redraw = true;
         }
         KeyCode::Enter => {
             if let Some(target) = state.current_link_target() {
@@ -2067,16 +2063,14 @@ fn handle_mouse_event(
                 *needs_redraw = true;
             }
         }
-        MouseEventKind::Moved => {
-            if !state.is_dragging() {
-                if row < state.viewport_height {
-                    let line_idx = state.scroll_offset + row;
-                    if state.hover_link_at(line_idx, column) {
-                        *needs_redraw = true;
-                    }
-                } else if state.clear_hover() {
+        MouseEventKind::Moved if !state.is_dragging() => {
+            if row < state.viewport_height {
+                let line_idx = state.scroll_offset + row;
+                if state.hover_link_at(line_idx, column) {
                     *needs_redraw = true;
                 }
+            } else if state.clear_hover() {
+                *needs_redraw = true;
             }
         }
         MouseEventKind::Drag(MouseButton::Left) => {
@@ -2209,15 +2203,13 @@ fn run_interactive_pager(
                 }
                 needs_redraw |= key_redraw;
             }
-            Event::Mouse(mouse_event) => {
-                if enable_mouse_capture {
-                    handle_mouse_event(
-                        mouse_event,
-                        &mut state,
-                        &mut needs_redraw,
-                        &mut pending_link,
-                    );
-                }
+            Event::Mouse(mouse_event) if enable_mouse_capture => {
+                handle_mouse_event(
+                    mouse_event,
+                    &mut state,
+                    &mut needs_redraw,
+                    &mut pending_link,
+                );
             }
             Event::Resize(new_width, new_height) => {
                 let new_viewport_height = new_height.saturating_sub(1) as usize;

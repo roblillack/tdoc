@@ -95,11 +95,9 @@ impl<'a> Tokenizer<'a> {
             match curr {
                 b' ' | b'\t' | b'\r' | b'\n' => match state {
                     State::TagName => state = State::TagContent,
-                    State::AttributeValue => {
-                        if !awaiting_attribute_value {
-                            state = State::TagContent;
-                            awaiting_attribute_value = false;
-                        }
+                    State::AttributeValue if !awaiting_attribute_value => {
+                        state = State::TagContent;
+                        awaiting_attribute_value = false;
                     }
                     _ => {}
                 },
