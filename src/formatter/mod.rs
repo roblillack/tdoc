@@ -1502,7 +1502,7 @@ impl<W: Write> Formatter<W> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parse;
+    use crate::ftml::parse;
     use crate::test_helpers::*;
     use std::io::Cursor;
     use std::time::{Duration, Instant};

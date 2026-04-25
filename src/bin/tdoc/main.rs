@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "remote")]
 use std::time::Duration;
 use tdoc::formatter::{Formatter, FormattingStyle};
-use tdoc::{gemini, html, markdown, pager, parse, write, Document};
+use tdoc::{ftml, gemini, html, markdown, pager, Document};
 use url::Url;
 
 #[derive(Parser)]
@@ -253,9 +253,8 @@ fn parse_document(
     display_name: &str,
 ) -> Result<Document, String> {
     match format {
-        InputFormat::Ftml => {
-            parse(reader).map_err(|err| format!("Unable to parse {display_name} as FTML: {err}"))
-        }
+        InputFormat::Ftml => ftml::parse(reader)
+            .map_err(|err| format!("Unable to parse {display_name} as FTML: {err}")),
         InputFormat::Html => html::parse(reader)
             .map_err(|err| format!("Unable to parse {display_name} as HTML: {err}")),
         InputFormat::Markdown => markdown::parse(reader)
@@ -626,7 +625,7 @@ fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {
                     output_path.display()
                 )
             })?;
-            write(&mut file, document).map_err(|err| {
+            ftml::write(&mut file, document).map_err(|err| {
                 format!("Unable to write FTML to {}: {err}", output_path.display())
             })?;
             file.flush()

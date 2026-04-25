@@ -1,7 +1,8 @@
 use std::io::Cursor;
+use tdoc::ftml::{parse, write};
 use tdoc::{
-    formatter::Formatter, ftml, markdown, parse, write, ChecklistItem, Document, InlineStyle,
-    Paragraph, ParagraphType, Span,
+    formatter::Formatter, ftml, markdown, ChecklistItem, Document, InlineStyle, Paragraph,
+    ParagraphType, Span,
 };
 
 #[test]

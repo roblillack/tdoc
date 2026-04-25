@@ -33,7 +33,6 @@ pub mod paragraph;
 pub mod test_helpers;
 
 pub use document::Document;
-pub use ftml::{parse, write};
 pub use inline::{InlineStyle, Span};
 pub use pager::*;
 pub use paragraph::{ChecklistItem, Paragraph, ParagraphType, TableCell, TableRow};
