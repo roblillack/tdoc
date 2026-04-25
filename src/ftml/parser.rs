@@ -316,7 +316,7 @@ impl Tokenizer {
 /// # Examples
 ///
 /// ```
-/// use tdoc::parser::Parser;
+/// use tdoc::ftml::Parser;
 ///
 /// let parser = Parser::new();
 /// let document = parser.parse_string("<p>Hello, world!</p>").unwrap();
@@ -1445,10 +1445,10 @@ fn normalize_spans_spaces(spans: &mut [Span]) {
 ///
 /// ```
 /// use std::io::Cursor;
-/// use tdoc::parser;
+/// use tdoc::ftml;
 ///
 /// let mut input = Cursor::new("<p>Hello!</p>");
-/// let document = parser::parse(&mut input).unwrap();
+/// let document = ftml::parse(&mut input).unwrap();
 /// assert_eq!(document.paragraphs.len(), 1);
 /// ```
 pub fn parse<R: Read>(mut reader: R) -> Result<Document, ParseError> {

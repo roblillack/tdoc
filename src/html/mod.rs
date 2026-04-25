@@ -1,13 +1,13 @@
 //! Parse and emit HTML.
 //!
-//! Unlike [`crate::writer`], which targets FTML and flattens tables to
-//! paragraphs, [`write`] emits real `<table>` markup so HTML output retains the
-//! tabular structure. The two writers share the inline rendering logic; only
-//! table handling differs.
+//! Unlike [`crate::ftml`], which flattens tables to paragraphs, [`write`]
+//! emits real `<table>` markup so HTML output retains the tabular structure.
+//! The two writers share the inline rendering logic; only table handling
+//! differs.
 
 pub mod gockl;
 
-use crate::writer::Writer;
+use crate::ftml::Writer;
 use crate::{
     ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
 };
@@ -1354,7 +1354,7 @@ fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
 }
 
 /// Writes a [`Document`] as HTML markup. Tables are preserved using
-/// `<table>/<tr>/<td>` markup, unlike [`crate::writer::write`] which flattens
+/// `<table>/<tr>/<td>` markup, unlike [`crate::ftml::write`] which flattens
 /// tables to paragraphs because FTML has no table syntax.
 ///
 /// The output is just the document body: it does not include `<!DOCTYPE>` or

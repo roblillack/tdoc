@@ -1,4 +1,6 @@
-//! Serialize [`Document`](crate::Document) trees back into FTML/HTML.
+//! Serialize [`Document`](crate::Document) trees back into FTML.
+//!
+//! For HTML output that preserves table structure, see [`crate::html::write`].
 
 use crate::{
     ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
@@ -7,16 +9,20 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, Write};
 
-/// Emits FTML/HTML markup from a [`Document`] tree.
+/// Emits FTML markup from a [`Document`] tree.
 ///
 /// `Writer` focuses on producing readable markup that preserves semantic tags
 /// such as lists, block quotes, and inline styles. It defaults to two-space
 /// indentation and an 80 character wrap width.
 ///
+/// FTML has no table syntax, so tables are flattened into individual `<p>`
+/// paragraphs. Use [`Writer::new_html`] (or [`crate::html::write`]) to retain
+/// the original `<table>` markup.
+///
 /// # Examples
 ///
 /// ```
-/// use tdoc::{Document, Paragraph, Span, writer::Writer};
+/// use tdoc::{Document, Paragraph, Span, ftml::Writer};
 ///
 /// let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("Hello!")]);
 /// let document = Document::new().with_paragraphs(vec![paragraph]);
