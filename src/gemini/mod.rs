@@ -313,15 +313,16 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
             }
         }
         Paragraph::Table { rows } => {
-            // Gemini has no native table syntax; emit pipe-separated rows.
+            // Gemini has no native table syntax; flatten each non-empty cell
+            // into a plain text line so the content survives the round-trip.
             for row in rows {
-                write!(writer, "|")?;
                 for cell in &row.cells {
-                    write!(writer, " ")?;
+                    if cell.content.iter().all(|span| span.is_content_empty()) {
+                        continue;
+                    }
                     write_spans_plain(writer, &cell.content)?;
-                    write!(writer, " |")?;
+                    writeln!(writer)?;
                 }
-                writeln!(writer)?;
             }
         }
     }

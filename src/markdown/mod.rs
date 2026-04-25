@@ -173,10 +173,7 @@ impl MarkdownBuilder {
                             Paragraph::Text { content } => content,
                             _ => Vec::new(),
                         };
-                        let cell = TableCell {
-                            is_header,
-                            content,
-                        };
+                        let cell = TableCell { is_header, content };
                         if let Some(BlockContext::TableRow { cells }) = self.stack.last_mut() {
                             cells.push(cell);
                         }
@@ -299,10 +296,12 @@ impl MarkdownBuilder {
                 if let Some(BlockContext::Table { in_head, .. }) = self.stack.last_mut() {
                     *in_head = true;
                 }
-                self.stack.push(BlockContext::TableRow { cells: Vec::new() });
+                self.stack
+                    .push(BlockContext::TableRow { cells: Vec::new() });
             }
             Tag::TableRow => {
-                self.stack.push(BlockContext::TableRow { cells: Vec::new() });
+                self.stack
+                    .push(BlockContext::TableRow { cells: Vec::new() });
             }
             Tag::TableCell => {
                 let is_header = self.current_table_in_head();
@@ -414,10 +413,7 @@ impl MarkdownBuilder {
                         Paragraph::Text { content } => content,
                         _ => Vec::new(),
                     };
-                    let cell = TableCell {
-                        is_header,
-                        content,
-                    };
+                    let cell = TableCell { is_header, content };
                     if let Some(BlockContext::TableRow { cells }) = self.stack.last_mut() {
                         cells.push(cell);
                     }
@@ -1140,9 +1136,10 @@ fn write_table<W: Write>(
         }
     }
 
-    let header_is_explicit = rows.first().map(|row| {
-        !row.cells.is_empty() && row.cells.iter().all(|cell| cell.is_header)
-    }).unwrap_or(false);
+    let header_is_explicit = rows
+        .first()
+        .map(|row| !row.cells.is_empty() && row.cells.iter().all(|cell| cell.is_header))
+        .unwrap_or(false);
 
     let write_row = |writer: &mut W, prefix: &str, row: &[String]| -> std::io::Result<()> {
         write!(writer, "{}|", prefix)?;

@@ -2,7 +2,9 @@
 
 pub mod gockl;
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow};
+use crate::{
+    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+};
 use gockl::{Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
 use std::cell::RefCell;
@@ -599,11 +601,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn read_table_cell(
-        &mut self,
-        is_header: bool,
-        end_tag: &str,
-    ) -> Result<TableCell, HtmlError> {
+    fn read_table_cell(&mut self, is_header: bool, end_tag: &str) -> Result<TableCell, HtmlError> {
         // Real-world HTML frequently wraps cell content in `<div>`, `<p>`, and
         // similar block-level containers. Flatten those wrappers so the cell
         // ends up with the combined inline content rather than an empty shell.
@@ -652,10 +650,7 @@ impl<'a> Parser<'a> {
         trim_trailing_line_breaks(&mut content);
         trim_trailing_inline_whitespace(&mut content);
 
-        Ok(TableCell {
-            is_header,
-            content,
-        })
+        Ok(TableCell { is_header, content })
     }
 
     fn next_table_token(&mut self) -> Result<Option<Token>, HtmlError> {

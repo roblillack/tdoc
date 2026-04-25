@@ -1,99 +1,49 @@
-<table>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td>
-      Hi there,<br />
-      <br />
-      Things has been updated with support for macOS Sonoma, iOS 17, and
-      watchOS 10. The update also includes a variety of <b>great improvements for widgets</b>.
-    </td>
-  </tr>
-</table>
+<p>
+  Hi there,<br />
+  <br />
+  Things has been updated with support for macOS Sonoma, iOS 17, and watchOS
+  10. The update also includes a variety of <b>great improvements for widgets</b>.
+</p>
 
-<table>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-</table>
 
-<table>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td>
-      The widgets are now interactive, which means you can complete to-dos
-      right from the Home Screen on your iPhone or iPad. You can also place
-      widgets on your iPad’s Lock Screen, and even your Mac’s desktop.<br />
-      <br />
-      Of course, Things also supports new system features like the iPhone’s
-      StandBy mode and the Apple Watch’s Smart Stack.<br />
-      <br />
-      You can learn more about all the new features on our blog:
-    </td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td>
-      &emsp14;<a href="https://example.example/t/TRACKINGLINK/">What’s New for iOS </a> <br />
-       <a href="https://example.example/t/TRACKINGLINK/">What’s New for Mac </a>
-    </td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td>
-      Things 3.19 is available on the App Store as a free update for all our
-      customers (<a href="https://example.example/t/TRACKINGLINK/">Mac</a>, <a href="https://example.example/t/TRACKINGLINK/">iPad</a>, <a href="https://example.example/t/TRACKINGLINK/">iPhone</a>). The new features also require that you update to the latest versions
-      of macOS, iOS, and watchOS.<br />
-      <br />
-      We hope you enjoy this update! 🙂<br />
-      <br />
-      <i>– The Things Team</i>
-    </td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td>
-      <b>We’re hiring!</b><br />
-      <br />
-      👩🏻‍💻🧑🏽‍💻👨🏿‍💻 There’s a lot of exciting work ahead and we have an open
-      position for a <i>Cloud Platform Engineer</i>. If that sounds like you, or someone you know, please check out our <a href="https://example.example/t/TRACKINGLINK/">jobs page</a> 👩🏾‍💻🧑🏼‍💻👨🏽‍💻
-    </td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-  <tr>
-    <td>
-      We make Things.<br />
-      Cultured Code GmbH & Co. KG<br />
-      Dieselstr. 28, 70469 Stuttgart, Germany<br />
-      <br />
-      You’re receiving this email because you subscribed on our website or in
-      the Things application. <a href="https://example.example/t/TRACKINGLINK/">Unsubscribe</a>
-    </td>
-  </tr>
-  <tr>
-    <td></td>
-  </tr>
-</table>
+<p>
+  The widgets are now interactive, which means you can complete to-dos right
+  from the Home Screen on your iPhone or iPad. You can also place widgets on
+  your iPad’s Lock Screen, and even your Mac’s desktop.<br />
+  <br />
+  Of course, Things also supports new system features like the iPhone’s StandBy
+  mode and the Apple Watch’s Smart Stack.<br />
+  <br />
+  You can learn more about all the new features on our blog:
+</p>
+
+<p>
+  &emsp14;<a href="https://example.example/t/TRACKINGLINK/">What’s New for iOS </a> <br />
+   <a href="https://example.example/t/TRACKINGLINK/">What’s New for Mac </a>
+</p>
+
+<p>
+  Things 3.19 is available on the App Store as a free update for all our
+  customers (<a href="https://example.example/t/TRACKINGLINK/">Mac</a>, <a href="https://example.example/t/TRACKINGLINK/">iPad</a>, <a href="https://example.example/t/TRACKINGLINK/">iPhone</a>). The new features also require that you update to the latest versions of
+  macOS, iOS, and watchOS.<br />
+  <br />
+  We hope you enjoy this update! 🙂<br />
+  <br />
+  <i>– The Things Team</i>
+</p>
+
+<p>
+  <b>We’re hiring!</b><br />
+  <br />
+  👩🏻‍💻🧑🏽‍💻👨🏿‍💻 There’s a lot of exciting work ahead and we have an open
+  position for a <i>Cloud Platform Engineer</i>. If that sounds like you, or someone you know, please check out our <a href="https://example.example/t/TRACKINGLINK/">jobs page</a> 👩🏾‍💻🧑🏼‍💻👨🏽‍💻
+</p>
+
+<p>
+  We make Things.<br />
+  Cultured Code GmbH & Co. KG<br />
+  Dieselstr. 28, 70469 Stuttgart, Germany<br />
+  <br />
+  You’re receiving this email because you subscribed on our website or in the
+  Things application. <a href="https://example.example/t/TRACKINGLINK/">Unsubscribe</a>
+</p>

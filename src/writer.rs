@@ -1,6 +1,6 @@
 //! Serialize [`Document`](crate::Document) trees back into FTML/HTML.
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -215,57 +215,23 @@ impl Writer {
         rows: &[TableRow],
         level: usize,
     ) -> io::Result<()> {
-        self.write_indent(writer, level)?;
-        writeln!(writer, "<table>")?;
-
+        // FTML has no table syntax. Flatten each non-empty cell into its own
+        // `<p>` paragraph so the content survives the round-trip even though
+        // the table structure is lost.
+        let mut first = true;
         for row in rows {
-            self.write_table_row(writer, row, level + 1)?;
+            for cell in &row.cells {
+                if cell.content.iter().all(|span| span.is_content_empty()) {
+                    continue;
+                }
+                if !first {
+                    writeln!(writer)?;
+                }
+                first = false;
+                self.write_leaf_paragraph(writer, &cell.content, "p", level)?;
+            }
         }
-
-        self.write_indent(writer, level)?;
-        writeln!(writer, "</table>")
-    }
-
-    fn write_table_row<W: Write>(
-        &self,
-        writer: &mut W,
-        row: &TableRow,
-        level: usize,
-    ) -> io::Result<()> {
-        self.write_indent(writer, level)?;
-        writeln!(writer, "<tr>")?;
-
-        for cell in &row.cells {
-            self.write_table_cell(writer, cell, level + 1)?;
-        }
-
-        self.write_indent(writer, level)?;
-        writeln!(writer, "</tr>")
-    }
-
-    fn write_table_cell<W: Write>(
-        &self,
-        writer: &mut W,
-        cell: &TableCell,
-        level: usize,
-    ) -> io::Result<()> {
-        let tag = if cell.is_header { "th" } else { "td" };
-        let single_line = self.render_single_line(&cell.content, tag, level);
-
-        if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
-            write!(writer, "{}", single_line)?;
-            return Ok(());
-        }
-
-        self.write_indent(writer, level)?;
-        writeln!(writer, "<{}>", tag)?;
-
-        self.write_indent(writer, level + 1)?;
-        self.write_spans(writer, &cell.content, level + 1, true, true)?;
-        writeln!(writer)?;
-
-        self.write_indent(writer, level)?;
-        writeln!(writer, "</{}>", tag)
+        Ok(())
     }
 
     fn write_checklist_item<W: Write>(
@@ -771,7 +737,9 @@ mod tests {
     }
 
     #[test]
-    fn test_table_writer() {
+    fn test_table_writer_flattens_to_paragraphs() {
+        use crate::{TableCell, TableRow};
+
         let rows = vec![
             TableRow::new().with_cells(vec![
                 TableCell::new_header().with_content(vec![Span::new_text("Name")]),
@@ -779,7 +747,7 @@ mod tests {
             ]),
             TableRow::new().with_cells(vec![
                 TableCell::new_data().with_content(vec![Span::new_text("Alice")]),
-                TableCell::new_data().with_content(vec![Span::new_text("30")]),
+                TableCell::new_data().with_content(vec![]),
             ]),
         ];
         let paragraph = Paragraph::new_table().with_rows(rows);
@@ -788,10 +756,9 @@ mod tests {
         let writer = Writer::new();
         let result = writer.write_to_string(&doc).unwrap();
 
-        assert_eq!(
-            result,
-            "<table>\n  <tr>\n    <th>Name</th>\n    <th>Age</th>\n  </tr>\n  <tr>\n    <td>Alice</td>\n    <td>30</td>\n  </tr>\n</table>\n",
-        );
+        // FTML has no table syntax; cells are flattened to paragraphs and
+        // empty cells are dropped.
+        assert_eq!(result, "<p>Name</p>\n\n<p>Age</p>\n\n<p>Alice</p>\n");
     }
 
     #[test]

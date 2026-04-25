@@ -2536,7 +2536,9 @@ mod tests {
         let doc = Document::new().with_paragraphs(vec![table]);
 
         let mut output = Vec::new();
-        Formatter::new_ascii(&mut output).write_document(&doc).unwrap();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
         let result = String::from_utf8(output).unwrap();
 
         let expected = "+-------+-----+\n\

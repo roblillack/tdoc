@@ -312,27 +312,17 @@
   instructions in /usr/src/UPDATING.
 </p>
 
-<table>
-  <tr>
-    <td></td>
-    <td>
-      Upgrading FreeBSD should only be attempted after backing up <i>all</i> data and configuration files.
-    </td>
-  </tr>
-</table>
+<p>
+  Upgrading FreeBSD should only be attempted after backing up <i>all</i> data and configuration files.
+</p>
 
 <h2>Upgrading from Existing Pre-Release Base System Package Installs</h2>
 
-<table>
-  <tr>
-    <td></td>
-    <td>
-      For users of PRERELEASE, ALPHA, and BETA builds of FreeBSD 15.0, due to
-      late-breaking changes in FreeBSD.org infrastructure, it is not possible
-      to upgrade directly using the <a href="https://man.freebsd.org/cgi/man.cgi?query=pkg-upgrade&amp;sektion=8&amp;format=html">pkg-upgrade(8)</a> utility.
-    </td>
-  </tr>
-</table>
+<p>
+  For users of PRERELEASE, ALPHA, and BETA builds of FreeBSD 15.0, due to
+  late-breaking changes in FreeBSD.org infrastructure, it is not possible to
+  upgrade directly using the <a href="https://man.freebsd.org/cgi/man.cgi?query=pkg-upgrade&amp;sektion=8&amp;format=html">pkg-upgrade(8)</a> utility.
+</p>
 
 <p>
   Users should either manually copy the required files from a source tree
@@ -367,14 +357,9 @@ ab261a3b84ffc11654ac0bafbb7d6b3f1b6afc30bfabab3bcff64259678eac26 /etc/pkg/FreeBS
 c368ec8d05654bdaad34742c1d75b9b150bfc3892838cef32f6e5b036b0c0605 /usr/share/keys/pkgbase-15/trusted/backup-signing-15
 </pre>
 
-<table>
-  <tr>
-    <td></td>
-    <td>
-      Upgrading FreeBSD should only be attempted after backing up <i>all</i> data and configuration files.
-    </td>
-  </tr>
-</table>
+<p>
+  Upgrading FreeBSD should only be attempted after backing up <i>all</i> data and configuration files.
+</p>
 
 <h2>Included Security Fixes and Errata Patches</h2>
 
@@ -385,600 +370,669 @@ c368ec8d05654bdaad34742c1d75b9b150bfc3892838cef32f6e5b036b0c0605 /usr/share/keys
 
 <h3>Fixed Security Advisories</h3>
 
-<table>
-  <tr>
-    <th>Advisory</th>
-    <th>Date</th>
-    <th>Topic</th>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-23:17.pf.asc">FreeBSD-SA-23:17.pf</a>
-    </td>
-    <td>05 December 2023</td>
-    <td>
-      TCP spoofing vulnerability in <a href="https://man.freebsd.org/cgi/man.cgi?query=pf&amp;sektion=4&amp;format=html">pf(4)</a>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-23:18.nfsclient.asc">FreeBSD-SA-23:18.nfsclient</a>
-    </td>
-    <td>12 December 2023</td>
-    <td>NFS client data corruption and kernel memory disclosure</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-23:19.openssh.asc">FreeBSD-SA-23:19.openssh</a>
-    </td>
-    <td>19 December 2023</td>
-    <td>Prefix Truncation Attack in the SSH protocol</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:01.bhyveload.asc">FreeBSD-SA-24:01.bhyveload</a>
-    </td>
-    <td>14 February 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyveload&amp;sektion=8&amp;format=html">bhyveload(8)</a> host file access
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:02.tty.asc">FreeBSD-SA-24:02.tty</a>
-    </td>
-    <td>14 February 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=jail&amp;sektion=2&amp;format=html">jail(2)</a> information leak
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:03.unbound.asc">FreeBSD-SA-24:03.unbound</a>
-    </td>
-    <td>28 March 2024</td>
-    <td>Multiple vulnerabilities in unbound</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:04.openssh.asc">FreeBSD-SA-24:04.openssh</a>
-    </td>
-    <td>01 July 2024</td>
-    <td>OpenSSH pre-authentication remote code execution</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:05.pf.asc">FreeBSD-SA-24:05.pf</a>
-    </td>
-    <td>07 August 2024</td>
-    <td>pf incorrectly matches different ICMPv6 states in the state table</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:06.ktrace.asc">FreeBSD-SA-24:06.ktrace</a>
-    </td>
-    <td>07 August 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=ktrace&amp;sektion=2&amp;format=html">ktrace(2)</a> fails to detach when executing a setuid binary
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:07.nfsclient.asc">FreeBSD-SA-24:07.nfsclient</a>
-    </td>
-    <td>07 August 2024</td>
-    <td>NFS client accepts file names containing path separators</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:08.openssh.asc">FreeBSD-SA-24:08.openssh</a>
-    </td>
-    <td>07 August 2024</td>
-    <td>OpenSSH pre-authentication async signal safety issue</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:09.libnv.asc">FreeBSD-SA-24:09.libnv</a>
-    </td>
-    <td>04 September 2024</td>
-    <td>Multiple vulnerabilities in libnv</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:10.bhyve.asc">FreeBSD-SA-24:10.bhyve</a>
-    </td>
-    <td>04 September 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyve&amp;sektion=8&amp;format=html">bhyve(8)</a> privileged guest escape via TPM device passthrough
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:11.ctl.asc">FreeBSD-SA-24:11.ctl</a>
-    </td>
-    <td>04 September 2024</td>
-    <td>
-      Multiple issues in <a href="https://man.freebsd.org/cgi/man.cgi?query=ctl&amp;sektion=4&amp;format=html">ctl(4)</a> CAM Target Layer
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:12.bhyve.asc">FreeBSD-SA-24:12.bhyve</a>
-    </td>
-    <td>04 September 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyve&amp;sektion=8&amp;format=html">bhyve(8)</a> privileged guest escape via USB controller
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:13.openssl.asc">FreeBSD-SA-24:13.openssl</a>
-    </td>
-    <td>04 September 2024</td>
-    <td>Possible DoS in X.509 name checks in OpenSSL</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:14.umtx.asc">FreeBSD-SA-24:14.umtx</a>
-    </td>
-    <td>04 September 2024</td>
-    <td>umtx Kernel panic or Use-After-Free</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:15.bhyve.asc">FreeBSD-SA-24:15.bhyve</a>
-    </td>
-    <td>19 September 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyve&amp;sektion=8&amp;format=html">bhyve(8)</a> out-of-bounds read access via XHCI emulation
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:16.libnv.asc">FreeBSD-SA-24:16.libnv</a>
-    </td>
-    <td>19 September 2024</td>
-    <td>Integer overflow in libnv</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:17.bhyve.asc">FreeBSD-SA-24:17.bhyve</a>
-    </td>
-    <td>29 October 2024</td>
-    <td>Multiple issues in the bhyve hypervisor</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:18.ctl.asc">FreeBSD-SA-24:18.ctl</a>
-    </td>
-    <td>29 October 2024</td>
-    <td>
-      Unbounded allocation in <a href="https://man.freebsd.org/cgi/man.cgi?query=ctl&amp;sektion=4&amp;format=html">ctl(4)</a> CAM Target Layer
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:19.fetch.asc">FreeBSD-SA-24:19.fetch</a>
-    </td>
-    <td>29 October 2024</td>
-    <td>
-      Certificate revocation list <a href="https://man.freebsd.org/cgi/man.cgi?query=fetch&amp;sektion=1&amp;format=html">fetch(1)</a> option fails
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:01.openssh.asc">FreeBSD-SA-25:01.openssh</a>
-    </td>
-    <td>29 January 2025</td>
-    <td>OpenSSH Keystroke Obfuscation Bypass</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:02.fs.asc">FreeBSD-SA-25:02.fs</a>
-    </td>
-    <td>29 January 2025</td>
-    <td>Buffer overflow in some filesystems via NFS</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:03.etcupdate.asc">FreeBSD-SA-25:03.etcupdate</a>
-    </td>
-    <td>29 January 2025</td>
-    <td>Unprivileged access to system files</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:04.ktrace.asc">FreeBSD-SA-25:04.ktrace</a>
-    </td>
-    <td>29 January 2025</td>
-    <td>
-      Uninitialized kernel memory disclosure via <a href="https://man.freebsd.org/cgi/man.cgi?query=ktrace&amp;sektion=2&amp;format=html">ktrace(2)</a>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:05.openssh.asc">FreeBSD-SA-25:05.openssh</a>
-    </td>
-    <td>21 February 2025</td>
-    <td>Multiple vulnerabilities in OpenSSH</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:06.xz.asc">FreeBSD-SA-25:06.xz</a>
-    </td>
-    <td>02 July 2025</td>
-    <td>Use-after-free in multi-threaded xz decoder</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:07.libarchive.asc">FreeBSD-SA-25:07.libarchive</a>
-    </td>
-    <td>08 August 2025</td>
-    <td>Integer overflow in libarchive leading to double free</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:08.openssl.asc">FreeBSD-SA-25:08.openssl</a>
-    </td>
-    <td>30 September 2025</td>
-    <td>Multiple vulnerabilities in OpenSSL</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:09.netinet.asc">FreeBSD-SA-25:09.netinet</a>
-    </td>
-    <td>22 October 2025</td>
-    <td>
-      <code>SO_REUSEPORT_LB</code> breaks <a href="https://man.freebsd.org/cgi/man.cgi?query=connect&amp;sektion=2&amp;format=html">connect(2)</a> for UDP sockets
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:10.unbound.asc">FreeBSD-SA-25:10.unbound</a>
-    </td>
-    <td>26 November 2025</td>
-    <td>Cache poison in local-unbound service</td>
-  </tr>
-</table>
+<p>Advisory</p>
+
+<p>Date</p>
+
+<p>Topic</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-23:17.pf.asc">FreeBSD-SA-23:17.pf</a>
+</p>
+
+<p>05 December 2023</p>
+
+<p>
+  TCP spoofing vulnerability in <a href="https://man.freebsd.org/cgi/man.cgi?query=pf&amp;sektion=4&amp;format=html">pf(4)</a>
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-23:18.nfsclient.asc">FreeBSD-SA-23:18.nfsclient</a>
+</p>
+
+<p>12 December 2023</p>
+
+<p>NFS client data corruption and kernel memory disclosure</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-23:19.openssh.asc">FreeBSD-SA-23:19.openssh</a>
+</p>
+
+<p>19 December 2023</p>
+
+<p>Prefix Truncation Attack in the SSH protocol</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:01.bhyveload.asc">FreeBSD-SA-24:01.bhyveload</a>
+</p>
+
+<p>14 February 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyveload&amp;sektion=8&amp;format=html">bhyveload(8)</a> host file access
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:02.tty.asc">FreeBSD-SA-24:02.tty</a>
+</p>
+
+<p>14 February 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=jail&amp;sektion=2&amp;format=html">jail(2)</a> information leak
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:03.unbound.asc">FreeBSD-SA-24:03.unbound</a>
+</p>
+
+<p>28 March 2024</p>
+
+<p>Multiple vulnerabilities in unbound</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:04.openssh.asc">FreeBSD-SA-24:04.openssh</a>
+</p>
+
+<p>01 July 2024</p>
+
+<p>OpenSSH pre-authentication remote code execution</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:05.pf.asc">FreeBSD-SA-24:05.pf</a>
+</p>
+
+<p>07 August 2024</p>
+
+<p>pf incorrectly matches different ICMPv6 states in the state table</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:06.ktrace.asc">FreeBSD-SA-24:06.ktrace</a>
+</p>
+
+<p>07 August 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=ktrace&amp;sektion=2&amp;format=html">ktrace(2)</a> fails to detach when executing a setuid binary
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:07.nfsclient.asc">FreeBSD-SA-24:07.nfsclient</a>
+</p>
+
+<p>07 August 2024</p>
+
+<p>NFS client accepts file names containing path separators</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:08.openssh.asc">FreeBSD-SA-24:08.openssh</a>
+</p>
+
+<p>07 August 2024</p>
+
+<p>OpenSSH pre-authentication async signal safety issue</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:09.libnv.asc">FreeBSD-SA-24:09.libnv</a>
+</p>
+
+<p>04 September 2024</p>
+
+<p>Multiple vulnerabilities in libnv</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:10.bhyve.asc">FreeBSD-SA-24:10.bhyve</a>
+</p>
+
+<p>04 September 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyve&amp;sektion=8&amp;format=html">bhyve(8)</a> privileged guest escape via TPM device passthrough
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:11.ctl.asc">FreeBSD-SA-24:11.ctl</a>
+</p>
+
+<p>04 September 2024</p>
+
+<p>
+  Multiple issues in <a href="https://man.freebsd.org/cgi/man.cgi?query=ctl&amp;sektion=4&amp;format=html">ctl(4)</a> CAM Target Layer
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:12.bhyve.asc">FreeBSD-SA-24:12.bhyve</a>
+</p>
+
+<p>04 September 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyve&amp;sektion=8&amp;format=html">bhyve(8)</a> privileged guest escape via USB controller
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:13.openssl.asc">FreeBSD-SA-24:13.openssl</a>
+</p>
+
+<p>04 September 2024</p>
+
+<p>Possible DoS in X.509 name checks in OpenSSL</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:14.umtx.asc">FreeBSD-SA-24:14.umtx</a>
+</p>
+
+<p>04 September 2024</p>
+
+<p>umtx Kernel panic or Use-After-Free</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:15.bhyve.asc">FreeBSD-SA-24:15.bhyve</a>
+</p>
+
+<p>19 September 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=bhyve&amp;sektion=8&amp;format=html">bhyve(8)</a> out-of-bounds read access via XHCI emulation
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:16.libnv.asc">FreeBSD-SA-24:16.libnv</a>
+</p>
+
+<p>19 September 2024</p>
+
+<p>Integer overflow in libnv</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:17.bhyve.asc">FreeBSD-SA-24:17.bhyve</a>
+</p>
+
+<p>29 October 2024</p>
+
+<p>Multiple issues in the bhyve hypervisor</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:18.ctl.asc">FreeBSD-SA-24:18.ctl</a>
+</p>
+
+<p>29 October 2024</p>
+
+<p>
+  Unbounded allocation in <a href="https://man.freebsd.org/cgi/man.cgi?query=ctl&amp;sektion=4&amp;format=html">ctl(4)</a> CAM Target Layer
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-24:19.fetch.asc">FreeBSD-SA-24:19.fetch</a>
+</p>
+
+<p>29 October 2024</p>
+
+<p>
+  Certificate revocation list <a href="https://man.freebsd.org/cgi/man.cgi?query=fetch&amp;sektion=1&amp;format=html">fetch(1)</a> option fails
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:01.openssh.asc">FreeBSD-SA-25:01.openssh</a>
+</p>
+
+<p>29 January 2025</p>
+
+<p>OpenSSH Keystroke Obfuscation Bypass</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:02.fs.asc">FreeBSD-SA-25:02.fs</a>
+</p>
+
+<p>29 January 2025</p>
+
+<p>Buffer overflow in some filesystems via NFS</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:03.etcupdate.asc">FreeBSD-SA-25:03.etcupdate</a>
+</p>
+
+<p>29 January 2025</p>
+
+<p>Unprivileged access to system files</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:04.ktrace.asc">FreeBSD-SA-25:04.ktrace</a>
+</p>
+
+<p>29 January 2025</p>
+
+<p>
+  Uninitialized kernel memory disclosure via <a href="https://man.freebsd.org/cgi/man.cgi?query=ktrace&amp;sektion=2&amp;format=html">ktrace(2)</a>
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:05.openssh.asc">FreeBSD-SA-25:05.openssh</a>
+</p>
+
+<p>21 February 2025</p>
+
+<p>Multiple vulnerabilities in OpenSSH</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:06.xz.asc">FreeBSD-SA-25:06.xz</a>
+</p>
+
+<p>02 July 2025</p>
+
+<p>Use-after-free in multi-threaded xz decoder</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:07.libarchive.asc">FreeBSD-SA-25:07.libarchive</a>
+</p>
+
+<p>08 August 2025</p>
+
+<p>Integer overflow in libarchive leading to double free</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:08.openssl.asc">FreeBSD-SA-25:08.openssl</a>
+</p>
+
+<p>30 September 2025</p>
+
+<p>Multiple vulnerabilities in OpenSSL</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:09.netinet.asc">FreeBSD-SA-25:09.netinet</a>
+</p>
+
+<p>22 October 2025</p>
+
+<p>
+  <code>SO_REUSEPORT_LB</code> breaks <a href="https://man.freebsd.org/cgi/man.cgi?query=connect&amp;sektion=2&amp;format=html">connect(2)</a> for UDP sockets
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-25:10.unbound.asc">FreeBSD-SA-25:10.unbound</a>
+</p>
+
+<p>26 November 2025</p>
+
+<p>Cache poison in local-unbound service</p>
 
 <h3>Patched Errata Notices</h3>
 
-<table>
-  <tr>
-    <th>Errata</th>
-    <th>Date</th>
-    <th>Topic</th>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:15.sanitizer.asc">FreeBSD-EN-23:15:sanitizer</a>
-    </td>
-    <td>01 December 2023</td>
-    <td>Clang sanitizer failure with ASLR enabled</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:16.openzfs.asc">FreeBSD-EN-23:16:openzfs</a>
-    </td>
-    <td>01 December 2023</td>
-    <td>OpenZFS data corruption</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:17.ossl.asc">FreeBSD-EN-23:17:ossl</a>
-    </td>
-    <td>05 December 2023</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=ossl&amp;sektion=4&amp;format=html">ossl(4)</a>'s AES-GCM implementation may give incorrect results
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:18.openzfs.asc">FreeBSD-EN-23:18:openzfs</a>
-    </td>
-    <td>05 December 2023</td>
-    <td>High CPU usage by ZFS kernel threads</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:19.pkgbase.asc">FreeBSD-EN-23:19:pkgbase</a>
-    </td>
-    <td>05 December 2023</td>
-    <td>Incorrect pkgbase version number for FreeBSD 14.0-RELEASE.</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:20.vm.asc">FreeBSD-EN-23:20:vm</a>
-    </td>
-    <td>05 December 2023</td>
-    <td>Incorrect results from the kernel physical memory allocator</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:21.tty.asc">FreeBSD-EN-23:21:tty</a>
-    </td>
-    <td>24 November 2023</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=tty&amp;sektion=4&amp;format=html">tty(4)</a> IUTF8 causes a kernel panic
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:22.vfs.asc">FreeBSD-EN-23:22:vfs</a>
-    </td>
-    <td>05 December 2023</td>
-    <td>ZFS snapshot directories not accessible over NFS</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:01.tzdata.asc">FreeBSD-EN-24:01:tzdata</a>
-    </td>
-    <td>14 February 2024</td>
-    <td>Timezone database information update</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:02.libutil.asc">FreeBSD-EN-24:02:libutil</a>
-    </td>
-    <td>14 February 2024</td>
-    <td>Login class resource limits and CPU mask bypass</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:03.kqueue.asc">FreeBSD-EN-24:03:kqueue</a>
-    </td>
-    <td>14 February 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=kqueue_close&amp;sektion=2&amp;format=html">kqueue_close(2)</a> page fault on exit using <a href="https://man.freebsd.org/cgi/man.cgi?query=rfork&amp;sektion=2&amp;format=html">rfork(2)</a>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:04.ip.asc">FreeBSD-EN-24:04:ip</a>
-    </td>
-    <td>14 February 2024</td>
-    <td>
-      Kernel panic triggered by <a href="https://man.freebsd.org/cgi/man.cgi?query=bind&amp;sektion=2&amp;format=html">bind(2)</a>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:05.tty.asc">FreeBSD-EN-24:05:tty</a>
-    </td>
-    <td>28 March 2024</td>
-    <td>TTY Kernel Panic</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:06.wireguard.asc">FreeBSD-EN-24:06:wireguard</a>
-    </td>
-    <td>28 March 2024</td>
-    <td>
-      Insufficient barriers in WireGuard <a href="https://man.freebsd.org/cgi/man.cgi?query=if_wg&amp;sektion=4&amp;format=html">if_wg(4)</a>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:07.clang.asc">FreeBSD-EN-24:07:clang</a>
-    </td>
-    <td>28 March 2024</td>
-    <td>Clang crash when certain optimization is enabled</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:08.kerberos.asc">FreeBSD-EN-24:08:kerberos</a>
-    </td>
-    <td>28 March 2024</td>
-    <td>Kerberos segfaults when using weak crypto</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:09.zfs.asc">FreeBSD-EN-24:09:zfs</a>
-    </td>
-    <td>24 April 2024</td>
-    <td>High CPU usage by kernel threads related to ZFS</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:10.zfs.asc">FreeBSD-EN-24:10:zfs</a>
-    </td>
-    <td>19 June 2024</td>
-    <td>Kernel memory leak in ZFS</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:11.ldns.asc">FreeBSD-EN-24:11:ldns</a>
-    </td>
-    <td>19 June 2024</td>
-    <td>LDNS uses nameserver commented out in resolv.conf</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:12.killpg.asc">FreeBSD-EN-24:12:killpg</a>
-    </td>
-    <td>19 June 2024</td>
-    <td>Lock order reversal in killpg causing livelock</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:13.libc%2B%2B.asc">FreeBSD-EN-24:13:libc++</a>
-    </td>
-    <td>19 June 2024</td>
-    <td>Incorrect size passed to heap allocated std::string delete</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:14.ifconfig.asc">FreeBSD-EN-24:14:ifconfig</a>
-    </td>
-    <td>07 August 2024</td>
-    <td>Incorrect ifconfig netmask assignment</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:15.calendar.asc">FreeBSD-EN-24:15:calendar</a>
-    </td>
-    <td>04 September 2024</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=cron&amp;sektion=8&amp;format=html">cron(8)</a> / <a href="https://man.freebsd.org/cgi/man.cgi?query=periodic&amp;sektion=8&amp;format=html">periodic(8)</a> session login
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:16.pf.asc">FreeBSD-EN-24:16:pf</a>
-    </td>
-    <td>19 September 2024</td>
-    <td>Incorrect ICMPv6 state handling in pf</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:17.pam_xdg.asc">FreeBSD-EN-24:17:pam_xdg</a>
-    </td>
-    <td>20 October 2024</td>
-    <td>XDG runtime directory’s file descriptor leak at login</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:01.rpc.asc">FreeBSD-EN-25:01.rpc</a>
-    </td>
-    <td>29 January 2025</td>
-    <td>NULL pointer dereference in the NFSv4 client</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:02.audit.asc">FreeBSD-EN-25:02.audit</a>
-    </td>
-    <td>29 January 2025</td>
-    <td>System call auditing disabled by DTrace</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:03.tzdata.asc">FreeBSD-EN-25:03.tzdata</a>
-    </td>
-    <td>29 January 2025</td>
-    <td>Timezone database information update</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:04.tzdata.asc">FreeBSD-EN-25:04.tzdata</a>
-    </td>
-    <td>10 April 2025</td>
-    <td>Timezone database information update</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:05.expat.asc">FreeBSD-EN-25:05.expat</a>
-    </td>
-    <td>10 April 2025</td>
-    <td>Update expat to 2.7.1</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:06.daemon.asc">FreeBSD-EN-25:06.daemon</a>
-    </td>
-    <td>10 April 2025</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=daemon&amp;sektion=8&amp;format=html">daemon(8)</a> missing signals
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:07.openssl.asc">FreeBSD-EN-25:07.openssl</a>
-    </td>
-    <td>10 April 2025</td>
-    <td>Update OpenSSL to 3.0.16</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:08.caroot.asc">FreeBSD-EN-25:08.caroot</a>
-    </td>
-    <td>10 April 2025</td>
-    <td>Root certificate bundle update</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:09.libc.asc">FreeBSD-EN-25:09:libc</a>
-    </td>
-    <td>02 July 2025</td>
-    <td>Dynamically-loaded C++ libraries crashing at exit</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:10.zfs.asc">FreeBSD-EN-25:10:zfs</a>
-    </td>
-    <td>02 July 2025</td>
-    <td>Corruption in ZFS replication streams from encrypted datasets</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:11.ena.asc">FreeBSD-EN-25:11:ena</a>
-    </td>
-    <td>02 July 2025</td>
-    <td>
-      <code>ena</code> resets and kernel panic on Nitro v4 or newer instances
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:12.efi.asc">FreeBSD-EN-25:12:efi</a>
-    </td>
-    <td>08 August 2025</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=bsdinstall&amp;sektion=8&amp;format=html">bsdinstall(8)</a> not copying the correct loader on systems with IA32 UEFI firmware.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:13.wlan_tkip.asc">FreeBSD-EN-25:13:wlan_tkip</a>
-    </td>
-    <td>08 August 2025</td>
-    <td>net80211 TKIP crypto support fails for some drivers</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:14.route.asc">FreeBSD-EN-25:14:route</a>
-    </td>
-    <td>08 August 2025</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=route&amp;sektion=8&amp;format=html">route(8)</a> monitor buffers too much when redirected to a file
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:15.arm64.asc">FreeBSD-EN-25:15:arm64</a>
-    </td>
-    <td>16 September 2025</td>
-    <td>
-      arm64 <a href="https://man.freebsd.org/cgi/man.cgi?query=syscall&amp;sektion=2&amp;format=html">syscall(2)</a> allows unprivileged user to panic kernel
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:16.vfs.asc">FreeBSD-EN-25:16:vfs</a>
-    </td>
-    <td>16 September 2025</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=copy_file_range&amp;sektion=2&amp;format=html">copy_file_range(2)</a> fails to set output parameters
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:17.bnxt.asc">FreeBSD-EN-25:17:bnxt</a>
-    </td>
-    <td>16 September 2025</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=bnxt&amp;sektion=4&amp;format=html">bnxt(4)</a> fails to set media type in some cases
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:18.freebsd-update.asc">FreeBSD-EN-25:18:freebsd-update</a>
-    </td>
-    <td>30 September 2025</td>
-    <td>
-      <a href="https://man.freebsd.org/cgi/man.cgi?query=freebsd-update&amp;sektion=8&amp;format=html">freebsd-update(8)</a> installs libraries in incorrect order
-    </td>
-  </tr>
-</table>
+<p>Errata</p>
+
+<p>Date</p>
+
+<p>Topic</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:15.sanitizer.asc">FreeBSD-EN-23:15:sanitizer</a>
+</p>
+
+<p>01 December 2023</p>
+
+<p>Clang sanitizer failure with ASLR enabled</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:16.openzfs.asc">FreeBSD-EN-23:16:openzfs</a>
+</p>
+
+<p>01 December 2023</p>
+
+<p>OpenZFS data corruption</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:17.ossl.asc">FreeBSD-EN-23:17:ossl</a>
+</p>
+
+<p>05 December 2023</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=ossl&amp;sektion=4&amp;format=html">ossl(4)</a>'s AES-GCM implementation may give incorrect results
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:18.openzfs.asc">FreeBSD-EN-23:18:openzfs</a>
+</p>
+
+<p>05 December 2023</p>
+
+<p>High CPU usage by ZFS kernel threads</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:19.pkgbase.asc">FreeBSD-EN-23:19:pkgbase</a>
+</p>
+
+<p>05 December 2023</p>
+
+<p>Incorrect pkgbase version number for FreeBSD 14.0-RELEASE.</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:20.vm.asc">FreeBSD-EN-23:20:vm</a>
+</p>
+
+<p>05 December 2023</p>
+
+<p>Incorrect results from the kernel physical memory allocator</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:21.tty.asc">FreeBSD-EN-23:21:tty</a>
+</p>
+
+<p>24 November 2023</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=tty&amp;sektion=4&amp;format=html">tty(4)</a> IUTF8 causes a kernel panic
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:22.vfs.asc">FreeBSD-EN-23:22:vfs</a>
+</p>
+
+<p>05 December 2023</p>
+
+<p>ZFS snapshot directories not accessible over NFS</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:01.tzdata.asc">FreeBSD-EN-24:01:tzdata</a>
+</p>
+
+<p>14 February 2024</p>
+
+<p>Timezone database information update</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:02.libutil.asc">FreeBSD-EN-24:02:libutil</a>
+</p>
+
+<p>14 February 2024</p>
+
+<p>Login class resource limits and CPU mask bypass</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:03.kqueue.asc">FreeBSD-EN-24:03:kqueue</a>
+</p>
+
+<p>14 February 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=kqueue_close&amp;sektion=2&amp;format=html">kqueue_close(2)</a> page fault on exit using <a href="https://man.freebsd.org/cgi/man.cgi?query=rfork&amp;sektion=2&amp;format=html">rfork(2)</a>
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:04.ip.asc">FreeBSD-EN-24:04:ip</a>
+</p>
+
+<p>14 February 2024</p>
+
+<p>
+  Kernel panic triggered by <a href="https://man.freebsd.org/cgi/man.cgi?query=bind&amp;sektion=2&amp;format=html">bind(2)</a>
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:05.tty.asc">FreeBSD-EN-24:05:tty</a>
+</p>
+
+<p>28 March 2024</p>
+
+<p>TTY Kernel Panic</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:06.wireguard.asc">FreeBSD-EN-24:06:wireguard</a>
+</p>
+
+<p>28 March 2024</p>
+
+<p>
+  Insufficient barriers in WireGuard <a href="https://man.freebsd.org/cgi/man.cgi?query=if_wg&amp;sektion=4&amp;format=html">if_wg(4)</a>
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:07.clang.asc">FreeBSD-EN-24:07:clang</a>
+</p>
+
+<p>28 March 2024</p>
+
+<p>Clang crash when certain optimization is enabled</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:08.kerberos.asc">FreeBSD-EN-24:08:kerberos</a>
+</p>
+
+<p>28 March 2024</p>
+
+<p>Kerberos segfaults when using weak crypto</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:09.zfs.asc">FreeBSD-EN-24:09:zfs</a>
+</p>
+
+<p>24 April 2024</p>
+
+<p>High CPU usage by kernel threads related to ZFS</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:10.zfs.asc">FreeBSD-EN-24:10:zfs</a>
+</p>
+
+<p>19 June 2024</p>
+
+<p>Kernel memory leak in ZFS</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:11.ldns.asc">FreeBSD-EN-24:11:ldns</a>
+</p>
+
+<p>19 June 2024</p>
+
+<p>LDNS uses nameserver commented out in resolv.conf</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:12.killpg.asc">FreeBSD-EN-24:12:killpg</a>
+</p>
+
+<p>19 June 2024</p>
+
+<p>Lock order reversal in killpg causing livelock</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:13.libc%2B%2B.asc">FreeBSD-EN-24:13:libc++</a>
+</p>
+
+<p>19 June 2024</p>
+
+<p>Incorrect size passed to heap allocated std::string delete</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:14.ifconfig.asc">FreeBSD-EN-24:14:ifconfig</a>
+</p>
+
+<p>07 August 2024</p>
+
+<p>Incorrect ifconfig netmask assignment</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:15.calendar.asc">FreeBSD-EN-24:15:calendar</a>
+</p>
+
+<p>04 September 2024</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=cron&amp;sektion=8&amp;format=html">cron(8)</a> / <a href="https://man.freebsd.org/cgi/man.cgi?query=periodic&amp;sektion=8&amp;format=html">periodic(8)</a> session login
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:16.pf.asc">FreeBSD-EN-24:16:pf</a>
+</p>
+
+<p>19 September 2024</p>
+
+<p>Incorrect ICMPv6 state handling in pf</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-24:17.pam_xdg.asc">FreeBSD-EN-24:17:pam_xdg</a>
+</p>
+
+<p>20 October 2024</p>
+
+<p>XDG runtime directory’s file descriptor leak at login</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:01.rpc.asc">FreeBSD-EN-25:01.rpc</a>
+</p>
+
+<p>29 January 2025</p>
+
+<p>NULL pointer dereference in the NFSv4 client</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:02.audit.asc">FreeBSD-EN-25:02.audit</a>
+</p>
+
+<p>29 January 2025</p>
+
+<p>System call auditing disabled by DTrace</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:03.tzdata.asc">FreeBSD-EN-25:03.tzdata</a>
+</p>
+
+<p>29 January 2025</p>
+
+<p>Timezone database information update</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:04.tzdata.asc">FreeBSD-EN-25:04.tzdata</a>
+</p>
+
+<p>10 April 2025</p>
+
+<p>Timezone database information update</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:05.expat.asc">FreeBSD-EN-25:05.expat</a>
+</p>
+
+<p>10 April 2025</p>
+
+<p>Update expat to 2.7.1</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:06.daemon.asc">FreeBSD-EN-25:06.daemon</a>
+</p>
+
+<p>10 April 2025</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=daemon&amp;sektion=8&amp;format=html">daemon(8)</a> missing signals
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:07.openssl.asc">FreeBSD-EN-25:07.openssl</a>
+</p>
+
+<p>10 April 2025</p>
+
+<p>Update OpenSSL to 3.0.16</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:08.caroot.asc">FreeBSD-EN-25:08.caroot</a>
+</p>
+
+<p>10 April 2025</p>
+
+<p>Root certificate bundle update</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:09.libc.asc">FreeBSD-EN-25:09:libc</a>
+</p>
+
+<p>02 July 2025</p>
+
+<p>Dynamically-loaded C++ libraries crashing at exit</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:10.zfs.asc">FreeBSD-EN-25:10:zfs</a>
+</p>
+
+<p>02 July 2025</p>
+
+<p>Corruption in ZFS replication streams from encrypted datasets</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:11.ena.asc">FreeBSD-EN-25:11:ena</a>
+</p>
+
+<p>02 July 2025</p>
+
+<p><code>ena</code> resets and kernel panic on Nitro v4 or newer instances</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:12.efi.asc">FreeBSD-EN-25:12:efi</a>
+</p>
+
+<p>08 August 2025</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=bsdinstall&amp;sektion=8&amp;format=html">bsdinstall(8)</a> not copying the correct loader on systems with IA32 UEFI firmware.
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:13.wlan_tkip.asc">FreeBSD-EN-25:13:wlan_tkip</a>
+</p>
+
+<p>08 August 2025</p>
+
+<p>net80211 TKIP crypto support fails for some drivers</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:14.route.asc">FreeBSD-EN-25:14:route</a>
+</p>
+
+<p>08 August 2025</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=route&amp;sektion=8&amp;format=html">route(8)</a> monitor buffers too much when redirected to a file
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:15.arm64.asc">FreeBSD-EN-25:15:arm64</a>
+</p>
+
+<p>16 September 2025</p>
+
+<p>
+  arm64 <a href="https://man.freebsd.org/cgi/man.cgi?query=syscall&amp;sektion=2&amp;format=html">syscall(2)</a> allows unprivileged user to panic kernel
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:16.vfs.asc">FreeBSD-EN-25:16:vfs</a>
+</p>
+
+<p>16 September 2025</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=copy_file_range&amp;sektion=2&amp;format=html">copy_file_range(2)</a> fails to set output parameters
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:17.bnxt.asc">FreeBSD-EN-25:17:bnxt</a>
+</p>
+
+<p>16 September 2025</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=bnxt&amp;sektion=4&amp;format=html">bnxt(4)</a> fails to set media type in some cases
+</p>
+
+<p>
+  <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-25:18.freebsd-update.asc">FreeBSD-EN-25:18:freebsd-update</a>
+</p>
+
+<p>30 September 2025</p>
+
+<p>
+  <a href="https://man.freebsd.org/cgi/man.cgi?query=freebsd-update&amp;sektion=8&amp;format=html">freebsd-update(8)</a> installs libraries in incorrect order
+</p>
 
 <h2>Architectures</h2>
 
