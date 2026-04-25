@@ -1,14 +1,20 @@
-//! Parse real-world HTML into the internal FTML representation.
+//! Parse and emit HTML.
+//!
+//! Unlike [`crate::writer`], which targets FTML and flattens tables to
+//! paragraphs, [`write`] emits real `<table>` markup so HTML output retains the
+//! tabular structure. The two writers share the inline rendering logic; only
+//! table handling differs.
 
 pub mod gockl;
 
+use crate::writer::Writer;
 use crate::{
     ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
 };
 use gockl::{Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
 use std::cell::RefCell;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -372,7 +378,9 @@ impl<'a> Parser<'a> {
                         None
                     };
                     let outcome = self.read_span(style, &name, link_target)?;
-                    if should_skip_link_span(&outcome.span, outcome.had_visible_text) {
+                    if should_skip_link_span(&outcome.span, outcome.had_visible_text)
+                        || should_skip_empty_styled_span(&outcome.span)
+                    {
                         continue;
                     }
                     spans.add(outcome.span);
@@ -472,7 +480,9 @@ impl<'a> Parser<'a> {
                         None
                     };
                     let outcome = self.read_span(nested_style, &name, nested_link)?;
-                    if should_skip_link_span(&outcome.span, outcome.had_visible_text) {
+                    if should_skip_link_span(&outcome.span, outcome.had_visible_text)
+                        || should_skip_empty_styled_span(&outcome.span)
+                    {
                         continue;
                     }
                     if outcome.had_visible_text {
@@ -1203,6 +1213,14 @@ fn should_skip_link_span(span: &Span, had_visible_text: bool) -> bool {
     span.style == InlineStyle::Link && span.link_target.is_some() && !had_visible_text
 }
 
+/// Returns `true` for styled spans that carry no text or children. These add
+/// no information and confuse round-trips through formats with no inline
+/// representation for empty markers (e.g. Markdown emits `__` for an empty
+/// italic).
+fn should_skip_empty_styled_span(span: &Span) -> bool {
+    span.style != InlineStyle::None && span.style != InlineStyle::Link && !span.has_content()
+}
+
 fn lowercase_name(name: &str) -> String {
     name.chars().flat_map(|c| c.to_lowercase()).collect()
 }
@@ -1333,6 +1351,46 @@ fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
             break;
         }
     }
+}
+
+/// Writes a [`Document`] as HTML markup. Tables are preserved using
+/// `<table>/<tr>/<td>` markup, unlike [`crate::writer::write`] which flattens
+/// tables to paragraphs because FTML has no table syntax.
+///
+/// The output is just the document body: it does not include `<!DOCTYPE>` or
+/// `<html>` wrapper elements. Use [`write_document`] when a full HTML page is
+/// required.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{html, Paragraph, Span, TableCell, TableRow, Document};
+///
+/// let table = Paragraph::new_table().with_rows(vec![
+///     TableRow::new().with_cells(vec![
+///         TableCell::new_header().with_content(vec![Span::new_text("Col")]),
+///     ]),
+/// ]);
+/// let doc = Document::new().with_paragraphs(vec![table]);
+///
+/// let mut output = Vec::new();
+/// html::write(&mut output, &doc).unwrap();
+/// let html = String::from_utf8(output).unwrap();
+/// assert!(html.contains("<table>"));
+/// assert!(html.contains("<th>Col</th>"));
+/// ```
+pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    Writer::new_html().write(writer, document)
+}
+
+/// Writes a [`Document`] wrapped in a minimal HTML page (`<!DOCTYPE>`,
+/// `<html>`, `<head>`, `<body>`).
+pub fn write_document<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    writer.write_all(
+        b"<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\" />\n</head>\n<body>\n",
+    )?;
+    write(writer, document)?;
+    writer.write_all(b"\n</body>\n</html>\n")
 }
 
 #[cfg(test)]

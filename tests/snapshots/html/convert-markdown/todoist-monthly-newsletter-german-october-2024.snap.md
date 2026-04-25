@@ -43,10 +43,10 @@ Mache realistische Pläne mit deinen Aufgaben und Terminen an einem Ort.
 |                                        |
 | Deine To\-dos und Termine an einem Ort |
 
-|                                                                                                                                                                                                                                                                                                                                           |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Jetzt kannst du deine Todoist\-Aufgaben neben deinen Zahnarztterminen, Vorstandssitzungen, Spieleabenden und allen anderen geplanten Aktivitäten sehen. So kannst du realistische Pläne erstellen und vermeiden, dass du zu vielen Verpflichtungen eingehst.__\ \ &emsp14; Francesca zeigt dir, wie du mit der Synchronisierung beginnst: |
-|                                                                                                                                                                                                                                                                                                                                           |
+|                                                                                                                                                                                                                                                                                                                                         |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Jetzt kannst du deine Todoist\-Aufgaben neben deinen Zahnarztterminen, Vorstandssitzungen, Spieleabenden und allen anderen geplanten Aktivitäten sehen. So kannst du realistische Pläne erstellen und vermeiden, dass du zu vielen Verpflichtungen eingehst.\ \ &emsp14; Francesca zeigt dir, wie du mit der Synchronisierung beginnst: |
+|                                                                                                                                                                                                                                                                                                                                         |
 
 |                   |
 |-------------------|

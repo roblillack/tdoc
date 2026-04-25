@@ -690,9 +690,5 @@ fn determine_output_format(extension: Option<&str>) -> Option<OutputFormat> {
 }
 
 fn write_html_document<W: Write>(mut writer: W, document: &Document) -> io::Result<()> {
-    writer.write_all(
-        b"<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\" />\n</head>\n<body>\n",
-    )?;
-    write(&mut writer, document)?;
-    writer.write_all(b"\n</body>\n</html>\n")
+    html::write_document(&mut writer, document)
 }

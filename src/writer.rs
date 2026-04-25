@@ -1,6 +1,8 @@
 //! Serialize [`Document`](crate::Document) trees back into FTML/HTML.
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow};
+use crate::{
+    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, Write};
@@ -27,6 +29,10 @@ pub struct Writer {
     indentation: String,
     max_width: usize,
     style_tags: HashMap<InlineStyle, String>,
+    /// When `true`, tables are emitted as `<table>/<tr>/<td>` markup. When
+    /// `false` (FTML default), tables are flattened into individual `<p>`
+    /// paragraphs because FTML has no table syntax.
+    emit_tables: bool,
     multiple_spaces_regex: Regex,
     trailing_spaces_regex: Regex,
     leading_spaces_regex: Regex,
@@ -42,8 +48,19 @@ impl Default for Writer {
 }
 
 impl Writer {
-    /// Creates a new writer with default indentation, wrapping, and styling.
+    /// Creates a new FTML writer. Tables are flattened into paragraphs
+    /// because FTML has no table syntax.
     pub fn new() -> Self {
+        Self::with_tables(false)
+    }
+
+    /// Creates a writer that emits real `<table>` markup. Use this for HTML
+    /// output where the structure should be preserved.
+    pub fn new_html() -> Self {
+        Self::with_tables(true)
+    }
+
+    fn with_tables(emit_tables: bool) -> Self {
         let mut style_tags = HashMap::new();
         style_tags.insert(InlineStyle::Bold, "b".to_string());
         style_tags.insert(InlineStyle::Italic, "i".to_string());
@@ -56,6 +73,7 @@ impl Writer {
             indentation: "  ".to_string(),
             max_width: 80,
             style_tags,
+            emit_tables,
             multiple_spaces_regex: Regex::new(r"  +").unwrap(),
             trailing_spaces_regex: Regex::new(r"\s +").unwrap(),
             leading_spaces_regex: Regex::new(r" +\s").unwrap(),
@@ -215,6 +233,19 @@ impl Writer {
         rows: &[TableRow],
         level: usize,
     ) -> io::Result<()> {
+        if self.emit_tables {
+            self.write_html_table(writer, rows, level)
+        } else {
+            self.write_flattened_table(writer, rows, level)
+        }
+    }
+
+    fn write_flattened_table<W: Write>(
+        &self,
+        writer: &mut W,
+        rows: &[TableRow],
+        level: usize,
+    ) -> io::Result<()> {
         // FTML has no table syntax. Flatten each non-empty cell into its own
         // `<p>` paragraph so the content survives the round-trip even though
         // the table structure is lost.
@@ -232,6 +263,61 @@ impl Writer {
             }
         }
         Ok(())
+    }
+
+    fn write_html_table<W: Write>(
+        &self,
+        writer: &mut W,
+        rows: &[TableRow],
+        level: usize,
+    ) -> io::Result<()> {
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<table>")?;
+
+        for row in rows {
+            self.write_indent(writer, level + 1)?;
+            writeln!(writer, "<tr>")?;
+            for cell in &row.cells {
+                self.write_table_cell(writer, cell, level + 2)?;
+            }
+            self.write_indent(writer, level + 1)?;
+            writeln!(writer, "</tr>")?;
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</table>")
+    }
+
+    fn write_table_cell<W: Write>(
+        &self,
+        writer: &mut W,
+        cell: &TableCell,
+        level: usize,
+    ) -> io::Result<()> {
+        let tag = if cell.is_header { "th" } else { "td" };
+
+        if cell.content.is_empty() {
+            self.write_indent(writer, level)?;
+            writeln!(writer, "<{}></{}>", tag, tag)?;
+            return Ok(());
+        }
+
+        let single_line = self.render_single_line(&cell.content, tag, level);
+
+        if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
+            write!(writer, "{}", single_line)?;
+            return Ok(());
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<{}>", tag)?;
+
+        self.write_indent(writer, level + 1)?;
+        self.write_spans(writer, &cell.content, level + 1, true, true)?;
+        writeln!(writer)?;
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</{}>", tag)
     }
 
     fn write_checklist_item<W: Write>(

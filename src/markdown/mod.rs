@@ -1278,6 +1278,11 @@ fn write_span<W: Write>(
         InlineStyle::Code => write_code_span(writer, span, state),
         style => {
             let (begin_tag, end_tag) = inline_tags(style);
+            // Skip empty styled spans — emitting bare delimiters like `__`
+            // produces literal underscores once Markdown is re-parsed.
+            if !span.has_content() {
+                return Ok(());
+            }
             if !begin_tag.is_empty() {
                 state.write_chunk(writer, begin_tag)?;
             }
@@ -1617,7 +1622,10 @@ impl<'a> LineState<'a> {
     fn new(continuation_prefix: &'a str) -> Self {
         Self {
             continuation_prefix,
-            at_line_start: false,
+            // Treat the very first chunk as the start of a line so leading
+            // whitespace is encoded the same way as whitespace after a hard
+            // break.
+            at_line_start: true,
         }
     }
 
