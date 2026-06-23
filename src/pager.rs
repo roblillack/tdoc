@@ -1741,11 +1741,9 @@ fn draw_scrollbar(
     let knob_size = ((viewport_height * viewport_height) / total_lines).max(1);
     let knob_size = knob_size.min(viewport_height);
     let max_scroll = total_lines - viewport_height;
-    let knob_start = if max_scroll == 0 {
-        0
-    } else {
-        (scroll_offset * (viewport_height - knob_size)) / max_scroll
-    };
+    let knob_start = (scroll_offset * (viewport_height - knob_size))
+        .checked_div(max_scroll)
+        .unwrap_or(0);
     let knob_end = knob_start + knob_size;
 
     for row in 0..viewport_height {
