@@ -1,4 +1,4 @@
-Plan realistically with your to\-dos and events all in one place.
+Plan realistically with your to-dos and events all in one place.
 
 ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
 ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
@@ -14,26 +14,26 @@ browser](https://todoist.doist-emails.com/en/emails/todoist/cms/TDMonthly1024)
 
 The Todoist Monthly
 
-All that’s new in the Todoist\-verse – October 2024
+All that’s new in the Todoist-verse – October 2024
 
-Manage your time\-blocked Todoist to\-dos like _Review client proposals at 2pm
-for 2h_ or _Pick up Garfield from the vet at 10am for 30m_ more efficiently by
+Manage your time-blocked Todoist to-dos like _Review client proposals at 2pm for
+2h_ or _Pick up Garfield from the vet at 10am for 30m_ more efficiently by
 **syncing those tasks directly to your Google Calendar** – available on all
 plans!
 
-Your to\-dos and events all in one place
+Your to-dos and events all in one place
 
 Now, you’ll be able to see your Todoist tasks right in line with your dentist
 appointments, board meetings, game nights, and whatever other fun things you’ve
 got going on. This’ll help you make realistic plans and avoid overcommitting
-yourself \(music to all our _adulting_ ears, right?\).
+yourself (music to all our _adulting_ ears, right?).
 
 Let    Francesca show you how to start syncing:
 
 How it works
 
-Syncing tasks to Google Calendar is incredibly easy to set up \(easier than,
-say, coaxing Garfield into the car for his vet appointment\).
+Syncing tasks to Google Calendar is incredibly easy to set up (easier than, say,
+coaxing Garfield into the car for his vet appointment).
 
 - If you haven’t done so already, first head to [Calendar
   settings](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
@@ -56,9 +56,9 @@ tasks directly from Google Calendar, saving you from unnecessary app hopping.
 Check out our help center article for [more details on syncing Todoist with
 Google
 Calendar](https://todoist.com/help/articles/use-calendar-with-todoist-rCqwLCt3G?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly#h_01HXS15SKBRVD8VW0M5TZNZCYX).
-\(Or, [watch Francesca’s
+(Or, [watch Francesca’s
 demo](https://www.youtube.com/watch?v=VXQKgbgnwkU&utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-– she explains it thoroughly halfway through.\)
+– she explains it thoroughly halfway through.)
 
 See your tasks turn into triumphs
 
@@ -66,12 +66,12 @@ Once a task has been completed, watch it transform in your calendar with a
 charming ✓ check mark. It’s a satisfying way to see your accomplishments at a
 glance!
 
-What’s next? \(Hint: It starts with O and ends with look\) 👀
+What’s next? (Hint: It starts with O and ends with look) 👀
 
 Our journey with calendars doesn’t stop with Google.
 
 You guessed it – we’re diligently working on a new Outlook Calendar integration
-that’ll bring the joy of time\-blocking to all you Outlook enthusiasts. We’ll
+that’ll bring the joy of time-blocking to all you Outlook enthusiasts. We’ll
 also be exploring ways to display completed tasks within the calendar layout in
 Todoist, so you can easily track your achievements over time.
 
@@ -86,9 +86,9 @@ Productively,
 
 [Inspiration
 Hub](https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-\| [Download
+| [Download
 Apps](https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-\| [Help
+| [Help
 Center](https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
 
 [Unsubscribe](https://todoist.com/unsubscribe)

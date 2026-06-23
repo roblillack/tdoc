@@ -1,6 +1,6 @@
 # This is an example FTML document
 
-The purpose of this document is to demonstrate the following use\-cases:
+The purpose of this document is to demonstrate the following use-cases:
 
 - Describe the features supported by FTML.
 - Showcase the FTML standard formatting enforced by `tdoc`.
@@ -20,10 +20,10 @@ The following inline styles are supported in FTML:
 
 ### Text paragraphs
 
-This is a rather long paragraph to show the text\-wrapping supported by the
-ASCII and Markdown exporters. Applications integrating FTML support should “do
-the right thing” regarding breaking lines in paragraphs. This could mean that
-the full available width of the window or screen is used, or that the lines are
+This is a rather long paragraph to show the text-wrapping supported by the ASCII
+and Markdown exporters. Applications integrating FTML support should “do the
+right thing” regarding breaking lines in paragraphs. This could mean that the
+full available width of the window or screen is used, or that the lines are
 broken to limit the number of characters per line to a specific number. FTML
 itself _does not_ encorce any specific rules here, the included Markdown
 exporter does wrap at 80 characters, though.
@@ -86,13 +86,13 @@ FTML supports nesting of paragraphs, so this is entirely possible:
 >       
 >       Ten!
 
-## Whitespace and line\-break handling
+## Whitespace and line-break handling
 
-This is a line with a hard line\-break:\
+This is a line with a hard line-break:\
 First line\
 Second line.
 
-This is a line with multiple line\-breaks:\
+This is a line with multiple line-breaks:\
 First line\
 \
 Second line.
@@ -114,18 +114,17 @@ spot.
 
 72 ASCII characters:
 
-\#\#\#\#\#\#\#\# \#\#\#\#\#\#\#\# \#\#\#\#\#\#\#\# \#\#\#\#\#\#\#\#
-\#\#\#\#\#\#\#\# \#\#\#\#\#\#\#\# \#\#\#\#\#\#\#\# \#\#\#\#\#\#\#\#.
+######## ######## ######## ######## ######## ######## ######## ########.
 
 =======================================================================^
 
-8 Unicode multi\-byte characters, 64 ASCII chars:
+8 Unicode multi-byte characters, 64 ASCII chars:
 
 cafébabe cafébabe cafébabe cafébabe cafébabe cafébabe cafébabe cafébabe.
 
 =======================================================================^
 
-32 double\-with emoji, 7 spaces, 1 dot:
+32 double-with emoji, 7 spaces, 1 dot:
 
 😎😎😎😎 😎😎😎😎 😎😎😎😎 😎😎😎😎 😎😎😎😎 😎😎😎😎 😎😎😎😎 😎😎😎😎.
 

@@ -15,7 +15,7 @@ Außerdem haben wir die Änderungen am Ende dieser E‑Mail zusammengefasst.
 **Was muss ich tun?**
 
 - **Für Nutzer, die [das Mindestalter zur Verwaltung eines eigenen
-  Google\-Kontos](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Faccounts%2Fanswer%2F1350409%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
+  Google-Kontos](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Faccounts%2Fanswer%2F1350409%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
   noch nicht erreicht haben, gilt Folgendes**:
   
   - Wir haben diese E‑Mail an deine Eltern oder Erziehungsberechtigten
@@ -32,29 +32,29 @@ Außerdem haben wir die Änderungen am Ende dieser E‑Mail zusammengefasst.
     seinem Konto vorgenommen werden müssen.
   - Bitte beachten Sie, dass diese Nutzungsbedingungen für Sie gelten und Sie
     für die Handlungen Ihres Kindes in den Diensten verantwortlich sind.
-- **Wenn Sie Administrator eines Google Workspace\-Kontos eines Unternehmens
-  oder einer Bildungseinrichtung sind und Ihren Nutzern Zugriff auf [zusätzliche
-  Google\-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
+- **Wenn Sie Administrator eines Google Workspace-Kontos eines Unternehmens oder
+  einer Bildungseinrichtung sind und Ihren Nutzern Zugriff auf [zusätzliche
+  Google-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
   gegeben haben, gilt Folgendes**:
   
   - Unsere neuen Nutzungsbedingungen haben keine Auswirkungen auf die Google
-    Workspace\-Vereinbarung zwischen Google und Ihrer Organisation. Diese neuen
+    Workspace-Vereinbarung zwischen Google und Ihrer Organisation. Diese neuen
     Nutzungsbedingungen gelten nur für Nutzer, denen Sie Zugriff auf
     [zusätzliche
-    Google\-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
-    gegeben haben. Über die Admin\-Konsole können Sie jederzeit festlegen, ob
-    Ihre Nutzer auf zusätzliche Google\-Dienste zugreifen dürfen und auf welche.
-- **Wenn Sie Google Workspace\-Reseller sind und Ihre Kunden ihren Nutzern
+    Google-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
+    gegeben haben. Über die Admin-Konsole können Sie jederzeit festlegen, ob
+    Ihre Nutzer auf zusätzliche Google-Dienste zugreifen dürfen und auf welche.
+- **Wenn Sie Google Workspace-Reseller sind und Ihre Kunden ihren Nutzern
   Zugriff auf [zusätzliche
-  Google\-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
+  Google-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
   gegeben haben, gilt Folgendes:**
   
   - Unsere neuen Nutzungsbedingungen haben keine Auswirkungen auf die Google
-    Workspace\-Vereinbarung mit Ihren Kunden. Diese neuen Nutzungsbedingungen
+    Workspace-Vereinbarung mit Ihren Kunden. Diese neuen Nutzungsbedingungen
     gelten nur für Nutzer Ihrer Kunden, die Zugriff auf [zusätzliche
-    Google\-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
-    erhalten haben. Über die Admin\-Konsole können Ihre Kunden jederzeit
-    festlegen, ob ihre Nutzer auf zusätzliche Google\-Dienste zugreifen dürfen
+    Google-Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F181865%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
+    erhalten haben. Über die Admin-Konsole können Ihre Kunden jederzeit
+    festlegen, ob ihre Nutzer auf zusätzliche Google-Dienste zugreifen dürfen
     und auf welche.
 - **Für alle anderen Nutzer unserer
   [Dienste](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fservice-specific%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
@@ -69,7 +69,7 @@ Außerdem haben wir die Änderungen am Ende dieser E‑Mail zusammengefasst.
 **Was ändert sich?**
 
 [Hier finden Sie die neuen
-Google\-Nutzungsbedingungen.](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fupdate%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
+Google-Nutzungsbedingungen.](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fupdate%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
 Die Änderungen haben wir im Folgenden für Sie zusammengefasst:
 
 - **Bedingungen für generative&nbsp;KI**.&nbsp;Wir verschieben unsere bisherigen
@@ -78,7 +78,7 @@ Die Änderungen haben wir im Folgenden für Sie zusammengefasst:
   in unsere allgemeinen Nutzungsbedingungen und fügen weitere Erläuterungen in
   Zusammenhang mit künstlicher Intelligenz hinzu. So erheben wir beispielsweise
   keinen Anspruch auf Eigentumsrechte an Originalinhalten, die mit unseren
-  KI\-basierten oder KI\-gestützten Diensten erstellt wurden.
+  KI-basierten oder KI-gestützten Diensten erstellt wurden.
 - **Weitere Informationen zu missbräuchlichen Aktivitäten**.&nbsp;Hier stellen
   wir weitere Beispiele und Informationen zur Verfügung, die aufzeigen, welche
   Arten von Missbrauch und Beeinträchtigung unserer Dienste nicht erlaubt ist.
@@ -95,11 +95,11 @@ Die Änderungen haben wir im Folgenden für Sie zusammengefasst:
   erläutern und auf sie einzugehen.
 - **Aktualisierungen zur Funktionsweise unserer Dienste**.&nbsp;Wir ergänzen
   Informationen zur Funktionsweise unserer Dienste und aktualisieren die
-  Markennamen einiger Google\-Dienste, die sich im Lauf der Zeit geändert haben.
-- **Nur für Nutzer im Europäischen Wirtschaftsraum \(EWR\)**:
+  Markennamen einiger Google-Dienste, die sich im Lauf der Zeit geändert haben.
+- **Nur für Nutzer im Europäischen Wirtschaftsraum (EWR)**:
   
   - Neben den oben beschriebenen Änderungen fügen wir weitere Erläuterungen
-    hinzu, damit Sie den Rechtsbegriff „Gewährleistungen“ nach EU\- und lokalem
+    hinzu, damit Sie den Rechtsbegriff „Gewährleistungen“ nach EU- und lokalem
     Recht besser verstehen können.
   - Weitere Informationen finden Sie in [dieser Zusammenfassung der wichtigsten
     Änderungen an den Versionen unserer Nutzungsbedingungen für den
@@ -109,13 +109,13 @@ Wenn Sie mit den neuen Nutzungsbedingungen nicht einverstanden sind, müssen Sie
 [Ihre
 Inhalte](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fpolicies.google.com%2Fterms%2Fdefinitions%23toc-terms-your-content%3Futm_source%3Dtos2024-email%26utm_medium%3Demail)
 entfernen und dürfen die Dienste nicht länger nutzen. Sie können Ihr
-Nutzungsverhältnis mit uns jederzeit kündigen, [indem Sie Ihr Google\-Konto
+Nutzungsverhältnis mit uns jederzeit kündigen, [indem Sie Ihr Google-Konto
 löschen](https://accounts.google.com/AccountChooser?Email=max%40example.example&continue=https%3A%2F%2Fsupport.google.com%2Faccounts%2Fanswer%2F32046%3Futm_source%3Dtos2024-email%26utm_medium%3Demail).
 
-Vielen Dank, dass Sie Google\-Dienste nutzen.
+Vielen Dank, dass Sie Google-Dienste nutzen.
 
 © 2024 Google Ireland Ltd, Gordon House, Barrow Street, Dublin 4,
 Ireland.&emsp14;
 
-Mit dieser E\-Mail informieren wir Sie über wichtige Änderungen an den
+Mit dieser E-Mail informieren wir Sie über wichtige Änderungen an den
 Nutzungsbedingungen von Google.

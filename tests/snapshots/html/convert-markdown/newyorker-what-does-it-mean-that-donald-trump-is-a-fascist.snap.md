@@ -58,8 +58,8 @@ That is quite a fascist achievement. Faced with the complexity of history,
 liberals struggle with the overwhelming volume of questions to be asked, answers
 to be offered. Like communism, fascism is an answer to all questions, but a
 different kind of answer. Communism assures us that we can, thanks to science,
-find an underlying direction in all events, toward a better future. This is \(or
-was\) seductive. Fascism reduces the imbroglio of sensation to what the Leader
+find an underlying direction in all events, toward a better future. This is (or
+was) seductive. Fascism reduces the imbroglio of sensation to what the Leader
 says.
 
 A liberal has to tell a hundred stories, or a thousand. A communist has one
@@ -76,9 +76,9 @@ someone else a fascist requires a cunning that is natural to Trump. And in that
 naming of the enemy, absurd as it is, we see the second major element of
 fascism.
 
-A Leader \(“_Duce_” and “_Führer_” mean just that\) initiates politics by
-choosing an enemy. As the Nazi legal thinker Carl Schmitt maintained, the choice
-is arbitrary. It has little or no basis in reality. It takes its force from the
+A Leader (“_Duce_” and “_Führer_” mean just that) initiates politics by choosing
+an enemy. As the Nazi legal thinker Carl Schmitt maintained, the choice is
+arbitrary. It has little or no basis in reality. It takes its force from the
 decisive will of the Leader. The people who watched Trump’s television ads
 during sporting events had not been harmed by a transgender person, or by an
 immigrant, or by a woman of color. The magic lies in the daring it takes to
@@ -86,7 +86,7 @@ declare a weaker group to be part of an overwhelming conspiracy.
 
 The one thing that is not arbitrary about the choice of an enemy is that it must
 exploit vulnerabilities. The Trump ads projected a fantasy of Kamala Harris
-allowing millions of sex\-changed foreigners to take jobs from Americans. This
+allowing millions of sex-changed foreigners to take jobs from Americans. This
 touches, all at once, on gender, economic, and sexual vulnerability. We are
 unprotected and impoverished and will be replaced by something alien. And this
 is all orchestrated by a shadowy enemy in the background—in this case, a woman
@@ -96,7 +96,7 @@ The “great replacement” theory is an example of an unoriginal fascist lie:
 conspirators will make you impotent and bring others to take your place in the
 world. The apparent complexity of the world resolves itself as a conspiracy,
 just as the attendant anxiety is resolved by hatred. This works with almost any
-combination of enemies. It can be a conspiracy of deep\-state politicians to
+combination of enemies. It can be a conspiracy of deep-state politicians to
 kidnap babies, or a conspiracy of Jews to corrupt women. Fascism wins when the
 enmity summoned begins to tell the story itself.
 
@@ -104,17 +104,17 @@ A fascist marries conspiracy and necessity. Not everyone can tell a spontaneous
 Big Lie, as Trump did, when he lost the 2020 election. And the Republicans
 around him did not challenge him. The Big Lie came to life when his followers
 stormed the Capitol on January 6, 2021. Crucially, he paid no price for that.
-That made the Big Lie true, in a fascist sense. His de\-facto impunity and then
-de\-jure immunity also generated a sense of the untouchable, the heroic.
+That made the Big Lie true, in a fascist sense. His de-facto impunity and then
+de-jure immunity also generated a sense of the untouchable, the heroic.
 
-Trump’s presence has always been a co\-creation: his and ours. From the moment
+Trump’s presence has always been a co-creation: his and ours. From the moment
 when he first came down the Trump Tower escalator in 2015, he was treated as a
 source of spectacle. Because he was good for television, he was accepted as a
 legitimate candidate. In the print media, he grew through the doctrine of
-[both\-sides\-ism](https://snyder.substack.com/p/both-sides): no matter how
-awful his deeds, his opponent had to be presented as equally bad. This empowered
-him to be both wicked and normal. During every campaign’s final months, polling
-had a [similar
+[both-sides-ism](https://snyder.substack.com/p/both-sides): no matter how awful
+his deeds, his opponent had to be presented as equally bad. This empowered him
+to be both wicked and normal. During every campaign’s final months, polling had
+a [similar
 effect](https://www.theguardian.com/commentisfree/2024/oct/27/polling-has-turned-the-us-election-into-a-game-we-need-to-take-a-reality-check).
 By displacing policy differences and reducing politics to two faces or two
 colors, polls reinforce the notion that Trump belonged where he was, and that
@@ -144,16 +144,16 @@ Twitter](https://www.theatlantic.com/technology/archive/2023/05/elon-musk-ron-de
 in Trump’s image.
 
 Our engagement with the machine illuminates a difference between the fascists of
-the twenty\-twenties and the fascists of the nineteen\-twenties. Back then, the
+the twenty-twenties and the fascists of the nineteen-twenties. Back then, the
 machine was seen as bold and beautiful, a brutal instrument that would return us
 to our nature by wrenching us from the hold of soft civilization. The Italian
 poet Filippo Tommaso Marinetti had an epiphany after an automobile accident in
 1908, which led him to Futurism and then to fascism. For Hitler, the
-internal\-combustion engine hastened a “_Blitzsieg_,” a lightning victory. The
+internal-combustion engine hastened a “_Blitzsieg_,” a lightning victory. The
 superior race with the superior technology exterminates other races, takes other
 peoples’ land, and thrives.
 
-We are still driving around using internal\-combustion engines, as we were a
+We are still driving around using internal-combustion engines, as we were a
 century ago; what has changed more than our means of locomotion is our means of
 staying put. When the Nazis dreamed of a radio in every home or a newsreel
 before every film, they did not imagine Germans motionlessly staring at screens
@@ -167,7 +167,7 @@ The fascist fantasy traditionally involved a return to nature. The Leader’s
 voice guided us into a competition with other races for habitat. Hitler was
 obsessed with coming ecological catastrophe, and he argued, in “Mein Kampf,”
 that Germans had to seize land or starve. That was incorrect. But, a hundred
-years later, those internal\-combustion engines and other archaic technologies
+years later, those internal-combustion engines and other archaic technologies
 actually have changed the climate to the point of causing droughts and storms,
 as we saw during this electoral season. When such disasters occur, today’s
 fascists react as Trump and J. D. Vance did: they blame the victims and the
@@ -183,9 +183,9 @@ and not just suppress labor unions and undermine democracy. Today, though, the
 point would be much sharper. Trump does not actually have a lot of money, but he
 pretends to—getting away with that lie is part of his presence. And his close
 fascist allies, Musk and Putin, are probably the two wealthiest people in the
-world. The fascism of today is nestled between the digital oligarchy \(Musk\)
-and the hydrocarbon oligarchy \(Putin\). Trump has pledged himself to America’s
-own hydrocarbon oligarchs, thereby insuring climate disaster, suffering,
+world. The fascism of today is nestled between the digital oligarchy (Musk) and
+the hydrocarbon oligarchy (Putin). Trump has pledged himself to America’s own
+hydrocarbon oligarchs, thereby insuring climate disaster, suffering,
 immigration, and even more occasions for division.
 
 The oligarchs bring to our fascism its libertarian entry point: they preach that
@@ -196,8 +196,8 @@ or the welfare state. In these conditions, freedom is viewed not only as a
 struggle against the government but also as a struggle against one’s own
 neighbors. The people who claim to want individual freedom are the same people
 who clamor for mass deportations. America’s hydrocarbon and digital oligarchs
-support this kind of libertarianism; it is social media that guides men \(and it
-is usually men\) away from the idea that they are solitary heroes to the
+support this kind of libertarianism; it is social media that guides men (and it
+is usually men) away from the idea that they are solitary heroes to the
 conviction that other groups must be punished.
 
 Fascism is now in the algorithms, the neural pathways, the social interactions.
@@ -205,7 +205,7 @@ How did we fail to see all this? Part of it was our belief that history is over,
 that the great rivals to liberalism were dead or exhausted. Part of it was
 American exceptionalism: “[it can’t happen
 here](https://www.nybooks.com/online/2020/06/22/american-fascism-it-has-happened-here)”
-and so on. But most of it was simple self\-absorption: we wanted to see Trump in
+and so on. But most of it was simple self-absorption: we wanted to see Trump in
 terms of his absences, so that our way of seeing the world would go
 unchallenged. So we failed to see his fascist presence. And, because we ignored
 the fascism, we were unable to make the easy predictions of what he would do
@@ -239,7 +239,7 @@ in his movement, who are [scarcely
 hiding](https://www.theguardian.com/us-news/2024/nov/05/trump-staffer-fired-from-republican-party-for-being-a-white-supremacist),
 nor of his own friendly references to Hitler or his use of [Hitlerian
 language](https://www.theatlantic.com/politics/archive/2024/10/trump-authoritarian-rhetoric-hitler-mussolini/680296/)
-\(“vermin,” “enemy within”\). He bears responsibility for what comes next, as do
+(“vermin,” “enemy within”). He bears responsibility for what comes next, as do
 his allies and supporters.
 
 Yet some, and probably more, of the blame rests with our actions and analysis.
@@ -291,7 +291,7 @@ Comment
 
 Standing Up to Trump
 
-Jeff Bezos endorsed a Trump\-era slogan—“Democracy Dies in Darkness”—for his
+Jeff Bezos endorsed a Trump-era slogan—“Democracy Dies in Darkness”—for his
 newspaper, the Washington _Post_. Why wouldn’t he let it endorse a candidate?
 
 By David Remnick
@@ -308,7 +308,7 @@ By Antonia Hitchens
 
 Dispatches
 
-A Fourth\-Rate Entertainer, a Third\-Rate Businessman, and a Two\-Time President
+A Fourth-Rate Entertainer, a Third-Rate Businessman, and a Two-Time President
 
 The 2024 election, like the one in 2016, had the same nutty and vapid Donald
 Trump, the same retrograde gender politics, and the same result.
@@ -328,8 +328,8 @@ Dispatch
 
 Donald Trump’s West Palm Beach Victory Celebration
 
-Surrounded by an ever\-expanding cast of MAGA characters, the perpetual
-candidate becomes President\-elect again.
+Surrounded by an ever-expanding cast of MAGA characters, the perpetual candidate
+becomes President-elect again.
 
 By Antonia Hitchens
 
