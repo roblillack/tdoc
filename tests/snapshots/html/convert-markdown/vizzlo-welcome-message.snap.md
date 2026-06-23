@@ -10,8 +10,8 @@ For the full portfolio of supported graphs please check:\
 You can find a list of weekly updated example charts in our gallery:\
 <https://vizzlo.com/gallery>
 
-If you haven't done so already, download the Vizzlo application \(available for
-Windows &amp; Mac\) to create stunning visuals even when offline. You can also
+If you haven't done so already, download the Vizzlo application (available for
+Windows &amp; Mac) to create stunning visuals even when offline. You can also
 integrate Vizzlo with PowerPoint or Google Slides:\
 <https://vizzlo.com/apps>
 

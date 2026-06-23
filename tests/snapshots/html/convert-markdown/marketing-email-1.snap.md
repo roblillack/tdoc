@@ -33,7 +33,7 @@ modified at any time without notice and is subject to availability. All sales
 are final – no refunds or exchanges. All prices, dates, and times are subject to
 change. Offer expires 11/29/25 at 10pm E.T. Other restrictions may apply.
 Accessible and companion seats are available via the Accessibility Services
-Department at 123\-123\-1234. ©2025 EXC Example Example, LLC. All rights
+Department at 123-123-1234. ©2025 EXC Example Example, LLC. All rights
 reserved.\
 \
 Trademarks used with permission of Example Example Example, LLC.
@@ -42,5 +42,5 @@ If you do not want to receive any more newsletters, to unsubscribe [click
 here](https://www.example.com/gd.cfm?email=john@example.com)
 
 Example Media\
-123 Example Street, 123rd Floor \#1234\
+123 Example Street, 123rd Floor #1234\
 Example City, EX 12345

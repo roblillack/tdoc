@@ -1038,7 +1038,7 @@ fn write_paragraph<W: Write>(
     match paragraph {
         Paragraph::Text { content } => {
             let content = render_spans_to_string(content)?;
-            write_wrapped_lines(writer, prefix, continuation_prefix, &content)?;
+            write_wrapped_lines(writer, prefix, continuation_prefix, &content, true)?;
         }
         Paragraph::CodeBlock { content } => {
             write_code_block(writer, prefix, continuation_prefix, content)?;
@@ -1046,17 +1046,17 @@ fn write_paragraph<W: Write>(
         Paragraph::Header1 { content } => {
             let content = render_spans_to_string(content)?;
             let first_prefix = format!("{}# ", prefix);
-            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
+            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content, false)?;
         }
         Paragraph::Header2 { content } => {
             let content = render_spans_to_string(content)?;
             let first_prefix = format!("{}## ", prefix);
-            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
+            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content, false)?;
         }
         Paragraph::Header3 { content } => {
             let content = render_spans_to_string(content)?;
             let first_prefix = format!("{}### ", prefix);
-            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content)?;
+            write_wrapped_lines(writer, &first_prefix, continuation_prefix, &content, false)?;
         }
         Paragraph::Quote { children } => {
             let quote_prefix = format!("{}> ", prefix);
@@ -1197,7 +1197,7 @@ fn write_checklist_items<W: Write>(
         let content = render_spans_to_string(&item.content)?;
         let first_prefix = format!("{}- [{}] ", prefix, marker);
         let continuation = format!("{}{}", continuation_prefix, " ".repeat(6));
-        write_wrapped_lines(writer, &first_prefix, &continuation, &content)?;
+        write_wrapped_lines(writer, &first_prefix, &continuation, &content, true)?;
 
         if !item.children.is_empty() {
             let child_prefix = format!("{}  ", prefix);
@@ -1330,6 +1330,7 @@ fn write_wrapped_lines<W: Write>(
     first_prefix: &str,
     continuation_prefix: &str,
     content: &str,
+    block_context: bool,
 ) -> std::io::Result<()> {
     let mut wrote_line = false;
 
@@ -1340,7 +1341,12 @@ fn write_wrapped_lines<W: Write>(
             continuation_prefix
         };
 
-        for line in wrap_single_line(raw_line, prefix_for_line, continuation_prefix) {
+        for line in wrap_single_line(
+            raw_line,
+            prefix_for_line,
+            continuation_prefix,
+            block_context,
+        ) {
             if wrote_line {
                 writeln!(writer)?;
             }
@@ -1353,7 +1359,12 @@ fn write_wrapped_lines<W: Write>(
     Ok(())
 }
 
-fn wrap_single_line(line: &str, first_prefix: &str, continuation_prefix: &str) -> Vec<String> {
+fn wrap_single_line(
+    line: &str,
+    first_prefix: &str,
+    continuation_prefix: &str,
+    block_context: bool,
+) -> Vec<String> {
     let mut lines = Vec::new();
     let mut current_line = String::new();
     current_line.push_str(first_prefix);
@@ -1361,6 +1372,10 @@ fn wrap_single_line(line: &str, first_prefix: &str, continuation_prefix: &str) -
     let mut base_len = first_prefix.chars().count();
     let mut current_len = base_len;
     let mut pending_whitespace = String::new();
+    // Whether the next non-whitespace token will be the first content on its line, in
+    // which case a leading block-level marker must be escaped (only in block contexts;
+    // heading text, for instance, cannot start a nested block).
+    let mut at_line_content_start = true;
 
     let mut chars = line.char_indices().peekable();
     while let Some((start, ch)) = chars.next() {
@@ -1392,14 +1407,21 @@ fn wrap_single_line(line: &str, first_prefix: &str, continuation_prefix: &str) -
             base_len = continuation_prefix.chars().count();
             current_len = base_len;
             pending_whitespace.clear();
+            at_line_content_start = true;
         } else {
             current_line.push_str(&pending_whitespace);
             current_len += pending_len;
             pending_whitespace.clear();
         }
 
-        current_line.push_str(token);
-        current_len += token_len;
+        let rendered = if block_context && at_line_content_start {
+            escape_block_start_token(token)
+        } else {
+            Cow::Borrowed(token)
+        };
+        current_line.push_str(&rendered);
+        current_len += rendered.chars().count();
+        at_line_content_start = false;
     }
 
     if !pending_whitespace.is_empty() {
@@ -1493,13 +1515,17 @@ fn escape_markdown_text(text: &str, line_start: bool, is_final_chunk: bool) -> S
         }
 
         match ch {
-            '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '(' | ')' | '#' | '+' | '-' | '|'
-            | '~' => {
+            // Characters that can start an inline construct anywhere on a line and so
+            // must always be escaped: code spans, emphasis, links, strikethrough, table
+            // cell separators, and the escape character itself. Block-level markers (`#`,
+            // `-`, `+`, `>`, ordered-list numbers) are only meaningful at the start of a
+            // line and are handled separately when wrapping, so they are intentionally left
+            // untouched here.
+            '\\' | '`' | '*' | '_' | '[' | ']' | '~' | '|' => {
                 escaped.push('\\');
                 escaped.push(ch);
             }
             '<' => escaped.push_str("&lt;"),
-            '>' => escaped.push_str("&gt;"),
             '&' => escaped.push_str("&amp;"),
             '\u{2005}' => escaped.push_str("&emsp14;"),
             '\u{00A0}' => escaped.push_str("&nbsp;"),
@@ -1511,6 +1537,59 @@ fn escape_markdown_text(text: &str, line_start: bool, is_final_chunk: bool) -> S
     }
 
     escaped
+}
+
+/// Escapes a token when it sits at the start of a (physical) output line and would
+/// otherwise be parsed as a block-level construct.
+///
+/// `token` is a maximal run of non-whitespace characters, so a marker such as `#`,
+/// `-`, or `1.` is always followed by whitespace or the end of the line — exactly the
+/// condition under which Markdown treats it as a heading, list item, etc. Only the
+/// minimum needed to neutralize the construct is inserted (e.g. `1.` -> `1\.`), and
+/// tokens that merely *contain* these characters elsewhere (`use-cases`, `C#`, `->`)
+/// are left untouched.
+fn escape_block_start_token(token: &str) -> Cow<'_, str> {
+    let bytes = token.as_bytes();
+    let Some(&first) = bytes.first() else {
+        return Cow::Borrowed(token);
+    };
+
+    match first {
+        // ATX heading: one to six '#'. A token that is all '#' is followed by a space
+        // or line end, which is what makes it a heading.
+        b'#' if token.len() <= 6 && bytes.iter().all(|&b| b == b'#') => prepend_backslash(token),
+        // Blockquote: the space after '>' is optional, so any leading '>' qualifies.
+        b'>' => prepend_backslash(token),
+        // Bullet list ('-'/'+'), thematic break ('---'), or setext underline: a run made
+        // up only of dashes is ambiguous at line start, and escaping the leading dash
+        // neutralizes every interpretation while preserving the exact dash count.
+        b'-' if bytes.iter().all(|&b| b == b'-') => prepend_backslash(token),
+        b'+' if token.len() == 1 => prepend_backslash(token),
+        // Ordered list: digits (1-9 of them) followed by a single '.' or ')'.
+        b'0'..=b'9' => {
+            let digits = bytes.iter().take_while(|b| b.is_ascii_digit()).count();
+            if (1..=9).contains(&digits)
+                && bytes.len() == digits + 1
+                && matches!(bytes[digits], b'.' | b')')
+            {
+                let mut escaped = String::with_capacity(token.len() + 1);
+                escaped.push_str(&token[..digits]);
+                escaped.push('\\');
+                escaped.push(bytes[digits] as char);
+                Cow::Owned(escaped)
+            } else {
+                Cow::Borrowed(token)
+            }
+        }
+        _ => Cow::Borrowed(token),
+    }
+}
+
+fn prepend_backslash(token: &str) -> Cow<'_, str> {
+    let mut escaped = String::with_capacity(token.len() + 1);
+    escaped.push('\\');
+    escaped.push_str(token);
+    Cow::Owned(escaped)
 }
 
 fn escape_link_destination(dest: &str) -> String {
@@ -1974,6 +2053,77 @@ mod tests {
             r("[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA ](TARGET)\nBBBB\n"),
             ftml! { p { link { "TARGET" word } " BBBB"} },
         );
+    }
+
+    fn write_doc(doc: &Document) -> String {
+        let mut output = Vec::new();
+        write(&mut output, doc).unwrap();
+        String::from_utf8(output).unwrap()
+    }
+
+    #[test]
+    fn test_inline_punctuation_is_not_escaped() {
+        // Parentheses, hyphens, braces, and standalone block markers that sit in the
+        // middle of a line carry no special meaning and must be left alone.
+        let doc = doc(vec![p__(
+            "Pre-release (build #5) costs $3 — a > b {ok} for C# users.",
+        )]);
+        assert_eq!(
+            write_doc(&doc),
+            "Pre-release (build #5) costs $3 — a > b {ok} for C# users.\n",
+        );
+    }
+
+    #[test]
+    fn test_inline_constructs_are_still_escaped() {
+        // Code spans, emphasis, links, strikethrough, and table-cell separators can
+        // begin anywhere, so their markers are always escaped in plain text.
+        let doc = doc(vec![p__("a*b_c`d[e]f~g|h and \\i")]);
+        assert_eq!(write_doc(&doc), "a\\*b\\_c\\`d\\[e\\]f\\~g\\|h and \\\\i\n");
+    }
+
+    #[test]
+    fn test_block_markers_escaped_only_at_line_start() {
+        let cases = [
+            ("- not a bullet", "\\- not a bullet"),
+            ("+ not a bullet", "\\+ not a bullet"),
+            ("# not a heading", "\\# not a heading"),
+            ("> not a quote", "\\> not a quote"),
+            ("1. not a list", "1\\. not a list"),
+            ("10) not a list", "10\\) not a list"),
+            // Seven or more '#' is not a valid ATX heading, so it stays literal.
+            ("####### still text", "####### still text"),
+            // Tokens that merely contain a marker are untouched.
+            ("-> arrow", "-> arrow"),
+            ("C# is fine", "C# is fine"),
+            ("1.5 release", "1.5 release"),
+        ];
+        for (input, expected) in cases {
+            let doc = doc(vec![p__(input)]);
+            assert_eq!(write_doc(&doc), format!("{expected}\n"), "input: {input:?}");
+        }
+    }
+
+    #[test]
+    fn test_block_markers_roundtrip() {
+        // Whatever escaping we emit must re-import to the exact same document.
+        for text in [
+            "- not a bullet",
+            "# not a heading",
+            "> not a quote",
+            "1. not a list",
+            "---",
+            "----",
+            "use-cases and (parentheses) survive",
+        ] {
+            let original = doc(vec![p__(text)]);
+            let rendered = write_doc(&original);
+            let reparsed = parse(Cursor::new(&rendered)).unwrap();
+            assert_eq!(
+                reparsed, original,
+                "text: {text:?} rendered as {rendered:?}"
+            );
+        }
     }
 
     #[test]

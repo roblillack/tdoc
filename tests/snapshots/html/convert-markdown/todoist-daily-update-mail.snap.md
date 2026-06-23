@@ -42,16 +42,16 @@ Deine Nutzung
 
 **2** Erinnerungen
 
-Todoist\-Tipp des Tages
+Todoist-Tipp des Tages
 
-\[Android\] Todoist unterstützt eine Schnelleinstellungs\-Kachel für „Aufgabe
+\[Android\] Todoist unterstützt eine Schnelleinstellungs-Kachel für „Aufgabe
 hinzufügen“.
 
 [So funktioniert das Einrichten](https://example.example/TRACKINGLINK/)
 
-Team\-Aufgaben managen leicht gemacht
+Team-Aufgaben managen leicht gemacht
 
-Vergiss deine komplexe Teamarbeits\-Software.\
+Vergiss deine komplexe Teamarbeits-Software.\
 Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.
 
 [Vereinfache deine Teamarbeit](https://example.example/TRACKINGLINK/)

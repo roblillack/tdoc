@@ -21,14 +21,14 @@ Latest Stories
 - [Rafael strengthens into a hurricane in the Caribbean. The storm and its path
   could change drastically as it heads toward
   US&emsp14;](/2024/11/05/us/tropical-storm-rafael-forecast-hurricane-hnk/index.html)
-- [‘The saddest thing I’ve seen in Italy’: Tiny Trevi Fountain stand\-in pool
+- [‘The saddest thing I’ve seen in Italy’: Tiny Trevi Fountain stand-in pool
   draws
   scorn&emsp14;](/2024/11/05/travel/rome-trevi-fountain-stand-in-pool/index.html)
 - [Decision day: Oregon tops season’s first College Football Playoff Top 25
   rankings&emsp14;](/2024/11/05/sport/oregon-ducks-college-football-playoff-rankings-spt-intl/index.html)
-- [Jury finds Alabama man not guilty of murdering 11\-year\-old girl in
+- [Jury finds Alabama man not guilty of murdering 11-year-old girl in
   1988&emsp14;](/2024/11/05/us/melissa-tremblay-cold-case-not-guilty/index.html)
-- [Non\-credible bomb threats against Atlanta\-area polling places were from
+- [Non-credible bomb threats against Atlanta-area polling places were from
   Russia, secretary of state
   says&emsp14;](/2024/11/05/us/georgia-non-credible-bomb-threat-russia/index.html)
 - [Israeli attacks in West Bank killed at least eight people, officials and
@@ -67,7 +67,7 @@ Latest Stories
   sentenced&emsp14;](/2024/11/05/politics/january-6-rioter-sentenced-fi-duong/index.html)
 - [Beyoncé pays perfect homage to Pamela Anderson with
   ‘Beywatch’&emsp14;](/2024/11/05/entertainment/beyonce-pamela-anderson-costume/index.html)
-- [7 binge\-worthy YouTube series that are worth spending hours
+- [7 binge-worthy YouTube series that are worth spending hours
   watching&emsp14;](/2024/11/05/entertainment/binge-worthy-youtube-series/index.html)
 - [Bernard Marcus, cofounder of The Home Depot and billionaire Republican
   megadonor, has
@@ -81,7 +81,7 @@ Latest Stories
   charges&emsp14;](/2024/11/05/africa/nigeria-court-frees-protesters-intl/index.html)
 - [US soldier injured earlier this year on Gaza pier mission has
   died&emsp14;](/2024/11/04/politics/us-soldier-injured-earlier-this-year-on-gaza-pier-mission-has-died/index.html)
-- [Russia suspected of sending incendiary devices on US\- and Canada\-bound
+- [Russia suspected of sending incendiary devices on US- and Canada-bound
   planes, Wall Street Journal
   reports&emsp14;](/2024/11/04/europe/russia-suspected-incendiary-devices-europe-intl-latam/index.html)
 - [Taylor Swift’s brother steps in to help fan getting kicked out of her concert
@@ -103,8 +103,8 @@ Latest Stories
   disappeared&emsp14;](/2024/11/05/europe/france-skeleton-attic-scli-intl/index.html)
 - [Ben Affleck had this to say about his ex, Jennifer
   Lopez&emsp14;](/2024/11/04/entertainment/ben-affleck-jennifer-lopez/index.html)
-- [What local reporters around the country are hearing from voters in the
-  run\-up to Election
+- [What local reporters around the country are hearing from voters in the run-up
+  to Election
   Day&emsp14;](/2024/11/05/media/swing-state-local-news-voters-election-day/index.html)
 - [Remains of nearly 30 Civil War veterans found in a funeral home’s storage are
   laid to
@@ -137,7 +137,7 @@ Latest Stories
 - [Harris offers Americans a chance to turn the page on Trump era on election
   eve – without mentioning his
   name&emsp14;](/2024/11/04/politics/kamala-harris-turn-the-page/index.html)
-- [China to unveil J\-35A stealth fighter jet as air force aims to match US
+- [China to unveil J-35A stealth fighter jet as air force aims to match US
   aerial
   power&emsp14;](/2024/11/05/china/china-stealth-fighter-jet-j-35a-intl-hnk/index.html)
 - [Six French teenagers convicted in connection with 2020 beheading of teacher
@@ -152,14 +152,14 @@ Latest Stories
   space&emsp14;](/2024/11/05/style/japan-wooden-satellite-hnk-intl/index.html)
 - [Chiefs survive rainy weather, Patrick Mahomes injury scare to improve to
   perfect
-  8\-0&emsp14;](/2024/11/05/sport/chiefs-defeat-buccaneers-patrick-mahomes-injury-scare-spt-intl/index.html)
+  8-0&emsp14;](/2024/11/05/sport/chiefs-defeat-buccaneers-patrick-mahomes-injury-scare-spt-intl/index.html)
 - [Boeing workers vote to accept deal, end
   strike&emsp14;](/2024/11/04/business/boeing-strike-vote-hnk-intl/index.html)
 - [Soccer player killed by lightning strike during match in
   Peru&emsp14;](/2024/11/04/sport/peru-soccer-lightning-intl-hnk-spt/index.html)
 - [Tropical Storm Rafael forms in the Caribbean and could threaten the US Gulf
   Coast&emsp14;](/2024/11/04/weather/tropical-storm-rafael-hurricane-climate/index.html)
-- [A pro\-Trump influencer says a Russian agent paid him $100 to post a fake
+- [A pro-Trump influencer says a Russian agent paid him $100 to post a fake
   voter fraud video. It wasn’t the first
   time&emsp14;](/2024/11/04/politics/fake-georgia-voting-video-russian-disinformation/index.html)
 - [Elon Musk cancels X town hall event minutes after it started following yet
@@ -168,15 +168,15 @@ Latest Stories
 - [Jury sees video of subway chokehold that led to veteran Daniel Penny’s
   manslaughter
   trial&emsp14;](/2024/11/04/us/daniel-penny-manslaughter-trial-jury-sees-video/index.html)
-- [Last\-minute challenges in battleground Pennsylvania target thousands of
-  mail\-in
+- [Last-minute challenges in battleground Pennsylvania target thousands of
+  mail-in
   ballots&emsp14;](/2024/11/04/politics/pennsylvania-last-minute-mail-in-challenges/index.html)
 - [More than 78 million ballots have been cast early this year. Here are 3
-  takeaways from pre\-election
+  takeaways from pre-election
   voting&emsp14;](/2024/11/04/politics/takeaways-early-voting-election-republicans/index.html)
 - [Volcano erupts in eastern Indonesia, killing at least 10
   people&emsp14;](/2024/11/03/asia/volcanic-eruption-indonesia-intl-hnk/index.html)
-- [US looking into reported detention of American\-Iranian citizen in
+- [US looking into reported detention of American-Iranian citizen in
   Iran&emsp14;](/2024/11/04/middleeast/valizadeh-iran-detention-journalist-intl-latam/index.html)
 - [Elon Musk’s daily $1 million giveaway to voters can continue, Pennsylvania
   judge
@@ -184,7 +184,7 @@ Latest Stories
 - [At least 25 dead after boat ‘deliberately capsized by traffickers,’ says UN
   migration
   agency&emsp14;](/2024/11/04/africa/comoros-boat-capsize-intl-latam/index.html)
-- [‘I did it’: Jurors in Delphi double\-murder trial hear suspect’s alleged
+- [‘I did it’: Jurors in Delphi double-murder trial hear suspect’s alleged
   prison
   confessions&emsp14;](/2024/11/04/us/delphi-murders-trial-richard-allen/index.html)
 - [Freebies on Election Day include Uber and Lyft rides, Krispy Kreme doughnuts
@@ -204,7 +204,7 @@ Latest Stories
 - [Strong storms are hitting parts of the US for the third straight day after
   spawning destructive Oklahoma
   tornadoes&emsp14;](/2024/11/04/weather/oklahoma-texas-arkansas-tornado-thunderstorms-monday-hnk/index.html)
-- [Ex\-officer found guilty in the 2020 shooting death of Andre
+- [Ex-officer found guilty in the 2020 shooting death of Andre
   Hill&emsp14;](/2024/11/04/us/andre-hill-officer-adam-coy-verdict/index.html)
 - [A White man allegedly shot his Black neighbor in Minneapolis. Why police
   waited days before making an
@@ -241,7 +241,7 @@ Latest Stories
   91&emsp14;](/2024/11/04/entertainment/quincy-jones-obit/index.html)
 - [Kim Kardashian gives Princess Diana’s famed cross necklace its first public
   outing&emsp14;](/2024/11/04/style/kim-kardashian-wears-diana-crucifix-intl-scli/index.html)
-- [Battle to replace McConnell remains wide\-open as top candidates quietly woo
+- [Battle to replace McConnell remains wide-open as top candidates quietly woo
   key senators — and
   Trump&emsp14;](/2024/11/04/politics/senate-gop-leadership-election-trump/index.html)
 - [Elon Musk’s misleading election claims have been viewed more than 2 billion

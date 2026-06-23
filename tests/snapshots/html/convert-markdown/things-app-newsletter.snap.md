@@ -5,7 +5,7 @@ Hi there,\
 Things has been updated with support for macOS Sonoma, iOS 17, and watchOS 10.
 The update also includes a variety of **great improvements for widgets**.
 
-The widgets are now interactive, which means you can complete to\-dos right from
+The widgets are now interactive, which means you can complete to-dos right from
 the Home Screen on your iPhone or iPad. You can also place widgets on your
 iPad’s Lock Screen, and even your Mac’s desktop.\
 \
@@ -23,9 +23,9 @@ You can learn more about all the new features on our blog:
 &nbsp;
 
 Things 3.19 is available on the App Store as a free update for all our customers
-\([Mac](https://example.example/t/TRACKINGLINK/),
+([Mac](https://example.example/t/TRACKINGLINK/),
 [iPad](https://example.example/t/TRACKINGLINK/),
-[iPhone](https://example.example/t/TRACKINGLINK/)\). The new features also
+[iPhone](https://example.example/t/TRACKINGLINK/)). The new features also
 require that you update to the latest versions of macOS, iOS, and watchOS.\
 \
 We hope you enjoy this update! 🙂\
