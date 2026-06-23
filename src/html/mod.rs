@@ -755,7 +755,7 @@ impl ParagraphBuilder {
 
         if is_checklist {
             let mut checklist_items = Vec::new();
-            for (entry, state) in entries.into_iter().zip(checklist_states.into_iter()) {
+            for (entry, state) in entries.into_iter().zip(checklist_states) {
                 let checked = state.unwrap_or(false);
                 if let Some(item) = ParagraphBuilder::entry_to_checklist_item(entry, checked) {
                     checklist_items.push(item);
