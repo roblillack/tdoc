@@ -1,20 +1,28 @@
-//! Serialize [`Document`](crate::Document) trees back into FTML/HTML.
+//! Serialize [`Document`](crate::Document) trees back into FTML.
+//!
+//! For HTML output that preserves table structure, see [`crate::html::write`].
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{
+    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+};
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::{self, Write};
 
-/// Emits FTML/HTML markup from a [`Document`] tree.
+/// Emits FTML markup from a [`Document`] tree.
 ///
 /// `Writer` focuses on producing readable markup that preserves semantic tags
 /// such as lists, block quotes, and inline styles. It defaults to two-space
 /// indentation and an 80 character wrap width.
 ///
+/// FTML has no table syntax, so tables are flattened into individual `<p>`
+/// paragraphs. Use [`Writer::new_html`] (or [`crate::html::write`]) to retain
+/// the original `<table>` markup.
+///
 /// # Examples
 ///
 /// ```
-/// use tdoc::{Document, Paragraph, Span, writer::Writer};
+/// use tdoc::{Document, Paragraph, Span, ftml::Writer};
 ///
 /// let paragraph = Paragraph::new_text().with_content(vec![Span::new_text("Hello!")]);
 /// let document = Document::new().with_paragraphs(vec![paragraph]);
@@ -27,6 +35,10 @@ pub struct Writer {
     indentation: String,
     max_width: usize,
     style_tags: HashMap<InlineStyle, String>,
+    /// When `true`, tables are emitted as `<table>/<tr>/<td>` markup. When
+    /// `false` (FTML default), tables are flattened into individual `<p>`
+    /// paragraphs because FTML has no table syntax.
+    emit_tables: bool,
     multiple_spaces_regex: Regex,
     trailing_spaces_regex: Regex,
     leading_spaces_regex: Regex,
@@ -42,8 +54,19 @@ impl Default for Writer {
 }
 
 impl Writer {
-    /// Creates a new writer with default indentation, wrapping, and styling.
+    /// Creates a new FTML writer. Tables are flattened into paragraphs
+    /// because FTML has no table syntax.
     pub fn new() -> Self {
+        Self::with_tables(false)
+    }
+
+    /// Creates a writer that emits real `<table>` markup. Use this for HTML
+    /// output where the structure should be preserved.
+    pub fn new_html() -> Self {
+        Self::with_tables(true)
+    }
+
+    fn with_tables(emit_tables: bool) -> Self {
         let mut style_tags = HashMap::new();
         style_tags.insert(InlineStyle::Bold, "b".to_string());
         style_tags.insert(InlineStyle::Italic, "i".to_string());
@@ -56,6 +79,7 @@ impl Writer {
             indentation: "  ".to_string(),
             max_width: 80,
             style_tags,
+            emit_tables,
             multiple_spaces_regex: Regex::new(r"  +").unwrap(),
             trailing_spaces_regex: Regex::new(r"\s +").unwrap(),
             leading_spaces_regex: Regex::new(r" +\s").unwrap(),
@@ -94,6 +118,10 @@ impl Writer {
     ) -> io::Result<()> {
         let paragraph_type = paragraph.paragraph_type();
         let tag = paragraph_type.html_tag();
+
+        if paragraph_type == ParagraphType::Table {
+            return self.write_table_paragraph(writer, paragraph.rows(), level);
+        }
 
         if paragraph_type.is_leaf() {
             if paragraph_type == ParagraphType::CodeBlock {
@@ -199,6 +227,99 @@ impl Writer {
 
         self.write_indent(writer, level + 1)?;
         self.write_spans(writer, content, level + 1, true, true)?;
+        writeln!(writer)?;
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</{}>", tag)
+    }
+
+    fn write_table_paragraph<W: Write>(
+        &self,
+        writer: &mut W,
+        rows: &[TableRow],
+        level: usize,
+    ) -> io::Result<()> {
+        if self.emit_tables {
+            self.write_html_table(writer, rows, level)
+        } else {
+            self.write_flattened_table(writer, rows, level)
+        }
+    }
+
+    fn write_flattened_table<W: Write>(
+        &self,
+        writer: &mut W,
+        rows: &[TableRow],
+        level: usize,
+    ) -> io::Result<()> {
+        // FTML has no table syntax. Flatten each non-empty cell into its own
+        // `<p>` paragraph so the content survives the round-trip even though
+        // the table structure is lost.
+        let mut first = true;
+        for row in rows {
+            for cell in &row.cells {
+                if cell.content.iter().all(|span| span.is_content_empty()) {
+                    continue;
+                }
+                if !first {
+                    writeln!(writer)?;
+                }
+                first = false;
+                self.write_leaf_paragraph(writer, &cell.content, "p", level)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn write_html_table<W: Write>(
+        &self,
+        writer: &mut W,
+        rows: &[TableRow],
+        level: usize,
+    ) -> io::Result<()> {
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<table>")?;
+
+        for row in rows {
+            self.write_indent(writer, level + 1)?;
+            writeln!(writer, "<tr>")?;
+            for cell in &row.cells {
+                self.write_table_cell(writer, cell, level + 2)?;
+            }
+            self.write_indent(writer, level + 1)?;
+            writeln!(writer, "</tr>")?;
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</table>")
+    }
+
+    fn write_table_cell<W: Write>(
+        &self,
+        writer: &mut W,
+        cell: &TableCell,
+        level: usize,
+    ) -> io::Result<()> {
+        let tag = if cell.is_header { "th" } else { "td" };
+
+        if cell.content.is_empty() {
+            self.write_indent(writer, level)?;
+            writeln!(writer, "<{}></{}>", tag, tag)?;
+            return Ok(());
+        }
+
+        let single_line = self.render_single_line(&cell.content, tag, level);
+
+        if single_line.chars().count() <= self.max_width && !single_line.trim_end().contains('\n') {
+            write!(writer, "{}", single_line)?;
+            return Ok(());
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<{}>", tag)?;
+
+        self.write_indent(writer, level + 1)?;
+        self.write_spans(writer, &cell.content, level + 1, true, true)?;
         writeln!(writer)?;
 
         self.write_indent(writer, level)?;
@@ -705,6 +826,31 @@ mod tests {
             w(ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } }),
             "<p><a href=\"yadayada\">Hier kommt ein Test! </a></p>\n",
         );
+    }
+
+    #[test]
+    fn test_table_writer_flattens_to_paragraphs() {
+        use crate::{TableCell, TableRow};
+
+        let rows = vec![
+            TableRow::new().with_cells(vec![
+                TableCell::new_header().with_content(vec![Span::new_text("Name")]),
+                TableCell::new_header().with_content(vec![Span::new_text("Age")]),
+            ]),
+            TableRow::new().with_cells(vec![
+                TableCell::new_data().with_content(vec![Span::new_text("Alice")]),
+                TableCell::new_data().with_content(vec![]),
+            ]),
+        ];
+        let paragraph = Paragraph::new_table().with_rows(rows);
+        let doc = Document::new().with_paragraphs(vec![paragraph]);
+
+        let writer = Writer::new();
+        let result = writer.write_to_string(&doc).unwrap();
+
+        // FTML has no table syntax; cells are flattened to paragraphs and
+        // empty cells are dropped.
+        assert_eq!(result, "<p>Name</p>\n\n<p>Age</p>\n\n<p>Alice</p>\n");
     }
 
     #[test]

@@ -2,7 +2,8 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::{fs, vec};
 
-use tdoc::{formatter::Formatter, html, markdown, write};
+use tdoc::ftml;
+use tdoc::{formatter::Formatter, html, markdown};
 
 fn collect_html_fixtures() -> Vec<PathBuf> {
     let data_dir = PathBuf::from("tests/data/html");
@@ -106,7 +107,7 @@ fn html_import_snapshots() {
         for html_path in fixtures {
             let document = load_document(&html_path);
             let mut rendered: Vec<u8> = vec![];
-            write(&mut rendered, &document).expect("failed to write FTML snapshot");
+            ftml::write(&mut rendered, &document).expect("failed to write FTML snapshot");
 
             let snapshot_name = snapshot_name(&html_path, "ftml");
 

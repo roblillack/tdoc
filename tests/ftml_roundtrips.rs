@@ -2,7 +2,7 @@ use std::fs::{self, File};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use tdoc::parse;
+use tdoc::ftml::parse;
 
 pub fn collect_ftml_fixtures() -> Vec<PathBuf> {
     let mut fixtures = Vec::new();
@@ -49,7 +49,7 @@ pub fn load_ftml_document(path: &Path) -> Option<tdoc::Document> {
 
 pub fn render_ftml(document: &tdoc::Document) -> String {
     let mut buffer = Vec::new();
-    tdoc::write(&mut buffer, document)
+    tdoc::ftml::write(&mut buffer, document)
         .unwrap_or_else(|err| panic!("failed to render FTML document: {}", err));
     String::from_utf8(buffer)
         .unwrap_or_else(|err| panic!("failed to convert rendered FTML to UTF-8: {}", err))

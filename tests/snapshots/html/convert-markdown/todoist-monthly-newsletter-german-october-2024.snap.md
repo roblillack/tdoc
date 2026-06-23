@@ -28,7 +28,7 @@ Vorstandssitzungen, Spieleabenden und allen anderen geplanten Aktivitäten sehen
 So kannst du realistische Pläne erstellen und vermeiden, dass du zu vielen
 Verpflichtungen eingehst.
 
-  Francesca zeigt dir, wie du mit der Synchronisierung beginnst:
+&emsp14; Francesca zeigt dir, wie du mit der Synchronisierung beginnst:
 
 So funktioniert’s
 

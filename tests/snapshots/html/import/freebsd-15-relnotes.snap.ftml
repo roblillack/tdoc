@@ -370,7 +370,11 @@ c368ec8d05654bdaad34742c1d75b9b150bfc3892838cef32f6e5b036b0c0605 /usr/share/keys
 
 <h3>Fixed Security Advisories</h3>
 
-<p>Advisory Date Topic</p>
+<p>Advisory</p>
+
+<p>Date</p>
+
+<p>Topic</p>
 
 <p>
   <a href="https://www.freebsd.org/security/advisories/FreeBSD-SA-23:17.pf.asc">FreeBSD-SA-23:17.pf</a>
@@ -654,7 +658,11 @@ c368ec8d05654bdaad34742c1d75b9b150bfc3892838cef32f6e5b036b0c0605 /usr/share/keys
 
 <h3>Patched Errata Notices</h3>
 
-<p>Errata Date Topic</p>
+<p>Errata</p>
+
+<p>Date</p>
+
+<p>Topic</p>
 
 <p>
   <a href="https://www.freebsd.org/security/advisories/FreeBSD-EN-23:15.sanitizer.asc">FreeBSD-EN-23:15:sanitizer</a>

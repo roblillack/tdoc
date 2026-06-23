@@ -1,7 +1,9 @@
 //! Convert between Markdown text and FTML [`Document`](crate::Document) trees.
 
 use crate::metadata;
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{
+    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::borrow::Cow;
 use std::io::{Read, Write};
@@ -41,6 +43,7 @@ pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
     options.insert(Options::ENABLE_WIKILINKS);
+    options.insert(Options::ENABLE_TABLES);
 
     let parser = Parser::new_ext(content, options);
     let mut builder = MarkdownBuilder::new();
@@ -66,6 +69,7 @@ pub fn parse_without_metadata<R: Read>(mut reader: R) -> crate::Result<Document>
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
     options.insert(Options::ENABLE_WIKILINKS);
+    options.insert(Options::ENABLE_TABLES);
 
     let parser = Parser::new_ext(&input, options);
     let mut builder = MarkdownBuilder::new();
@@ -151,6 +155,28 @@ impl MarkdownBuilder {
                     Some(BlockContext::Quote { children }) => {
                         let paragraph = Paragraph::new_quote().with_children(children);
                         self.add_paragraph_to_parent(paragraph);
+                    }
+                    Some(BlockContext::Table { rows, .. }) => {
+                        let paragraph = Paragraph::new_table().with_rows(rows);
+                        self.add_paragraph_to_parent(paragraph);
+                    }
+                    Some(BlockContext::TableRow { cells }) => {
+                        if let Some(BlockContext::Table { rows, .. }) = self.stack.last_mut() {
+                            if !cells.is_empty() {
+                                rows.push(TableRow { cells });
+                            }
+                        }
+                    }
+                    Some(BlockContext::TableCell { is_header, context }) => {
+                        let paragraph = context.finish();
+                        let content = match paragraph {
+                            Paragraph::Text { content } => content,
+                            _ => Vec::new(),
+                        };
+                        let cell = TableCell { is_header, content };
+                        if let Some(BlockContext::TableRow { cells }) = self.stack.last_mut() {
+                            cells.push(cell);
+                        }
                     }
                     Some(BlockContext::Document { paragraphs }) => {
                         return Document {
@@ -259,8 +285,30 @@ impl MarkdownBuilder {
                 let paragraph = self.start_paragraph(ParagraphType::Text);
                 paragraph.push_text(&format!("[^{}]: ", name));
             }
-            Tag::Table(_) | Tag::TableHead | Tag::TableRow | Tag::TableCell => {
-                // Tables are flattened into text paragraphs.
+            Tag::Table(_) => {
+                self.close_open_paragraphs();
+                self.stack.push(BlockContext::Table {
+                    rows: Vec::new(),
+                    in_head: false,
+                });
+            }
+            Tag::TableHead => {
+                if let Some(BlockContext::Table { in_head, .. }) = self.stack.last_mut() {
+                    *in_head = true;
+                }
+                self.stack
+                    .push(BlockContext::TableRow { cells: Vec::new() });
+            }
+            Tag::TableRow => {
+                self.stack
+                    .push(BlockContext::TableRow { cells: Vec::new() });
+            }
+            Tag::TableCell => {
+                let is_header = self.current_table_in_head();
+                self.stack.push(BlockContext::TableCell {
+                    is_header,
+                    context: ParagraphContext::new(ParagraphType::Text),
+                });
             }
             Tag::HtmlBlock
             | Tag::DefinitionList
@@ -358,8 +406,36 @@ impl MarkdownBuilder {
             TagEnd::FootnoteDefinition => {
                 self.finish_paragraph();
             }
-            TagEnd::Table | TagEnd::TableHead | TagEnd::TableRow | TagEnd::TableCell => {
-                self.close_open_paragraphs();
+            TagEnd::TableCell => {
+                if let Some(BlockContext::TableCell { is_header, context }) = self.stack.pop() {
+                    let paragraph = context.finish();
+                    let content = match paragraph {
+                        Paragraph::Text { content } => content,
+                        _ => Vec::new(),
+                    };
+                    let cell = TableCell { is_header, content };
+                    if let Some(BlockContext::TableRow { cells }) = self.stack.last_mut() {
+                        cells.push(cell);
+                    }
+                }
+            }
+            TagEnd::TableRow | TagEnd::TableHead => {
+                if let Some(BlockContext::TableRow { cells }) = self.stack.pop() {
+                    if !cells.is_empty() {
+                        if let Some(BlockContext::Table { rows, in_head }) = self.stack.last_mut() {
+                            rows.push(TableRow { cells });
+                            if matches!(tag, TagEnd::TableHead) {
+                                *in_head = false;
+                            }
+                        }
+                    }
+                }
+            }
+            TagEnd::Table => {
+                if let Some(BlockContext::Table { rows, .. }) = self.stack.pop() {
+                    let paragraph = Paragraph::new_table().with_rows(rows);
+                    self.add_paragraph_to_parent(paragraph);
+                }
             }
             TagEnd::HtmlBlock
             | TagEnd::DefinitionList
@@ -553,6 +629,14 @@ impl MarkdownBuilder {
     }
 
     fn ensure_paragraph(&mut self) -> &mut ParagraphContext {
+        let in_cell = matches!(self.stack.last(), Some(BlockContext::TableCell { .. }));
+        if in_cell {
+            return match self.stack.last_mut() {
+                Some(BlockContext::TableCell { context, .. }) => context,
+                _ => unreachable!("TableCell context should exist"),
+            };
+        }
+
         let needs_new = !matches!(self.stack.last(), Some(BlockContext::Paragraph(_)));
         if needs_new {
             self.start_paragraph(ParagraphType::Text);
@@ -562,6 +646,15 @@ impl MarkdownBuilder {
             Some(BlockContext::Paragraph(context)) => context,
             _ => unreachable!("Paragraph context should exist after initialization"),
         }
+    }
+
+    fn current_table_in_head(&self) -> bool {
+        for ctx in self.stack.iter().rev() {
+            if let BlockContext::Table { in_head, .. } = ctx {
+                return *in_head;
+            }
+        }
+        false
     }
 
     fn finish_paragraph(&mut self) {
@@ -600,6 +693,12 @@ impl MarkdownBuilder {
                 }
                 BlockContext::Paragraph(context) => {
                     context.push_nested_paragraph(paragraph);
+                }
+                BlockContext::TableCell { context, .. } => {
+                    context.push_nested_paragraph(paragraph);
+                }
+                BlockContext::Table { .. } | BlockContext::TableRow { .. } => {
+                    // Tables only hold rows/cells; stray paragraphs are dropped.
                 }
             }
         }
@@ -652,6 +751,17 @@ enum BlockContext {
         checklist_state: Option<bool>,
     },
     Paragraph(ParagraphContext),
+    Table {
+        rows: Vec<TableRow>,
+        in_head: bool,
+    },
+    TableRow {
+        cells: Vec<TableCell>,
+    },
+    TableCell {
+        is_header: bool,
+        context: ParagraphContext,
+    },
 }
 
 fn is_open_tag(tag: &str, name: &str) -> bool {
@@ -981,8 +1091,99 @@ fn write_paragraph<W: Write>(
         Paragraph::Checklist { items } => {
             write_checklist_items(writer, items, prefix, continuation_prefix)?;
         }
+        Paragraph::Table { rows } => {
+            write_table(writer, rows, prefix, continuation_prefix)?;
+        }
     }
     Ok(())
+}
+
+fn write_table<W: Write>(
+    writer: &mut W,
+    rows: &[TableRow],
+    prefix: &str,
+    continuation_prefix: &str,
+) -> std::io::Result<()> {
+    if rows.is_empty() {
+        return Ok(());
+    }
+
+    let column_count = rows.iter().map(|row| row.cells.len()).max().unwrap_or(0);
+    if column_count == 0 {
+        return Ok(());
+    }
+
+    let mut cell_text: Vec<Vec<String>> = Vec::with_capacity(rows.len());
+    for row in rows {
+        let mut texts = Vec::with_capacity(column_count);
+        for col in 0..column_count {
+            let text = match row.cells.get(col) {
+                Some(cell) => encode_table_cell(&cell.content)?,
+                None => String::new(),
+            };
+            texts.push(text);
+        }
+        cell_text.push(texts);
+    }
+
+    let mut widths = vec![3usize; column_count];
+    for row in &cell_text {
+        for (col, text) in row.iter().enumerate() {
+            let w = text.chars().count();
+            if w > widths[col] {
+                widths[col] = w;
+            }
+        }
+    }
+
+    let header_is_explicit = rows
+        .first()
+        .map(|row| !row.cells.is_empty() && row.cells.iter().all(|cell| cell.is_header))
+        .unwrap_or(false);
+
+    let write_row = |writer: &mut W, prefix: &str, row: &[String]| -> std::io::Result<()> {
+        write!(writer, "{}|", prefix)?;
+        for (col, text) in row.iter().enumerate() {
+            let pad = widths[col].saturating_sub(text.chars().count());
+            write!(writer, " {}{} |", text, " ".repeat(pad))?;
+        }
+        writeln!(writer)?;
+        Ok(())
+    };
+
+    let write_separator = |writer: &mut W, prefix: &str| -> std::io::Result<()> {
+        write!(writer, "{}|", prefix)?;
+        for &w in &widths {
+            write!(writer, "{}|", "-".repeat(w + 2))?;
+        }
+        writeln!(writer)?;
+        Ok(())
+    };
+
+    if header_is_explicit {
+        write_row(writer, prefix, &cell_text[0])?;
+        write_separator(writer, continuation_prefix)?;
+        for row in cell_text.iter().skip(1) {
+            write_row(writer, continuation_prefix, row)?;
+        }
+    } else {
+        // GFM requires a separator row; synthesize an empty header above the data.
+        let empty_header: Vec<String> = widths.iter().map(|_| String::new()).collect();
+        write_row(writer, prefix, &empty_header)?;
+        write_separator(writer, continuation_prefix)?;
+        for row in &cell_text {
+            write_row(writer, continuation_prefix, row)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn encode_table_cell(spans: &[Span]) -> std::io::Result<String> {
+    let rendered = render_spans_to_string(spans)?;
+    // Flatten newlines — pipe tables are single-line per cell — and escape pipes.
+    let flattened = rendered.replace('\n', " ");
+    Ok(flattened.replace('|', "\\|"))
 }
 
 fn write_checklist_items<W: Write>(
@@ -1077,6 +1278,11 @@ fn write_span<W: Write>(
         InlineStyle::Code => write_code_span(writer, span, state),
         style => {
             let (begin_tag, end_tag) = inline_tags(style);
+            // Skip empty styled spans — emitting bare delimiters like `__`
+            // produces literal underscores once Markdown is re-parsed.
+            if !span.has_content() {
+                return Ok(());
+            }
             if !begin_tag.is_empty() {
                 state.write_chunk(writer, begin_tag)?;
             }
@@ -1416,7 +1622,10 @@ impl<'a> LineState<'a> {
     fn new(continuation_prefix: &'a str) -> Self {
         Self {
             continuation_prefix,
-            at_line_start: false,
+            // Treat the very first chunk as the start of a line so leading
+            // whitespace is encoded the same way as whitespace after a hard
+            // break.
+            at_line_start: true,
         }
     }
 
@@ -1765,6 +1974,36 @@ mod tests {
             r("[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA ](TARGET)\nBBBB\n"),
             ftml! { p { link { "TARGET" word } " BBBB"} },
         );
+    }
+
+    #[test]
+    fn test_parse_gfm_table() {
+        let input = "| Name | Age |\n|---|---|\n| Alice | 30 |\n| Bob | 25 |\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(parsed.paragraphs.len(), 1);
+        let table = &parsed.paragraphs[0];
+        assert_eq!(table.paragraph_type(), ParagraphType::Table);
+
+        let rows = table.rows();
+        assert_eq!(rows.len(), 3);
+        assert!(rows[0].cells.iter().all(|cell| cell.is_header));
+        assert_eq!(rows[0].cells[0].content[0].text, "Name");
+        assert_eq!(rows[1].cells[0].content[0].text, "Alice");
+        assert_eq!(rows[2].cells[1].content[0].text, "25");
+    }
+
+    #[test]
+    fn test_write_gfm_table_roundtrip() {
+        let input = "| Name | Age |\n|---|---|\n| Alice | 30 |\n| Bob | 25 |\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+
+        let mut output = Vec::new();
+        write(&mut output, &parsed).unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let reparsed = parse(Cursor::new(result.as_bytes())).unwrap();
+        assert_eq!(reparsed, parsed);
     }
 
     #[test]

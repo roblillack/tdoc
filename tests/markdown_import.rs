@@ -43,7 +43,7 @@ fn markdown_import_snapshots() {
             };
 
             let mut rendered = Vec::new();
-            tdoc::write(&mut rendered, &document).expect("failed to render FTML snapshot");
+            tdoc::ftml::write(&mut rendered, &document).expect("failed to render FTML snapshot");
 
             let snapshot_name = format!(
                 "{}.ftml",

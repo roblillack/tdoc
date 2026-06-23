@@ -1,5 +1,5 @@
 Save up to 30% and experience holiday magic at Example Example Example Example
-&nbsp;    &emsp14;
+&nbsp;
 
 **SAVE UP TO 30% OFF TICKETS TO THE _CHRISTMAS&nbsp;SPECTACULAR_!\***
 
@@ -22,8 +22,6 @@ Upon arrival to Example.com, hit the 🔒 button and enter the code: **EXAMPLE12
 
 Add a little extra sparkle to your showtime with one of our exclusive experience
 packages.
-
-&emsp14;
 
 \*8 ticket limit per transaction and 14 ticket limit per purchaser over the
 entire 2025 Christmas Spectacular season. Valid on select seats and
