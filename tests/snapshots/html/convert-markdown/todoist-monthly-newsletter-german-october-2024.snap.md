@@ -28,7 +28,7 @@ Vorstandssitzungen, Spieleabenden und allen anderen geplanten Aktivitäten sehen
 So kannst du realistische Pläne erstellen und vermeiden, dass du zu vielen
 Verpflichtungen eingehst.
 
-  Francesca zeigt dir, wie du mit der Synchronisierung beginnst:
+&emsp14; Francesca zeigt dir, wie du mit der Synchronisierung beginnst:
 
 So funktioniert’s
 
@@ -92,9 +92,9 @@ Mit produktiven Grüßen
 
 [Inspiration
 Hub](https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-| [Apps
+\| [Apps
 herunterladen](https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-| [Help
+\| [Help
 Center](https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
 
 [Abbestellen](https://todoist.com/unsubscribe)

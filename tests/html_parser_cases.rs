@@ -2,9 +2,9 @@ use std::fs;
 use std::io::Cursor;
 
 use tdoc::ftml;
+use tdoc::ftml::Writer;
 use tdoc::html;
 use tdoc::test_helpers::*;
-use tdoc::writer::Writer;
 use tdoc::Document;
 use tdoc::Paragraph;
 use tdoc::ParagraphType;

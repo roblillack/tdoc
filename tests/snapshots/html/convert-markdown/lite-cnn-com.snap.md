@@ -262,6 +262,6 @@ Latest Stories
 © 2024 Cable News Network. A Warner Bros. Discovery Company. All Rights
 Reserved.
 
-[Terms of Use ](https://www.cnn.com/terms) |  [Privacy Policy
-](https://www.cnn.com/privacy) |  [Ad Choices ](https://www.cnn.com/ad-choices)
-|  Cookie Settings&emsp14;
+[Terms of Use ](https://www.cnn.com/terms) \|  [Privacy Policy
+](https://www.cnn.com/privacy) \|  [Ad Choices ](https://www.cnn.com/ad-choices)
+\|  Cookie Settings&emsp14;

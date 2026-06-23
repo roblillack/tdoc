@@ -86,9 +86,9 @@ Productively,
 
 [Inspiration
 Hub](https://todoist.com/inspiration?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-| [Download
+\| [Download
 Apps](https://todoist.com/downloads?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-| [Help
+\| [Help
 Center](https://todoist.com/help?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
 
 [Unsubscribe](https://todoist.com/unsubscribe)

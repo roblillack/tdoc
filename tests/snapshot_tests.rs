@@ -1,7 +1,8 @@
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use tdoc::{formatter, markdown, parse};
+use tdoc::ftml::parse;
+use tdoc::{formatter, markdown};
 
 fn collect_ftml_fixtures() -> Vec<PathBuf> {
     let mut test_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -31,7 +32,7 @@ fn collect_ftml_fixtures() -> Vec<PathBuf> {
 
 fn render_ftml(document: &tdoc::Document) -> tdoc::Result<String> {
     let mut buffer = Vec::new();
-    tdoc::write(&mut buffer, document)?;
+    tdoc::ftml::write(&mut buffer, document)?;
     Ok(String::from_utf8(buffer)?)
 }
 

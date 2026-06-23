@@ -1,10 +1,11 @@
 //! Render documents to formatted plain text suitable for terminals or logs.
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::Write;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 const DEFAULT_WRAP_WIDTH: usize = 72;
 const DEFAULT_QUOTE_PREFIX: &str = "| ";
@@ -43,6 +44,63 @@ pub enum LinkIndexFormat {
     Bracketed,
 }
 
+/// Glyphs used to draw the lines and junctions of a rendered table grid.
+///
+/// Two presets are provided: [`TableBorders::ascii`] uses the portable `+`,
+/// `-`, and `|` characters (suitable for plain-text exports), while
+/// [`TableBorders::unicode`] uses box-drawing characters for terminals that
+/// support them.
+#[derive(Clone)]
+pub struct TableBorders {
+    pub horizontal: char,
+    pub vertical: char,
+    pub top_left: char,
+    pub top_join: char,
+    pub top_right: char,
+    pub left_join: char,
+    pub cross: char,
+    pub right_join: char,
+    pub bottom_left: char,
+    pub bottom_join: char,
+    pub bottom_right: char,
+}
+
+impl TableBorders {
+    /// Portable borders built from `+`, `-`, and `|`.
+    pub fn ascii() -> Self {
+        Self {
+            horizontal: '-',
+            vertical: '|',
+            top_left: '+',
+            top_join: '+',
+            top_right: '+',
+            left_join: '+',
+            cross: '+',
+            right_join: '+',
+            bottom_left: '+',
+            bottom_join: '+',
+            bottom_right: '+',
+        }
+    }
+
+    /// Box-drawing borders for terminals that support Unicode.
+    pub fn unicode() -> Self {
+        Self {
+            horizontal: '─',
+            vertical: '│',
+            top_left: '┌',
+            top_join: '┬',
+            top_right: '┐',
+            left_join: '├',
+            cross: '┼',
+            right_join: '┤',
+            bottom_left: '└',
+            bottom_join: '┴',
+            bottom_right: '┘',
+        }
+    }
+}
+
 #[derive(Clone)]
 /// High-level configuration that influences how the [`Formatter`] renders output.
 pub struct FormattingStyle {
@@ -58,6 +116,8 @@ pub struct FormattingStyle {
     pub link_index_format: LinkIndexFormat,
     /// When true, numbered link references are emitted after each section.
     pub link_footnotes: bool,
+    /// Glyphs used to draw table borders.
+    pub table_borders: TableBorders,
 }
 
 impl Default for FormattingStyle {
@@ -72,6 +132,7 @@ impl Default for FormattingStyle {
             enable_osc8_hyperlinks: false,
             link_index_format: LinkIndexFormat::default(),
             link_footnotes: true,
+            table_borders: TableBorders::ascii(),
         }
     }
 }
@@ -107,6 +168,7 @@ impl FormattingStyle {
             enable_osc8_hyperlinks: true,
             link_index_format: LinkIndexFormat::default(),
             link_footnotes: true,
+            table_borders: TableBorders::unicode(),
         }
     }
 }
@@ -451,8 +513,360 @@ impl<W: Write> Formatter<W> {
                 continuation_prefix,
                 continuation_prefix,
             )?,
+            ParagraphType::Table => {
+                self.write_table_paragraph(paragraph.rows(), prefix, continuation_prefix)?;
+            }
         }
         Ok(())
+    }
+
+    fn write_table_paragraph(
+        &mut self,
+        rows: &[TableRow],
+        prefix: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+
+        let column_count = rows.iter().map(|row| row.cells.len()).max().unwrap_or(0);
+        if column_count == 0 {
+            return Ok(());
+        }
+
+        // Pre-render each cell to its formatted string representation. Newlines
+        // within cell content are flattened to spaces; line breaks are
+        // re-introduced later by wrapping each cell to its column width.
+        let mut cell_text: Vec<Vec<String>> = Vec::with_capacity(rows.len());
+        let mut header_flags: Vec<Vec<bool>> = Vec::with_capacity(rows.len());
+        for row in rows {
+            let mut texts = Vec::with_capacity(column_count);
+            let mut flags = Vec::with_capacity(column_count);
+            for col in 0..column_count {
+                let (rendered, is_header) = match row.cells.get(col) {
+                    Some(cell) => {
+                        let mut parts = Vec::new();
+                        for span in &cell.content {
+                            self.collect_formatted_text(span, &mut parts)?;
+                        }
+                        let mut joined = String::new();
+                        for part in parts {
+                            if part == "\n" {
+                                joined.push(' ');
+                            } else {
+                                joined.push_str(&part);
+                            }
+                        }
+                        (joined, cell.is_header)
+                    }
+                    None => (String::new(), false),
+                };
+                texts.push(rendered);
+                flags.push(is_header);
+            }
+            cell_text.push(texts);
+            header_flags.push(flags);
+        }
+
+        // Each column has a natural (preferred) width — the widest single-line
+        // cell — and a minimum width — the widest unbreakable word. The
+        // minimum keeps a column from shrinking so far that a word no longer
+        // fits, unless even the minimums cannot fit the available width.
+        let mut natural = vec![0usize; column_count];
+        let mut minimum = vec![0usize; column_count];
+        for row in &cell_text {
+            for (col, text) in row.iter().enumerate() {
+                let w = self.visible_width(text);
+                if w > natural[col] {
+                    natural[col] = w;
+                }
+                let longest_word = self.longest_word_width(text);
+                if longest_word > minimum[col] {
+                    minimum[col] = longest_word;
+                }
+            }
+        }
+
+        // Work out how much horizontal space the table may occupy. Each column
+        // contributes its content plus three structural characters (two
+        // padding spaces and a trailing border); the table also has a single
+        // leading border.
+        let prefix_width = prefix
+            .chars()
+            .count()
+            .max(continuation_prefix.chars().count());
+        let structural = 3 * column_count + 1;
+        let available = self.style.wrap_width.saturating_sub(prefix_width);
+        let content_budget = available.saturating_sub(structural);
+
+        let widths = allocate_table_widths(&natural, &minimum, content_budget);
+
+        // Wrap every cell to its assigned column width up front so we know how
+        // many physical lines each row needs.
+        let mut wrapped: Vec<Vec<Vec<String>>> = Vec::with_capacity(cell_text.len());
+        for (row_idx, row) in cell_text.iter().enumerate() {
+            let mut wrapped_row = Vec::with_capacity(column_count);
+            for (col, text) in row.iter().enumerate() {
+                let styled = if header_flags[row_idx][col] {
+                    self.apply_bold(text)
+                } else {
+                    text.clone()
+                };
+                wrapped_row.push(self.wrap_formatted_to_width(&styled, widths[col]));
+            }
+            wrapped.push(wrapped_row);
+        }
+
+        let border_prefix = continuation_prefix.to_string();
+        let vertical = self.style.table_borders.vertical;
+
+        // Build the three horizontal rules (top, between rows, bottom). They
+        // share the same column segments and differ only in their corner and
+        // junction glyphs: the box-drawing preset gives each rule its proper
+        // corners, while the ASCII preset renders every junction as `+`.
+        let (top_rule, separator_rule, bottom_rule) = {
+            let borders = &self.style.table_borders;
+            let rule = |left: char, join: char, right: char| {
+                let mut s = String::new();
+                s.push(left);
+                for (i, &w) in widths.iter().enumerate() {
+                    if i > 0 {
+                        s.push(join);
+                    }
+                    s.push_str(&borders.horizontal.to_string().repeat(w + 2));
+                }
+                s.push(right);
+                s
+            };
+            (
+                rule(borders.top_left, borders.top_join, borders.top_right),
+                rule(borders.left_join, borders.cross, borders.right_join),
+                rule(borders.bottom_left, borders.bottom_join, borders.bottom_right),
+            )
+        };
+
+        writeln!(self.writer, "{}{}", prefix, top_rule)?;
+
+        let last_row = wrapped.len().saturating_sub(1);
+        for (row_idx, wrapped_row) in wrapped.iter().enumerate() {
+            let row_height = wrapped_row
+                .iter()
+                .map(|cell| cell.len())
+                .max()
+                .unwrap_or(1)
+                .max(1);
+            for line_idx in 0..row_height {
+                write!(self.writer, "{}{}", border_prefix, vertical)?;
+                for (col, cell_lines) in wrapped_row.iter().enumerate() {
+                    let text = cell_lines.get(line_idx).map(String::as_str).unwrap_or("");
+                    let visible = self.visible_width(text);
+                    let pad = widths[col].saturating_sub(visible);
+                    write!(self.writer, " {}{} {}", text, " ".repeat(pad), vertical)?;
+                }
+                writeln!(self.writer)?;
+            }
+            let rule = if row_idx == last_row {
+                &bottom_rule
+            } else {
+                &separator_rule
+            };
+            writeln!(self.writer, "{}{}", border_prefix, rule)?;
+        }
+
+        Ok(())
+    }
+
+    /// Returns the visible width of the widest whitespace-delimited word in
+    /// `text`, ignoring any embedded ANSI/OSC8 escape sequences.
+    fn longest_word_width(&self, text: &str) -> usize {
+        self.tokenize_for_wrap(text)
+            .into_iter()
+            .filter(|(is_whitespace, _)| !is_whitespace)
+            .map(|(_, token)| self.visible_width(&token))
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Word-wraps already-formatted text (which may embed ANSI/OSC8 escape
+    /// sequences) to the given visible `width`, returning one string per
+    /// physical line. Active styles and hyperlinks are closed at the end of a
+    /// line and reopened at the start of the next so each line stands on its
+    /// own — important because table cells are padded and bordered
+    /// independently. Words wider than `width` are hard-broken.
+    fn wrap_formatted_to_width(&self, text: &str, width: usize) -> Vec<String> {
+        let width = width.max(1);
+        let mut lines: Vec<String> = Vec::new();
+        let mut active_styles: Vec<InlineStyle> = Vec::new();
+        let mut active_osc_links: Vec<Osc8Link> = Vec::new();
+
+        let mut current = String::new();
+        let mut current_width = 0usize;
+        let mut pending_whitespace = 0usize;
+
+        for (is_whitespace, token) in self.tokenize_for_wrap(text) {
+            if is_whitespace {
+                pending_whitespace += token.chars().count();
+                continue;
+            }
+
+            let mut word = token;
+            loop {
+                let word_width = self.visible_width(&word);
+                let whitespace_width = if current_width == 0 {
+                    0
+                } else {
+                    pending_whitespace
+                };
+
+                if current_width + whitespace_width + word_width <= width {
+                    if whitespace_width > 0 {
+                        current.push_str(&" ".repeat(whitespace_width));
+                        current_width += whitespace_width;
+                    }
+                    pending_whitespace = 0;
+                    current.push_str(&word);
+                    current_width += word_width;
+                    self.update_active_styles_from_text(&word, &mut active_styles);
+                    self.update_active_osc_links_from_text(&word, &mut active_osc_links);
+                    break;
+                }
+
+                // The word does not fit. If the line already has content, end
+                // it and retry the word on a fresh line.
+                if current_width > 0 {
+                    current.push_str(&self.close_active(&active_styles, &active_osc_links));
+                    lines.push(std::mem::take(&mut current));
+                    current = self.open_active(&active_styles, &active_osc_links);
+                    current_width = 0;
+                    pending_whitespace = 0;
+                    continue;
+                }
+
+                // The line is empty yet the word is still too wide: hard-break
+                // it so the column never overflows.
+                let (head, tail) = self.split_at_visible_width(&word, width);
+                if head.is_empty() {
+                    // Safety valve: never loop forever on unsplittable input.
+                    current.push_str(&word);
+                    self.update_active_styles_from_text(&word, &mut active_styles);
+                    self.update_active_osc_links_from_text(&word, &mut active_osc_links);
+                    current_width = self.visible_width(&current);
+                    pending_whitespace = 0;
+                    break;
+                }
+                self.update_active_styles_from_text(&head, &mut active_styles);
+                self.update_active_osc_links_from_text(&head, &mut active_osc_links);
+                let mut finished = head;
+                finished.push_str(&self.close_active(&active_styles, &active_osc_links));
+                lines.push(finished);
+                current = self.open_active(&active_styles, &active_osc_links);
+                current_width = 0;
+                pending_whitespace = 0;
+                word = tail;
+            }
+        }
+
+        if current_width > 0 || lines.is_empty() {
+            lines.push(current);
+        }
+
+        lines
+    }
+
+    /// Builds the escape sequence that closes every currently-active style and
+    /// hyperlink, mirroring [`Self::write_line_break`] but as a string.
+    fn close_active(&self, active_styles: &[InlineStyle], active_osc_links: &[Osc8Link]) -> String {
+        let mut out = String::new();
+        for style in active_styles.iter().rev() {
+            if let Some(tags) = self.style.text_styles.get(style) {
+                out.push_str(&tags.end);
+            }
+        }
+        if self.style.enable_osc8_hyperlinks {
+            for _ in active_osc_links.iter().rev() {
+                out.push_str(&self.osc8_end());
+            }
+        }
+        out
+    }
+
+    /// Builds the escape sequence that re-opens every currently-active
+    /// hyperlink and style at the start of a continuation line.
+    fn open_active(&self, active_styles: &[InlineStyle], active_osc_links: &[Osc8Link]) -> String {
+        let mut out = String::new();
+        if self.style.enable_osc8_hyperlinks {
+            for link in active_osc_links {
+                out.push_str(&self.osc8_start(link));
+            }
+        }
+        for style in active_styles {
+            if let Some(tags) = self.style.text_styles.get(style) {
+                out.push_str(&tags.begin);
+            }
+        }
+        out
+    }
+
+    /// Splits `text` so the head occupies at most `max` visible columns,
+    /// returning `(head, tail)`. Embedded escape sequences are copied without
+    /// counting toward the width and are never split apart.
+    fn split_at_visible_width(&self, text: &str, max: usize) -> (String, String) {
+        let chars: Vec<char> = text.chars().collect();
+        let mut head = String::new();
+        let mut visible = 0usize;
+        let mut i = 0usize;
+
+        while i < chars.len() {
+            let ch = chars[i];
+            if ch == '\x1b' {
+                let start = i;
+                i += 1; // ESC
+                if i < chars.len() && chars[i] == '[' {
+                    i += 1;
+                    while i < chars.len() {
+                        let c = chars[i];
+                        i += 1;
+                        if c.is_ascii_alphabetic() {
+                            break;
+                        }
+                    }
+                } else if i < chars.len() && chars[i] == ']' {
+                    i += 1;
+                    while i < chars.len() {
+                        let c = chars[i];
+                        if c == '\x07' {
+                            i += 1;
+                            break;
+                        }
+                        if c == '\x1b' {
+                            i += 1;
+                            if i < chars.len() && chars[i] == '\\' {
+                                i += 1;
+                            }
+                            break;
+                        }
+                        i += 1;
+                    }
+                }
+                head.extend(&chars[start..i]);
+                continue;
+            }
+
+            let char_width = UnicodeWidthChar::width(ch).unwrap_or(0);
+            if visible + char_width > max && visible > 0 {
+                break;
+            }
+            head.push(ch);
+            visible += char_width;
+            i += 1;
+            if visible >= max {
+                break;
+            }
+        }
+
+        let tail: String = chars[i..].iter().collect();
+        (head, tail)
     }
 
     fn write_checklist_items(
@@ -1396,17 +1810,512 @@ impl<W: Write> Formatter<W> {
         // Remove ANSI escape sequences for width calculation
         let without_ansi = ANSI_ESCAPE_REGEX.replace_all(text, "");
         let visible_text = OSC8_ESCAPE_REGEX.replace_all(&without_ansi, "");
-        visible_text.chars().count()
+        UnicodeWidthStr::width(visible_text.as_ref())
+    }
+}
+
+/// Chooses a rendered width for each table column so the whole table fits
+/// within `content_budget` visible columns (the space left for cell content
+/// after borders and padding).
+///
+/// The strategy is "min-content plus proportional slack":
+///
+/// 1. If every column can take its natural (preferred) width, do so — the
+///    table already fits and nothing wraps.
+/// 2. Otherwise, give each column at least its minimum (longest-word) width and
+///    distribute the remaining slack proportionally to how much each column
+///    *wants* to grow (`natural - minimum`). Wide "description" columns absorb
+///    most of the slack and wrap; narrow columns stay compact.
+/// 3. If even the minimum widths do not fit, fall back to splitting the budget
+///    proportionally to the natural widths (flooring each column at one
+///    column) and let cell wrapping hard-break overlong words.
+fn allocate_table_widths(
+    natural: &[usize],
+    minimum: &[usize],
+    content_budget: usize,
+) -> Vec<usize> {
+    let column_count = natural.len();
+    if column_count == 0 {
+        return Vec::new();
+    }
+
+    let natural_total: usize = natural.iter().sum();
+    if natural_total <= content_budget {
+        return natural.to_vec();
+    }
+
+    let minimum_total: usize = minimum.iter().sum();
+    if minimum_total <= content_budget {
+        let slack = content_budget - minimum_total;
+        let wants: Vec<usize> = (0..column_count)
+            .map(|i| natural[i].saturating_sub(minimum[i]))
+            .collect();
+        let extra = proportional_split(slack, &wants);
+        return (0..column_count).map(|i| minimum[i] + extra[i]).collect();
+    }
+
+    let mut widths = proportional_split(content_budget, natural);
+    enforce_floor_one(&mut widths);
+    widths
+}
+
+/// Distributes `amount` across buckets proportionally to `weights`, using the
+/// largest-remainder method so the parts sum to exactly `amount`. When all
+/// weights are zero the amount is spread as evenly as possible.
+fn proportional_split(amount: usize, weights: &[usize]) -> Vec<usize> {
+    let n = weights.len();
+    if n == 0 {
+        return Vec::new();
+    }
+
+    let total: usize = weights.iter().sum();
+    let mut out = vec![0usize; n];
+
+    if total == 0 {
+        let base = amount / n;
+        for slot in out.iter_mut() {
+            *slot = base;
+        }
+        let mut remainder = amount - base * n;
+        let mut i = 0;
+        while remainder > 0 {
+            out[i % n] += 1;
+            remainder -= 1;
+            i += 1;
+        }
+        return out;
+    }
+
+    let mut assigned = 0usize;
+    let mut remainders: Vec<(usize, usize)> = Vec::with_capacity(n);
+    for (i, &weight) in weights.iter().enumerate() {
+        let numerator = amount * weight;
+        out[i] = numerator / total;
+        assigned += out[i];
+        remainders.push((numerator % total, i));
+    }
+
+    let mut leftover = amount.saturating_sub(assigned);
+    // Hand the leftover to the columns with the largest fractional parts.
+    remainders.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    for (_, i) in remainders {
+        if leftover == 0 {
+            break;
+        }
+        out[i] += 1;
+        leftover -= 1;
+    }
+
+    out
+}
+
+/// Ensures no column is allocated zero width, stealing a column from the
+/// currently widest column where possible.
+fn enforce_floor_one(widths: &mut [usize]) {
+    for i in 0..widths.len() {
+        if widths[i] == 0 {
+            if let Some(victim) = (0..widths.len())
+                .filter(|&j| widths[j] > 1)
+                .max_by_key(|&j| widths[j])
+            {
+                widths[victim] -= 1;
+            }
+            widths[i] = 1;
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parse;
+    use crate::ftml::parse;
     use crate::test_helpers::*;
+    use crate::{TableCell, TableRow};
     use std::io::Cursor;
     use std::time::{Duration, Instant};
+
+    // ----- Width-aware table rendering -------------------------------------
+
+    fn th(s: &str) -> TableCell {
+        TableCell::new_header().with_content(vec![Span::new_text(s)])
+    }
+    fn td(s: &str) -> TableCell {
+        TableCell::new_data().with_content(vec![Span::new_text(s)])
+    }
+    fn td_spans(content: Vec<Span>) -> TableCell {
+        TableCell::new_data().with_content(content)
+    }
+    fn trow(cells: Vec<TableCell>) -> TableRow {
+        TableRow::new().with_cells(cells)
+    }
+
+    fn render_table_ascii(rows: Vec<TableRow>, width: usize) -> String {
+        let mut style = FormattingStyle::ascii();
+        style.wrap_width = width;
+        render_doc(doc(vec![Paragraph::new_table().with_rows(rows)]), style)
+    }
+
+    fn render_doc(document: Document, style: FormattingStyle) -> String {
+        let mut output = Vec::new();
+        Formatter::new(&mut output, style)
+            .write_document(&document)
+            .unwrap();
+        String::from_utf8(output).unwrap()
+    }
+
+    /// Visible width of a line, ignoring ANSI/OSC8 escape sequences.
+    fn visible_line_width(line: &str) -> usize {
+        let without_ansi = ANSI_ESCAPE_REGEX.replace_all(line, "");
+        let visible = OSC8_ESCAPE_REGEX.replace_all(&without_ansi, "");
+        UnicodeWidthStr::width(visible.as_ref())
+    }
+
+    /// Returns the non-empty content lines of a rendered table, ignoring any
+    /// trailing style-reset line emitted by the ANSI formatter.
+    fn table_lines(rendered: &str) -> Vec<&str> {
+        rendered
+            .lines()
+            .filter(|line| visible_line_width(line) > 0)
+            .collect()
+    }
+
+    /// Asserts the rendered grid is rectangular (all lines share one visible
+    /// width), that width never exceeds `max_width`, and that border rows match
+    /// the `+---+` shape.
+    fn assert_well_formed(rendered: &str, max_width: usize) {
+        let lines = table_lines(rendered);
+        assert!(!lines.is_empty(), "expected a rendered table");
+        let grid_width = visible_line_width(lines[0]);
+        for line in &lines {
+            assert_eq!(
+                visible_line_width(line),
+                grid_width,
+                "line {line:?} is not aligned with the rest of the grid"
+            );
+        }
+        assert!(
+            grid_width <= max_width,
+            "table width {grid_width} exceeds available width {max_width}"
+        );
+        // Glyphs that may appear in a horizontal rule row, across both the
+        // ASCII and box-drawing border presets.
+        const RULE_GLYPHS: &[char] = &[
+            '+', '-', '─', '┌', '┬', '┐', '├', '┼', '┤', '└', '┴', '┘',
+        ];
+        const RULE_STARTS: &[char] = &['+', '┌', '├', '└'];
+        for line in &lines {
+            let stripped = ANSI_ESCAPE_REGEX.replace_all(line, "");
+            if stripped.starts_with(RULE_STARTS) {
+                assert!(
+                    stripped.chars().all(|c| RULE_GLYPHS.contains(&c)),
+                    "malformed border row {line:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn table_fits_naturally_when_within_width() {
+        // A small table comfortably inside the available width is laid out at
+        // its natural column widths with no wrapping.
+        let rendered = render_table_ascii(
+            vec![
+                trow(vec![th("Name"), th("Age")]),
+                trow(vec![td("Alice"), td("30")]),
+            ],
+            72,
+        );
+        let expected = "+-------+-----+\n\
+                        | Name  | Age |\n\
+                        +-------+-----+\n\
+                        | Alice | 30  |\n\
+                        +-------+-----+\n";
+        assert_eq!(rendered, expected);
+    }
+
+    #[test]
+    fn table_uses_box_drawing_borders_in_ansi() {
+        // Terminal output draws the grid with Unicode box-drawing characters,
+        // with proper corners and junctions rather than a uniform `+`.
+        let mut style = FormattingStyle::ansi();
+        style.wrap_width = 72;
+        let rendered = render_doc(
+            doc(vec![Paragraph::new_table().with_rows(vec![
+                trow(vec![th("Name"), th("Age")]),
+                trow(vec![td("Alice"), td("30")]),
+            ])]),
+            style,
+        );
+        let stripped = ANSI_ESCAPE_REGEX.replace_all(&rendered, "");
+        let expected = "┌───────┬─────┐\n\
+                        │ Name  │ Age │\n\
+                        ├───────┼─────┤\n\
+                        │ Alice │ 30  │\n\
+                        └───────┴─────┘\n";
+        assert_eq!(stripped, expected);
+        // The portable ASCII characters must not leak into terminal output.
+        assert!(!stripped.contains('+'));
+        assert!(!stripped.contains('|'));
+    }
+
+    #[test]
+    fn table_wraps_wide_column_to_available_width() {
+        let rendered = render_table_ascii(
+            vec![
+                trow(vec![th("ID"), th("Description")]),
+                trow(vec![
+                    td("1"),
+                    td("The quick brown fox jumps over the lazy dog repeatedly"),
+                ]),
+            ],
+            30,
+        );
+        let expected = "+----+-----------------------+\n\
+                        | ID | Description           |\n\
+                        +----+-----------------------+\n\
+                        | 1  | The quick brown fox   |\n\
+                        |    | jumps over the lazy   |\n\
+                        |    | dog repeatedly        |\n\
+                        +----+-----------------------+\n";
+        assert_eq!(rendered, expected);
+        assert_well_formed(&rendered, 30);
+    }
+
+    #[test]
+    fn table_keeps_narrow_columns_compact() {
+        // The wide column should absorb the squeeze; the narrow "ID" column
+        // stays at its natural two-character width.
+        let rendered = render_table_ascii(
+            vec![
+                trow(vec![th("ID"), th("Description")]),
+                trow(vec![
+                    td("1"),
+                    td("The quick brown fox jumps over the lazy dog repeatedly"),
+                ]),
+            ],
+            30,
+        );
+        for line in table_lines(&rendered) {
+            // "+----+" => ID column content width is 2.
+            assert!(line.starts_with("+----+") || line.starts_with("| "));
+        }
+        assert!(rendered.contains("| ID |"));
+        assert!(rendered.contains("| 1  |"));
+    }
+
+    #[test]
+    fn table_distributes_slack_between_two_wide_columns() {
+        // Both columns are too wide to keep at natural size, so both wrap and
+        // the table still fits.
+        let rendered = render_table_ascii(
+            vec![
+                trow(vec![th("Pros"), th("Cons")]),
+                trow(vec![
+                    td("Cheaper to operate and faster to deploy across regions"),
+                    td("Requires substantial up-front engineering investment now"),
+                ]),
+            ],
+            50,
+        );
+        assert_well_formed(&rendered, 50);
+        let lines = table_lines(&rendered);
+        // Each wide column must have wrapped onto multiple physical lines.
+        let body_lines = lines
+            .iter()
+            .filter(|l| l.starts_with("| ") && !l.contains("Pros"))
+            .count();
+        assert!(
+            body_lines >= 2,
+            "expected the body row to wrap across multiple lines, got {body_lines}"
+        );
+    }
+
+    #[test]
+    fn table_hard_breaks_word_longer_than_column() {
+        // When even the longest word cannot fit the squeezed column, the word
+        // is hard-broken rather than overflowing the grid.
+        let rendered = render_table_ascii(
+            vec![
+                trow(vec![th("Key"), th("Value")]),
+                trow(vec![td("url"), td("https://example.com/very/long/path")]),
+            ],
+            16,
+        );
+        let expected = "+---+----------+\n\
+                        | K | Value    |\n\
+                        | e |          |\n\
+                        | y |          |\n\
+                        +---+----------+\n\
+                        | u | https:// |\n\
+                        | r | example. |\n\
+                        | l | com/very |\n\
+                        |   | /long/pa |\n\
+                        |   | th       |\n\
+                        +---+----------+\n";
+        assert_eq!(rendered, expected);
+        assert_well_formed(&rendered, 16);
+    }
+
+    #[test]
+    fn table_never_exceeds_available_width_across_widths() {
+        // The core requirement: whatever the terminal width, the table fits.
+        let rows = || {
+            vec![
+                trow(vec![th("Region"), th("Notes")]),
+                trow(vec![
+                    td("eu-central"),
+                    td("Frankfurt data centre with full sovereignty guarantees and redundant power"),
+                ]),
+                trow(vec![
+                    td("eu-west"),
+                    td("Dublin region, lower latency for western Europe but fewer availability zones"),
+                ]),
+            ]
+        };
+        for width in [20usize, 24, 30, 40, 60, 72, 80, 100, 120] {
+            let rendered = render_table_ascii(rows(), width);
+            assert_well_formed(&rendered, width);
+        }
+    }
+
+    #[test]
+    fn realistic_four_column_table_wraps_cleanly() {
+        // Mirrors the shape of real specs: a few narrow columns plus one
+        // dominant free-text column. At a typical terminal width the long
+        // words still fit, so nothing is hard-broken.
+        let rows = vec![
+            trow(vec![
+                th("Requirement"),
+                th("Owner"),
+                th("Status"),
+                th("Details"),
+            ]),
+            trow(vec![
+                td("Data residency"),
+                td("Platform"),
+                td("Done"),
+                td("All customer data is stored exclusively within the European Union and never replicated elsewhere"),
+            ]),
+            trow(vec![
+                td("Audit logging"),
+                td("Security"),
+                td("Planned"),
+                td("Immutable audit trails retained for seven years to satisfy regulatory obligations"),
+            ]),
+        ];
+        let rendered = render_table_ascii(rows, 100);
+        assert_well_formed(&rendered, 100);
+        // Long words are preserved intact (no hard-break at this width).
+        assert!(rendered.contains("exclusively"));
+        assert!(rendered.contains("regulatory"));
+        // The Details column wrapped onto multiple lines.
+        assert!(rendered.matches("European").count() <= 1);
+        let detail_lines = table_lines(&rendered)
+            .iter()
+            .filter(|l| l.contains("Done") || l.starts_with("| "))
+            .count();
+        assert!(detail_lines > 4, "expected wrapped detail rows");
+    }
+
+    #[test]
+    fn table_bold_header_survives_wrapping_in_ansi() {
+        let mut style = FormattingStyle::ansi();
+        style.wrap_width = 24;
+        let rendered = render_doc(
+            doc(vec![Paragraph::new_table().with_rows(vec![
+                trow(vec![th("Key"), th("Long header that wraps")]),
+                trow(vec![td("a"), td("value")]),
+            ])]),
+            style,
+        );
+        assert_well_formed(&rendered, 24);
+        // The header cell wrapped, and bold is re-opened on the continuation
+        // line so styling does not leak or drop across the break.
+        let bold_open = "\x1b[1m";
+        let bold_close = "\x1b[22m";
+        assert!(rendered.matches(bold_open).count() >= 3);
+        assert!(rendered.matches(bold_close).count() >= 3);
+    }
+
+    #[test]
+    fn table_preserves_inline_style_across_wrap_in_ansi() {
+        let mut style = FormattingStyle::ansi();
+        style.wrap_width = 28;
+        let rendered = render_doc(
+            doc(vec![Paragraph::new_table().with_rows(vec![
+                trow(vec![th("Term"), th("Definition")]),
+                trow(vec![
+                    td("SLA"),
+                    td_spans(vec![
+                        span("A "),
+                        b__("strongly binding"),
+                        span(" service level agreement"),
+                    ]),
+                ]),
+            ])]),
+            style,
+        );
+        assert_well_formed(&rendered, 28);
+        // Bold tags remain balanced even though the cell wraps.
+        assert_eq!(
+            rendered.matches("\x1b[1m").count(),
+            rendered.matches("\x1b[22m").count()
+        );
+    }
+
+    #[test]
+    fn nested_table_respects_reduced_width() {
+        // A table inside a blockquote is indented by the quote prefix; the grid
+        // must still fit within the overall wrap width.
+        let table = Paragraph::new_table().with_rows(vec![
+            trow(vec![th("Item"), th("Description")]),
+            trow(vec![
+                td("Widget"),
+                td("A small but surprisingly verbose description that must wrap"),
+            ]),
+        ]);
+        let mut style = FormattingStyle::ascii();
+        style.wrap_width = 40;
+        let rendered = render_doc(doc(vec![quote_(vec![table])]), style);
+        for line in table_lines(&rendered) {
+            assert!(
+                visible_line_width(line) <= 40,
+                "nested table line exceeds width: {line:?}"
+            );
+            assert!(line.starts_with("| "), "expected quote prefix on {line:?}");
+        }
+    }
+
+    #[test]
+    fn allocate_returns_natural_widths_when_table_fits() {
+        assert_eq!(
+            allocate_table_widths(&[2, 5, 3], &[2, 3, 3], 20),
+            vec![2, 5, 3]
+        );
+    }
+
+    #[test]
+    fn allocate_shrinks_wide_column_proportionally() {
+        // Narrow column keeps its width; the wide column absorbs the rest.
+        assert_eq!(allocate_table_widths(&[2, 54], &[2, 10], 23), vec![2, 21]);
+    }
+
+    #[test]
+    fn allocate_falls_back_when_minimums_do_not_fit() {
+        let widths = allocate_table_widths(&[1, 100], &[1, 100], 5);
+        assert_eq!(widths, vec![1, 4]);
+        assert!(widths.iter().all(|&w| w >= 1));
+        assert!(widths.iter().sum::<usize>() <= 5);
+    }
+
+    #[test]
+    fn proportional_split_sums_to_amount() {
+        assert_eq!(proportional_split(11, &[0, 44]), vec![0, 11]);
+        let three = proportional_split(10, &[1, 1, 1]);
+        assert_eq!(three.iter().sum::<usize>(), 10);
+        // Zero weights spread the amount as evenly as possible.
+        assert_eq!(proportional_split(5, &[0, 0]), vec![3, 2]);
+    }
 
     #[test]
     fn test_ascii_formatting() {
@@ -2413,6 +3322,43 @@ mod tests {
         let blank_count = h3_idx.saturating_sub(h2_underline_idx + 1);
         assert_eq!(blank_count, 2);
         assert!(lines[h3_idx + 1].chars().all(|c| c == '-'));
+    }
+
+    #[test]
+    fn renders_table_as_ascii_grid() {
+        use crate::{Paragraph, TableCell, TableRow};
+
+        let rows = vec![
+            TableRow::new().with_cells(vec![
+                TableCell::new_header().with_content(vec![Span::new_text("Name")]),
+                TableCell::new_header().with_content(vec![Span::new_text("Age")]),
+            ]),
+            TableRow::new().with_cells(vec![
+                TableCell::new_data().with_content(vec![Span::new_text("Alice")]),
+                TableCell::new_data().with_content(vec![Span::new_text("30")]),
+            ]),
+            TableRow::new().with_cells(vec![
+                TableCell::new_data().with_content(vec![Span::new_text("Bob")]),
+                TableCell::new_data().with_content(vec![Span::new_text("25")]),
+            ]),
+        ];
+        let table = Paragraph::new_table().with_rows(rows);
+        let doc = Document::new().with_paragraphs(vec![table]);
+
+        let mut output = Vec::new();
+        Formatter::new_ascii(&mut output)
+            .write_document(&doc)
+            .unwrap();
+        let result = String::from_utf8(output).unwrap();
+
+        let expected = "+-------+-----+\n\
+                        | Name  | Age |\n\
+                        +-------+-----+\n\
+                        | Alice | 30  |\n\
+                        +-------+-----+\n\
+                        | Bob   | 25  |\n\
+                        +-------+-----+\n";
+        assert_eq!(result, expected);
     }
 
     #[test]

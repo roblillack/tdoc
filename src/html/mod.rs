@@ -1,12 +1,21 @@
-//! Parse real-world HTML into the internal FTML representation.
+//! Parse and emit HTML.
+//!
+//! Unlike [`crate::ftml`], which flattens tables to paragraphs, [`write`]
+//! emits real `<table>` markup so HTML output retains the tabular structure.
+//! The two writers share the inline rendering logic; only table handling
+//! differs.
 
 pub mod gockl;
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span};
-use gockl::{Token, Tokenizer, TokenizerError};
+use crate::ftml::Writer;
+use crate::{
+    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+};
+use gockl::{StartElementToken, Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
 use std::cell::RefCell;
-use std::io::Read;
+use std::collections::VecDeque;
+use std::io::{Read, Write};
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -47,6 +56,13 @@ struct Parser<'a> {
     list_item_level: usize,
     skip_stack: Vec<String>,
     pending_token: Option<Token>,
+    /// Tokens to consume before the live tokenizer. Used to replay a buffered
+    /// `<table>` body when it turns out to be layout scaffolding.
+    injected: VecDeque<Token>,
+    /// While `true`, [`Parser::pull_token`] stops at the end of `injected`
+    /// instead of falling through to the live tokenizer, keeping a replay
+    /// bounded to its buffered tokens.
+    replaying: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -58,7 +74,25 @@ impl<'a> Parser<'a> {
             list_item_level: 0,
             skip_stack: Vec::new(),
             pending_token: None,
+            injected: VecDeque::new(),
+            replaying: false,
         }
+    }
+
+    /// Returns the next token from, in order: the single put-back slot, the
+    /// replay buffer, and finally the live tokenizer. During a bounded replay
+    /// (`replaying`) the live tokenizer is never touched.
+    fn pull_token(&mut self) -> Result<Token, TokenizerError> {
+        if let Some(token) = self.pending_token.take() {
+            return Ok(token);
+        }
+        if let Some(token) = self.injected.pop_front() {
+            return Ok(token);
+        }
+        if self.replaying {
+            return Err(TokenizerError::Eof);
+        }
+        self.tokenizer.next_token()
     }
 
     fn parse(mut self) -> Result<Document, HtmlError> {
@@ -88,6 +122,10 @@ impl<'a> Parser<'a> {
         match token {
             Token::StartElement(start) => {
                 let tag = lowercase_name(start.name());
+
+                if tag == "table" {
+                    return self.read_table(&start);
+                }
 
                 if tag == "li" {
                     let parent = match self.parent() {
@@ -127,6 +165,15 @@ impl<'a> Parser<'a> {
                     if self.list_item_level > 0 {
                         self.list_item_level -= 1;
                     }
+                    return Ok(());
+                }
+
+                // Stray table-structure closing tags are benign once the
+                // dedicated reader has consumed its `<table>`.
+                if matches!(
+                    tag.as_str(),
+                    "table" | "thead" | "tbody" | "tfoot" | "tr" | "td" | "th"
+                ) {
                     return Ok(());
                 }
 
@@ -357,7 +404,9 @@ impl<'a> Parser<'a> {
                         None
                     };
                     let outcome = self.read_span(style, &name, link_target)?;
-                    if should_skip_link_span(&outcome.span, outcome.had_visible_text) {
+                    if should_skip_link_span(&outcome.span, outcome.had_visible_text)
+                        || should_skip_empty_styled_span(&outcome.span)
+                    {
                         continue;
                     }
                     spans.add(outcome.span);
@@ -457,7 +506,9 @@ impl<'a> Parser<'a> {
                         None
                     };
                     let outcome = self.read_span(nested_style, &name, nested_link)?;
-                    if should_skip_link_span(&outcome.span, outcome.had_visible_text) {
+                    if should_skip_link_span(&outcome.span, outcome.had_visible_text)
+                        || should_skip_empty_styled_span(&outcome.span)
+                    {
                         continue;
                     }
                     if outcome.had_visible_text {
@@ -483,17 +534,265 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn read_table(&mut self, start: &StartElementToken) -> Result<(), HtmlError> {
+        // Buffer the whole table once. We need the tokens twice: to build rows
+        // for the keep-or-flatten decision, and — if the table is layout
+        // scaffolding — to replay the cell contents as ordinary block flow.
+        let body = self.collect_table_tokens()?;
+        let rows = self.rows_from_tokens(body.clone())?;
+
+        if is_genuine_table(start, &rows) {
+            let node = self.down(ParagraphType::Table)?;
+            node.borrow_mut().table_rows = rows;
+            self.up(ParagraphType::Table)?;
+        } else {
+            // The `<table>` is layout scaffolding (presentational role, a single
+            // row/column, or no real content) rather than tabular data. HTML
+            // mail in particular nests dozens of such tables purely for spacing.
+            // Drop the structure and re-parse the contents as normal block flow:
+            // `<tr>`/`<td>`/`<th>` carry no semantics of their own and are
+            // ignored, so lists, headings, and paragraphs survive intact —
+            // exactly how documents read before table support existed.
+            self.replay_tokens(body)?;
+        }
+
+        Ok(())
+    }
+
+    /// Consumes the current `<table>` (its opening tag already read) and returns
+    /// every token up to, but excluding, the matching `</table>`. Nested tables
+    /// are retained so they can be re-evaluated on their own merits on replay.
+    fn collect_table_tokens(&mut self) -> Result<Vec<Token>, HtmlError> {
+        let mut buffer = Vec::new();
+        let mut depth = 1usize;
+
+        while let Ok(token) = self.pull_token() {
+            match &token {
+                Token::EndElement(end) if lowercase_name(end.name()) == "table" => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                Token::StartElement(start) if lowercase_name(start.name()) == "table" => {
+                    depth += 1;
+                }
+                _ => {}
+            }
+
+            buffer.push(token);
+        }
+
+        Ok(buffer)
+    }
+
+    /// Builds the table rows from a buffered body without disturbing the live
+    /// token stream. Used only to decide whether the table is genuine.
+    fn rows_from_tokens(&mut self, tokens: Vec<Token>) -> Result<Vec<TableRow>, HtmlError> {
+        self.run_over_tokens(tokens, |parser| parser.read_table_body())
+    }
+
+    /// Re-runs buffered tokens through the normal block-flow parser, so a layout
+    /// table's contents become regular paragraphs, lists, and headings.
+    fn replay_tokens(&mut self, tokens: Vec<Token>) -> Result<(), HtmlError> {
+        self.run_over_tokens(tokens, |parser| {
+            while let Ok(token) = parser.pull_token() {
+                parser.process_token(token)?;
+            }
+            Ok(())
+        })
+    }
+
+    /// Runs `f` with `tokens` queued as the sole token source (the live
+    /// tokenizer is fenced off via `replaying`), restoring the previous token
+    /// state afterwards. This makes the helper reentrant for nested tables.
+    fn run_over_tokens<T>(
+        &mut self,
+        tokens: Vec<Token>,
+        f: impl FnOnce(&mut Self) -> Result<T, HtmlError>,
+    ) -> Result<T, HtmlError> {
+        let saved_injected = std::mem::replace(&mut self.injected, VecDeque::from(tokens));
+        let saved_pending = self.pending_token.take();
+        let saved_replaying = self.replaying;
+        self.replaying = true;
+
+        let result = f(self);
+
+        self.injected = saved_injected;
+        self.pending_token = saved_pending;
+        self.replaying = saved_replaying;
+
+        result
+    }
+
+    fn read_table_body(&mut self) -> Result<Vec<TableRow>, HtmlError> {
+        let mut rows = Vec::new();
+
+        loop {
+            let Some(token) = self.next_table_token()? else {
+                return Ok(rows);
+            };
+
+            match token {
+                Token::StartElement(start) => {
+                    let name = lowercase_name(start.name());
+                    match name.as_str() {
+                        "thead" | "tbody" | "tfoot" | "colgroup" | "caption" | "col" => {}
+                        "tr" => {
+                            let row = self.read_table_row()?;
+                            if !row.cells.is_empty() {
+                                rows.push(row);
+                            }
+                        }
+                        "th" | "td" => {
+                            // Implicit row for orphan cells.
+                            let mut row = TableRow::new();
+                            let is_header = name == "th";
+                            let cell = self.read_table_cell(is_header, &name)?;
+                            row.cells.push(cell);
+                            let mut trailing = self.read_table_row()?;
+                            row.cells.append(&mut trailing.cells);
+                            if !row.cells.is_empty() {
+                                rows.push(row);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Token::EndElement(end) => {
+                    let name = lowercase_name(end.name());
+                    if name == "table" {
+                        return Ok(rows);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn read_table_row(&mut self) -> Result<TableRow, HtmlError> {
+        let mut row = TableRow::new();
+
+        loop {
+            let Some(token) = self.next_table_token()? else {
+                return Ok(row);
+            };
+
+            match token {
+                Token::StartElement(start) => {
+                    let name = lowercase_name(start.name());
+                    match name.as_str() {
+                        "th" => {
+                            let cell = self.read_table_cell(true, &name)?;
+                            row.cells.push(cell);
+                        }
+                        "td" => {
+                            let cell = self.read_table_cell(false, &name)?;
+                            row.cells.push(cell);
+                        }
+                        "tr" => {
+                            // Missing `</tr>`; yield control to the table reader.
+                            self.pending_token = Some(Token::StartElement(start));
+                            return Ok(row);
+                        }
+                        _ => {}
+                    }
+                }
+                Token::EndElement(end) => {
+                    let name = lowercase_name(end.name());
+                    if name == "tr" {
+                        return Ok(row);
+                    }
+                    if matches!(name.as_str(), "table" | "thead" | "tbody" | "tfoot") {
+                        self.pending_token = Some(Token::EndElement(end));
+                        return Ok(row);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn read_table_cell(&mut self, is_header: bool, end_tag: &str) -> Result<TableCell, HtmlError> {
+        // Real-world HTML frequently wraps cell content in `<div>`, `<p>`, and
+        // similar block-level containers. Flatten those wrappers so the cell
+        // ends up with the combined inline content rather than an empty shell.
+        let mut content: Vec<Span> = Vec::new();
+
+        loop {
+            let (mut spans, extra, closed) = self.read_content(Some(end_tag), None)?;
+
+            if !spans.is_empty() {
+                if !content.is_empty() {
+                    content.push(Span::new_text("\n"));
+                }
+                content.append(&mut spans);
+            }
+
+            if closed {
+                break;
+            }
+
+            let Some(token) = extra else {
+                break;
+            };
+
+            let name = match &token {
+                Token::StartElement(e) => lowercase_name(e.name()),
+                Token::EndElement(e) => lowercase_name(e.name()),
+                _ => {
+                    self.pending_token = Some(token);
+                    break;
+                }
+            };
+
+            if matches!(
+                name.as_str(),
+                "td" | "th" | "tr" | "table" | "thead" | "tbody" | "tfoot"
+            ) {
+                self.pending_token = Some(token);
+                break;
+            }
+
+            // Other block-level wrappers (div, p, li, h1..h3, blockquote, ul,
+            // ol, hr) are dropped; their inline text keeps flowing into the
+            // current cell.
+        }
+
+        trim_trailing_line_breaks(&mut content);
+        trim_trailing_inline_whitespace(&mut content);
+
+        Ok(TableCell { is_header, content })
+    }
+
+    fn next_table_token(&mut self) -> Result<Option<Token>, HtmlError> {
+        loop {
+            let token = match self.pull_token() {
+                Ok(token) => token,
+                Err(TokenizerError::Eof) => return Ok(None),
+            };
+
+            if self.process_skipped_tags(&token) {
+                continue;
+            }
+
+            if let Token::Text(ref raw) = token {
+                if raw.trim().is_empty() {
+                    continue;
+                }
+            }
+
+            return Ok(Some(token));
+        }
+    }
+
     fn read_text(&mut self) -> Result<(String, Option<Token>), HtmlError> {
         let mut buffer = String::new();
 
         loop {
-            let token = if let Some(token) = self.pending_token.take() {
-                token
-            } else {
-                match self.tokenizer.next_token() {
-                    Ok(token) => token,
-                    Err(TokenizerError::Eof) => return Ok((buffer, None)),
-                }
+            let token = match self.pull_token() {
+                Ok(token) => token,
+                Err(TokenizerError::Eof) => return Ok((buffer, None)),
             };
 
             if self.process_skipped_tags(&token) {
@@ -688,6 +987,7 @@ struct ParagraphBuilder {
     content: Vec<Span>,
     entries: Vec<Vec<ParagraphNode>>,
     checklist_states: Vec<Option<bool>>,
+    table_rows: Vec<TableRow>,
 }
 
 impl ParagraphBuilder {
@@ -698,6 +998,7 @@ impl ParagraphBuilder {
             content: Vec::new(),
             entries: Vec::new(),
             checklist_states: Vec::new(),
+            table_rows: Vec::new(),
         }
     }
 
@@ -785,6 +1086,9 @@ impl ParagraphBuilder {
                 ParagraphType::Checklist => {
                     Paragraph::new_checklist().with_checklist_items(Vec::new())
                 }
+                ParagraphType::Table => {
+                    Paragraph::new_table().with_rows(borrowed.table_rows.clone())
+                }
             }
         }
     }
@@ -855,6 +1159,9 @@ fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {
             .iter()
             .any(|nested| list_entry_has_meaningful_content(nested)),
         Paragraph::Checklist { items } => !items.is_empty(),
+        Paragraph::Table { rows } => rows
+            .iter()
+            .any(|row| row.cells.iter().any(|cell| !cell.content.is_empty())),
     }
 }
 
@@ -949,6 +1256,40 @@ fn collapse_whitespace(input: &str, first: bool, last: bool) -> String {
     result
 }
 
+/// Decides whether a parsed `<table>` carries genuine tabular data or is merely
+/// used for layout. HTML email is built almost entirely from nested layout
+/// tables; treating every one as a real table buries the actual content in
+/// spurious one-cell grids and spacer rows.
+///
+/// A table is kept only when it is *not* flagged as presentational and forms a
+/// real grid: at least two rows, at least two columns, and at least one cell
+/// with content.
+fn is_genuine_table(start: &StartElementToken, rows: &[TableRow]) -> bool {
+    // `role="presentation"` / `role="none"` is the standard, explicit signal
+    // that a table exists purely for layout.
+    if let Some(role) = start.attribute("role") {
+        let role = role.trim();
+        if role.eq_ignore_ascii_case("presentation") || role.eq_ignore_ascii_case("none") {
+            return false;
+        }
+    }
+
+    if rows.len() < 2 {
+        return false;
+    }
+
+    let columns = rows.iter().map(|row| row.cells.len()).max().unwrap_or(0);
+    if columns < 2 {
+        return false;
+    }
+
+    rows.iter().any(|row| {
+        row.cells
+            .iter()
+            .any(|cell| cell.content.iter().any(|span| !span.is_content_empty()))
+    })
+}
+
 fn has_meaningful_content(spans: &[Span]) -> bool {
     if spans.len() > 1 {
         return true;
@@ -1000,6 +1341,14 @@ fn should_skip_link_span(span: &Span, had_visible_text: bool) -> bool {
     span.style == InlineStyle::Link && span.link_target.is_some() && !had_visible_text
 }
 
+/// Returns `true` for styled spans that carry no text or children. These add
+/// no information and confuse round-trips through formats with no inline
+/// representation for empty markers (e.g. Markdown emits `__` for an empty
+/// italic).
+fn should_skip_empty_styled_span(span: &Span) -> bool {
+    span.style != InlineStyle::None && span.style != InlineStyle::Link && !span.has_content()
+}
+
 fn lowercase_name(name: &str) -> String {
     name.chars().flat_map(|c| c.to_lowercase()).collect()
 }
@@ -1045,6 +1394,11 @@ fn is_block_level(tag: &str) -> bool {
             | "hr"
             | "tr"
             | "table"
+            | "thead"
+            | "tbody"
+            | "tfoot"
+            | "td"
+            | "th"
     )
 }
 
@@ -1125,6 +1479,46 @@ fn trim_trailing_inline_whitespace(spans: &mut Vec<Span>) {
             break;
         }
     }
+}
+
+/// Writes a [`Document`] as HTML markup. Tables are preserved using
+/// `<table>/<tr>/<td>` markup, unlike [`crate::ftml::write`] which flattens
+/// tables to paragraphs because FTML has no table syntax.
+///
+/// The output is just the document body: it does not include `<!DOCTYPE>` or
+/// `<html>` wrapper elements. Use [`write_document`] when a full HTML page is
+/// required.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{html, Paragraph, Span, TableCell, TableRow, Document};
+///
+/// let table = Paragraph::new_table().with_rows(vec![
+///     TableRow::new().with_cells(vec![
+///         TableCell::new_header().with_content(vec![Span::new_text("Col")]),
+///     ]),
+/// ]);
+/// let doc = Document::new().with_paragraphs(vec![table]);
+///
+/// let mut output = Vec::new();
+/// html::write(&mut output, &doc).unwrap();
+/// let html = String::from_utf8(output).unwrap();
+/// assert!(html.contains("<table>"));
+/// assert!(html.contains("<th>Col</th>"));
+/// ```
+pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    Writer::new_html().write(writer, document)
+}
+
+/// Writes a [`Document`] wrapped in a minimal HTML page (`<!DOCTYPE>`,
+/// `<html>`, `<head>`, `<body>`).
+pub fn write_document<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    writer.write_all(
+        b"<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\" />\n</head>\n<body>\n",
+    )?;
+    write(writer, document)?;
+    writer.write_all(b"\n</body>\n</html>\n")
 }
 
 #[cfg(test)]
@@ -1292,5 +1686,136 @@ mod tests {
                 text_paragraph.content()
             );
         }
+    }
+
+    #[test]
+    fn parses_simple_table_with_header_row() {
+        let input = "<table><thead><tr><th>Name</th><th>Age</th></tr></thead>\
+                     <tbody><tr><td>Alice</td><td>30</td></tr>\
+                     <tr><td>Bob</td><td>25</td></tr></tbody></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let paragraph = &document.paragraphs[0];
+        assert_eq!(paragraph.paragraph_type(), ParagraphType::Table);
+
+        let rows = paragraph.rows();
+        assert_eq!(rows.len(), 3);
+
+        assert!(rows[0].cells.iter().all(|cell| cell.is_header));
+        assert_eq!(rows[0].cells[0].content[0].text, "Name");
+        assert_eq!(rows[0].cells[1].content[0].text, "Age");
+
+        assert!(rows[1].cells.iter().all(|cell| !cell.is_header));
+        assert_eq!(rows[1].cells[0].content[0].text, "Alice");
+        assert_eq!(rows[1].cells[1].content[0].text, "30");
+
+        assert_eq!(rows[2].cells[0].content[0].text, "Bob");
+    }
+
+    #[test]
+    fn parses_table_with_inline_styles_in_cells() {
+        let input = "<table><tr><th>Col</th><th>Other</th></tr>\
+                     <tr><td>hello <b>world</b></td><td>plain</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let table = &document.paragraphs[0];
+        let data_cell = &table.rows()[1].cells[0];
+        assert_eq!(data_cell.content.len(), 2);
+        assert_eq!(data_cell.content[0].text, "hello ");
+        assert_eq!(data_cell.content[1].style, InlineStyle::Bold);
+        assert_eq!(data_cell.content[1].children[0].text, "world");
+    }
+
+    #[test]
+    fn parses_table_without_explicit_tbody() {
+        let input = "<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let table = &document.paragraphs[0];
+        assert_eq!(table.rows().len(), 2);
+        assert_eq!(table.rows()[0].cells.len(), 2);
+        assert!(!table.rows()[0].cells[0].is_header);
+    }
+
+    #[test]
+    fn presentational_table_is_flattened_to_paragraphs() {
+        let input = "<table role=\"presentation\">\
+                     <tr><td>First cell</td><td>Second cell</td></tr>\
+                     <tr><td>Third cell</td><td>Fourth cell</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert!(document
+            .paragraphs
+            .iter()
+            .all(|paragraph| paragraph.paragraph_type() != ParagraphType::Table));
+        assert_eq!(document.paragraphs.len(), 4);
+        assert_eq!(document.paragraphs[0].content()[0].text, "First cell");
+        assert_eq!(document.paragraphs[3].content()[0].text, "Fourth cell");
+    }
+
+    #[test]
+    fn single_row_table_is_flattened_to_paragraphs() {
+        // Classic admonition layout: an empty icon cell plus a content cell.
+        let input = "<table><tr><td></td><td>Back up your data first.</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        assert_eq!(document.paragraphs[0].paragraph_type(), ParagraphType::Text);
+        assert_eq!(
+            document.paragraphs[0].content()[0].text,
+            "Back up your data first."
+        );
+    }
+
+    #[test]
+    fn single_column_table_is_flattened_to_paragraphs() {
+        let input = "<table><tr><td>One</td></tr><tr><td>Two</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 2);
+        assert!(document
+            .paragraphs
+            .iter()
+            .all(|paragraph| paragraph.paragraph_type() == ParagraphType::Text));
+        assert_eq!(document.paragraphs[0].content()[0].text, "One");
+        assert_eq!(document.paragraphs[1].content()[0].text, "Two");
+    }
+
+    #[test]
+    fn layout_table_preserves_block_structure() {
+        // A presentational wrapper around real block content: the table is
+        // dropped, but the heading, paragraph, and list survive as distinct
+        // blocks rather than being mashed into one inline blob.
+        let input = "<table role=\"presentation\"><tr><td>\
+                     <h2>Heading</h2>\
+                     <p>Intro paragraph</p>\
+                     <ul><li>First</li><li>Second</li></ul>\
+                     </td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 3);
+        assert_eq!(
+            document.paragraphs[0].paragraph_type(),
+            ParagraphType::Header2
+        );
+        assert_eq!(document.paragraphs[0].content()[0].text, "Heading");
+        assert_eq!(document.paragraphs[1].paragraph_type(), ParagraphType::Text);
+        assert_eq!(document.paragraphs[1].content()[0].text, "Intro paragraph");
+
+        let list = &document.paragraphs[2];
+        assert_eq!(list.paragraph_type(), ParagraphType::UnorderedList);
+        assert_eq!(list.entries().len(), 2);
+        assert_eq!(list.entries()[0][0].content()[0].text, "First");
+        assert_eq!(list.entries()[1][0].content()[0].text, "Second");
+    }
+
+    #[test]
+    fn empty_layout_table_is_dropped() {
+        let input = "<table role=\"presentation\"><tr><td></td><td></td></tr>\
+                     <tr><td></td><td></td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert!(document.paragraphs.is_empty());
     }
 }
