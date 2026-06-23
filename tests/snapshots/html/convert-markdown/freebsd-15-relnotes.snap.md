@@ -133,15 +133,16 @@ Source\-based upgrades \(those based on recompiling the FreeBSD base system from
 source code\) from previous versions are supported, according to the
 instructions in /usr/src/UPDATING.
 
-|     |                                                                                                 |
-|-----|-------------------------------------------------------------------------------------------------|
-|     | Upgrading FreeBSD should only be attempted after backing up _all_ data and configuration files. |
+Upgrading FreeBSD should only be attempted after backing up _all_ data and
+configuration files.
 
 ## Upgrading from Existing Pre\-Release Base System Package Installs
 
-|     |                                                                                                                                                                                                                                                                                          |
-|-----|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|     | For users of PRERELEASE, ALPHA, and BETA builds of FreeBSD 15.0, due to late\-breaking changes in FreeBSD.org infrastructure, it is not possible to upgrade directly using the [pkg\-upgrade\(8\)](https://man.freebsd.org/cgi/man.cgi?query=pkg-upgrade&sektion=8&format=html) utility. |
+For users of PRERELEASE, ALPHA, and BETA builds of FreeBSD 15.0, due to
+late\-breaking changes in FreeBSD.org infrastructure, it is not possible to
+upgrade directly using the
+[pkg\-upgrade\(8\)](https://man.freebsd.org/cgi/man.cgi?query=pkg-upgrade&sektion=8&format=html)
+utility.
 
 Users should either manually copy the required files from a source tree checkout
 of `15.0-RELEASE` tag, or a later commit in `STABLE` or `CURRENT` branches, or
@@ -173,9 +174,8 @@ c368ec8d05654bdaad34742c1d75b9b150bfc3892838cef32f6e5b036b0c0605 /usr/share/keys
 ```
 
 
-|     |                                                                                                 |
-|-----|-------------------------------------------------------------------------------------------------|
-|     | Upgrading FreeBSD should only be attempted after backing up _all_ data and configuration files. |
+Upgrading FreeBSD should only be attempted after backing up _all_ data and
+configuration files.
 
 ## Included Security Fixes and Errata Patches
 

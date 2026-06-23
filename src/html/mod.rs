@@ -11,7 +11,7 @@ use crate::ftml::Writer;
 use crate::{
     ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
 };
-use gockl::{Token, Tokenizer, TokenizerError};
+use gockl::{StartElementToken, Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
 use std::cell::RefCell;
 use std::io::{Read, Write};
@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
                 let tag = lowercase_name(start.name());
 
                 if tag == "table" {
-                    return self.read_table();
+                    return self.read_table(&start);
                 }
 
                 if tag == "li" {
@@ -508,16 +508,34 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn read_table(&mut self) -> Result<(), HtmlError> {
-        let node = self.down(ParagraphType::Table)?;
+    fn read_table(&mut self, start: &StartElementToken) -> Result<(), HtmlError> {
         let rows = self.read_table_body()?;
-        let is_empty = rows.is_empty();
-        node.borrow_mut().table_rows = rows;
 
-        self.up(ParagraphType::Table)?;
+        if is_genuine_table(start, &rows) {
+            let node = self.down(ParagraphType::Table)?;
+            node.borrow_mut().table_rows = rows;
+            self.up(ParagraphType::Table)?;
+        } else {
+            // The `<table>` is layout scaffolding (presentational role, a single
+            // row/column, or no real content) rather than tabular data. HTML
+            // mail in particular nests dozens of such tables purely for spacing.
+            // Drop the structure but keep each cell's text as its own paragraph,
+            // matching how documents read before table support existed.
+            self.flatten_table_rows(rows)?;
+        }
 
-        if is_empty {
-            self.remove_leaf(&node);
+        Ok(())
+    }
+
+    fn flatten_table_rows(&mut self, rows: Vec<TableRow>) -> Result<(), HtmlError> {
+        for row in rows {
+            for cell in row.cells {
+                if cell.content.iter().all(|span| span.is_content_empty()) {
+                    continue;
+                }
+                let node = self.down(ParagraphType::Text)?;
+                node.borrow_mut().content = cell.content;
+            }
         }
 
         Ok(())
@@ -1162,6 +1180,40 @@ fn collapse_whitespace(input: &str, first: bool, last: bool) -> String {
     result
 }
 
+/// Decides whether a parsed `<table>` carries genuine tabular data or is merely
+/// used for layout. HTML email is built almost entirely from nested layout
+/// tables; treating every one as a real table buries the actual content in
+/// spurious one-cell grids and spacer rows.
+///
+/// A table is kept only when it is *not* flagged as presentational and forms a
+/// real grid: at least two rows, at least two columns, and at least one cell
+/// with content.
+fn is_genuine_table(start: &StartElementToken, rows: &[TableRow]) -> bool {
+    // `role="presentation"` / `role="none"` is the standard, explicit signal
+    // that a table exists purely for layout.
+    if let Some(role) = start.attribute("role") {
+        let role = role.trim();
+        if role.eq_ignore_ascii_case("presentation") || role.eq_ignore_ascii_case("none") {
+            return false;
+        }
+    }
+
+    if rows.len() < 2 {
+        return false;
+    }
+
+    let columns = rows.iter().map(|row| row.cells.len()).max().unwrap_or(0);
+    if columns < 2 {
+        return false;
+    }
+
+    rows.iter().any(|row| {
+        row.cells
+            .iter()
+            .any(|cell| cell.content.iter().any(|span| !span.is_content_empty()))
+    })
+}
+
 fn has_meaningful_content(spans: &[Span]) -> bool {
     if spans.len() > 1 {
         return true;
@@ -1587,7 +1639,8 @@ mod tests {
 
     #[test]
     fn parses_table_with_inline_styles_in_cells() {
-        let input = "<table><tr><th>Col</th></tr><tr><td>hello <b>world</b></td></tr></table>";
+        let input = "<table><tr><th>Col</th><th>Other</th></tr>\
+                     <tr><td>hello <b>world</b></td><td>plain</td></tr></table>";
         let document = parse(Cursor::new(input)).unwrap();
 
         let table = &document.paragraphs[0];
@@ -1600,12 +1653,65 @@ mod tests {
 
     #[test]
     fn parses_table_without_explicit_tbody() {
-        let input = "<table><tr><td>A</td><td>B</td></tr></table>";
+        let input = "<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>";
         let document = parse(Cursor::new(input)).unwrap();
 
         let table = &document.paragraphs[0];
-        assert_eq!(table.rows().len(), 1);
+        assert_eq!(table.rows().len(), 2);
         assert_eq!(table.rows()[0].cells.len(), 2);
         assert!(!table.rows()[0].cells[0].is_header);
+    }
+
+    #[test]
+    fn presentational_table_is_flattened_to_paragraphs() {
+        let input = "<table role=\"presentation\">\
+                     <tr><td>First cell</td><td>Second cell</td></tr>\
+                     <tr><td>Third cell</td><td>Fourth cell</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert!(document
+            .paragraphs
+            .iter()
+            .all(|paragraph| paragraph.paragraph_type() != ParagraphType::Table));
+        assert_eq!(document.paragraphs.len(), 4);
+        assert_eq!(document.paragraphs[0].content()[0].text, "First cell");
+        assert_eq!(document.paragraphs[3].content()[0].text, "Fourth cell");
+    }
+
+    #[test]
+    fn single_row_table_is_flattened_to_paragraphs() {
+        // Classic admonition layout: an empty icon cell plus a content cell.
+        let input = "<table><tr><td></td><td>Back up your data first.</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        assert_eq!(document.paragraphs[0].paragraph_type(), ParagraphType::Text);
+        assert_eq!(
+            document.paragraphs[0].content()[0].text,
+            "Back up your data first."
+        );
+    }
+
+    #[test]
+    fn single_column_table_is_flattened_to_paragraphs() {
+        let input = "<table><tr><td>One</td></tr><tr><td>Two</td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 2);
+        assert!(document
+            .paragraphs
+            .iter()
+            .all(|paragraph| paragraph.paragraph_type() == ParagraphType::Text));
+        assert_eq!(document.paragraphs[0].content()[0].text, "One");
+        assert_eq!(document.paragraphs[1].content()[0].text, "Two");
+    }
+
+    #[test]
+    fn empty_layout_table_is_dropped() {
+        let input = "<table role=\"presentation\"><tr><td></td><td></td></tr>\
+                     <tr><td></td><td></td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert!(document.paragraphs.is_empty());
     }
 }
