@@ -26,23 +26,23 @@ Your to\-dos and events all in one place
 Now, you’ll be able to see your Todoist tasks right in line with your dentist
 appointments, board meetings, game nights, and whatever other fun things you’ve
 got going on. This’ll help you make realistic plans and avoid overcommitting
-yourself \(music to all our _adulting_ ears, right?\).\
-\
+yourself \(music to all our _adulting_ ears, right?\).
+
 Let    Francesca show you how to start syncing:
 
 How it works
 
 Syncing tasks to Google Calendar is incredibly easy to set up \(easier than,
-say, coaxing Garfield into the car for his vet appointment\).\
-\
-If you haven’t done so already, first head to [Calendar
-settings](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
-to connect Todoist to your Google Calendar account. Click **Connect Google
-Calendar** and follow the flow.\
-Once you’re connected to Google Calendar, flip the toggle at the bottom of
-Calendar settings to enable the **Sync tasks to calendar** option.\
-Within seconds, you’ll see a “Todoist” calendar appear in your Google Calendar
-account.
+say, coaxing Garfield into the car for his vet appointment\).
+
+- If you haven’t done so already, first head to [Calendar
+  settings](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
+  to connect Todoist to your Google Calendar account. Click **Connect Google
+  Calendar** and follow the flow.
+- Once you’re connected to Google Calendar, flip the toggle at the bottom of
+  Calendar settings to enable the **Sync tasks to calendar** option.
+- Within seconds, you’ll see a “Todoist” calendar appear in your Google Calendar
+  account.
 
 [Open
 Todoist](https://app.todoist.com/app/settings/calendars?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly)
@@ -68,18 +68,18 @@ glance!
 
 What’s next? \(Hint: It starts with O and ends with look\) 👀
 
-Our journey with calendars doesn’t stop with Google.\
-\
+Our journey with calendars doesn’t stop with Google.
+
 You guessed it – we’re diligently working on a new Outlook Calendar integration
 that’ll bring the joy of time\-blocking to all you Outlook enthusiasts. We’ll
 also be exploring ways to display completed tasks within the calendar layout in
-Todoist, so you can easily track your achievements over time.\
-\
+Todoist, so you can easily track your achievements over time.
+
 In the meantime, [let us know what you think of the new Sync tasks
 feature](https://doist.typeform.com/to/utRsZMxc?utm_source=todoist&utm_medium=email&utm_campaign=2024_10_todoist_monthly).
 We’d love to hear from you as we continue to refine the calendar experience in
-Todoist.\
-\
+Todoist.
+
 See you next month! 👋
 
 Productively,

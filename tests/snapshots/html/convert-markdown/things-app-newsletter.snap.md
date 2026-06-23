@@ -1,3 +1,5 @@
+&nbsp;
+
 Hi there,\
 \
 Things has been updated with support for macOS Sonoma, iOS 17, and watchOS 10.
@@ -12,8 +14,13 @@ mode and the Apple Watch’s Smart Stack.\
 \
 You can learn more about all the new features on our blog:
 
-&emsp14;[What’s New for iOS ](https://example.example/t/TRACKINGLINK/) \
-&emsp14;[What’s New for Mac&emsp14;](https://example.example/t/TRACKINGLINK/)
+&nbsp;
+
+[What’s New for iOS ](https://example.example/t/TRACKINGLINK/)&emsp14;
+
+[What’s New for Mac ](https://example.example/t/TRACKINGLINK/)&emsp14;
+
+&nbsp;
 
 Things 3.19 is available on the App Store as a free update for all our customers
 \([Mac](https://example.example/t/TRACKINGLINK/),
@@ -25,12 +32,16 @@ We hope you enjoy this update! 🙂\
 \
 _– The Things Team_
 
-**We’re hiring!**\
-\
+&nbsp;
+
+**We’re hiring!**
+
 👩🏻‍💻🧑🏽‍💻👨🏿‍💻 There’s a lot of exciting work ahead and we have an open position
 for a _Cloud Platform Engineer_. If that sounds like you, or someone you know,
 please check out our [jobs page](https://example.example/t/TRACKINGLINK/)
 👩🏾‍💻🧑🏼‍💻👨🏽‍💻
+
+&nbsp;
 
 We make Things.\
 Cultured Code GmbH &amp; Co. KG\
@@ -38,3 +49,5 @@ Dieselstr. 28, 70469 Stuttgart, Germany\
 \
 You’re receiving this email because you subscribed on our website or in the
 Things application. [Unsubscribe](https://example.example/t/TRACKINGLINK/)
+
+&nbsp;

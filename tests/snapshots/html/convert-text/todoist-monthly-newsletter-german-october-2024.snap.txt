@@ -29,15 +29,17 @@ Die Synchronisierung von Aufgaben mit Google Kalender ist kinderleicht
 einzurichten (definitiv einfacher als Kitty in ihre Transportbox für den
 Tierarzttermin zu locken).
 
-Wenn du es noch nicht getan hast, gehe zuerst zu den
-Kalender-Einstellungen², um Todoist mit deinem Google Kalender-Konto zu
-verbinden. Klicke auf Google Kalender verbinden und folge den
-Anweisungen.
-Sobald du mit Google Kalender verbunden bist, schalte unten in den
-Kalender-Einstellungen den Kippschalter um, um die Option Aufgaben mit
-dem Kalender synchronisieren zu aktivieren.
-Innerhalb von Sekunden wird ein „Todoist“-Kalender in deinem Google
-Kalender-Konto angezeigt.
+ • Wenn du es noch nicht getan hast, gehe zuerst zu den
+   Kalender-Einstellungen², um Todoist mit deinem Google Kalender-Konto
+   zu verbinden. Klicke auf Google Kalender verbinden und folge den
+   Anweisungen.
+
+ • Sobald du mit Google Kalender verbunden bist, schalte unten in den
+   Kalender-Einstellungen den Kippschalter um, um die Option Aufgaben
+   mit dem Kalender synchronisieren zu aktivieren.
+
+ • Innerhalb von Sekunden wird ein „Todoist“-Kalender in deinem Google
+   Kalender-Konto angezeigt.
 
 Todoist öffnen²
 

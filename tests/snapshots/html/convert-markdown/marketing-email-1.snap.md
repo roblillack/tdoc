@@ -1,10 +1,10 @@
 Save up to 30% and experience holiday magic at Example Example Example Example
 &nbsp;
 
-**SAVE UP TO 30% OFF TICKETS TO THE _CHRISTMAS&nbsp;SPECTACULAR_!\***\
-\*Valid on select seats &amp; performances.\
-\
-\
+**SAVE UP TO 30% OFF TICKETS TO THE _CHRISTMAS&nbsp;SPECTACULAR_!\***
+
+\*Valid on select seats &amp; performances.
+
 It’s almost showtime! The **_Christmas&nbsp;Spectacular&nbsp;Starring the
 Example&nbsp;Example Example_** opens next week, and now's your chance to
 experience the timeless celebration of dance, precision, and holiday magic.\
@@ -18,8 +18,8 @@ Unwrap our special offer and receive up to 30%\* off your tickets with code:\
 
 Upon arrival to Example.com, hit the 🔒 button and enter the code: **EXAMPLE123**
 
-**EXPERIENCE EVEN MORE SPECTACULAR**\
-\
+**EXPERIENCE EVEN MORE SPECTACULAR**
+
 Add a little extra sparkle to your showtime with one of our exclusive experience
 packages.
 

@@ -12,7 +12,7 @@
 
 <p>My Todo</p>
 
-<p>My Todo</p>
+<p>My Todo &emsp14;</p>
 
 <p>171 überfällige Aufgaben</p>
 
@@ -20,20 +20,17 @@
 
 <p>Deine Produktivitätsziele</p>
 
-<p>
-  Ziel von gestern<br />
-  0/3 Aufgaben
-</p>
+<p>Ziel von gestern</p>
 
-<p>
-  Wochenziel<br />
-  0/20 Aufgaben
-</p>
+<p>0/3 Aufgaben</p>
 
-<p>
-  Dein Level<br />
-  Meister:in*
-</p>
+<p>Wochenziel</p>
+
+<p>0/20 Aufgaben</p>
+
+<p>Dein Level</p>
+
+<p>Meister:in*</p>
 
 <p>*Noch 7324 Punkte, um das Level Großmeister:in zu erreichen</p>
 
@@ -62,7 +59,10 @@
 
 <p>
   Vergiss deine komplexe Teamarbeits-Software.<br />
-  Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.<br />
+  Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.
+</p>
+
+<p>
   <a href="https://example.example/TRACKINGLINK/">Vereinfache deine Teamarbeit</a>
 </p>
 

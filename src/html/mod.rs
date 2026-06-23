@@ -14,6 +14,7 @@ use crate::{
 use gockl::{StartElementToken, Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::rc::Rc;
 use thiserror::Error;
@@ -55,6 +56,13 @@ struct Parser<'a> {
     list_item_level: usize,
     skip_stack: Vec<String>,
     pending_token: Option<Token>,
+    /// Tokens to consume before the live tokenizer. Used to replay a buffered
+    /// `<table>` body when it turns out to be layout scaffolding.
+    injected: VecDeque<Token>,
+    /// While `true`, [`Parser::pull_token`] stops at the end of `injected`
+    /// instead of falling through to the live tokenizer, keeping a replay
+    /// bounded to its buffered tokens.
+    replaying: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -66,7 +74,25 @@ impl<'a> Parser<'a> {
             list_item_level: 0,
             skip_stack: Vec::new(),
             pending_token: None,
+            injected: VecDeque::new(),
+            replaying: false,
         }
+    }
+
+    /// Returns the next token from, in order: the single put-back slot, the
+    /// replay buffer, and finally the live tokenizer. During a bounded replay
+    /// (`replaying`) the live tokenizer is never touched.
+    fn pull_token(&mut self) -> Result<Token, TokenizerError> {
+        if let Some(token) = self.pending_token.take() {
+            return Ok(token);
+        }
+        if let Some(token) = self.injected.pop_front() {
+            return Ok(token);
+        }
+        if self.replaying {
+            return Err(TokenizerError::Eof);
+        }
+        self.tokenizer.next_token()
     }
 
     fn parse(mut self) -> Result<Document, HtmlError> {
@@ -509,7 +535,11 @@ impl<'a> Parser<'a> {
     }
 
     fn read_table(&mut self, start: &StartElementToken) -> Result<(), HtmlError> {
-        let rows = self.read_table_body()?;
+        // Buffer the whole table once. We need the tokens twice: to build rows
+        // for the keep-or-flatten decision, and — if the table is layout
+        // scaffolding — to replay the cell contents as ordinary block flow.
+        let body = self.collect_table_tokens()?;
+        let rows = self.rows_from_tokens(body.clone())?;
 
         if is_genuine_table(start, &rows) {
             let node = self.down(ParagraphType::Table)?;
@@ -519,26 +549,80 @@ impl<'a> Parser<'a> {
             // The `<table>` is layout scaffolding (presentational role, a single
             // row/column, or no real content) rather than tabular data. HTML
             // mail in particular nests dozens of such tables purely for spacing.
-            // Drop the structure but keep each cell's text as its own paragraph,
-            // matching how documents read before table support existed.
-            self.flatten_table_rows(rows)?;
+            // Drop the structure and re-parse the contents as normal block flow:
+            // `<tr>`/`<td>`/`<th>` carry no semantics of their own and are
+            // ignored, so lists, headings, and paragraphs survive intact —
+            // exactly how documents read before table support existed.
+            self.replay_tokens(body)?;
         }
 
         Ok(())
     }
 
-    fn flatten_table_rows(&mut self, rows: Vec<TableRow>) -> Result<(), HtmlError> {
-        for row in rows {
-            for cell in row.cells {
-                if cell.content.iter().all(|span| span.is_content_empty()) {
-                    continue;
+    /// Consumes the current `<table>` (its opening tag already read) and returns
+    /// every token up to, but excluding, the matching `</table>`. Nested tables
+    /// are retained so they can be re-evaluated on their own merits on replay.
+    fn collect_table_tokens(&mut self) -> Result<Vec<Token>, HtmlError> {
+        let mut buffer = Vec::new();
+        let mut depth = 1usize;
+
+        while let Ok(token) = self.pull_token() {
+            match &token {
+                Token::EndElement(end) if lowercase_name(end.name()) == "table" => {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
                 }
-                let node = self.down(ParagraphType::Text)?;
-                node.borrow_mut().content = cell.content;
+                Token::StartElement(start) if lowercase_name(start.name()) == "table" => {
+                    depth += 1;
+                }
+                _ => {}
             }
+
+            buffer.push(token);
         }
 
-        Ok(())
+        Ok(buffer)
+    }
+
+    /// Builds the table rows from a buffered body without disturbing the live
+    /// token stream. Used only to decide whether the table is genuine.
+    fn rows_from_tokens(&mut self, tokens: Vec<Token>) -> Result<Vec<TableRow>, HtmlError> {
+        self.run_over_tokens(tokens, |parser| parser.read_table_body())
+    }
+
+    /// Re-runs buffered tokens through the normal block-flow parser, so a layout
+    /// table's contents become regular paragraphs, lists, and headings.
+    fn replay_tokens(&mut self, tokens: Vec<Token>) -> Result<(), HtmlError> {
+        self.run_over_tokens(tokens, |parser| {
+            while let Ok(token) = parser.pull_token() {
+                parser.process_token(token)?;
+            }
+            Ok(())
+        })
+    }
+
+    /// Runs `f` with `tokens` queued as the sole token source (the live
+    /// tokenizer is fenced off via `replaying`), restoring the previous token
+    /// state afterwards. This makes the helper reentrant for nested tables.
+    fn run_over_tokens<T>(
+        &mut self,
+        tokens: Vec<Token>,
+        f: impl FnOnce(&mut Self) -> Result<T, HtmlError>,
+    ) -> Result<T, HtmlError> {
+        let saved_injected = std::mem::replace(&mut self.injected, VecDeque::from(tokens));
+        let saved_pending = self.pending_token.take();
+        let saved_replaying = self.replaying;
+        self.replaying = true;
+
+        let result = f(self);
+
+        self.injected = saved_injected;
+        self.pending_token = saved_pending;
+        self.replaying = saved_replaying;
+
+        result
     }
 
     fn read_table_body(&mut self) -> Result<Vec<TableRow>, HtmlError> {
@@ -683,13 +767,9 @@ impl<'a> Parser<'a> {
 
     fn next_table_token(&mut self) -> Result<Option<Token>, HtmlError> {
         loop {
-            let token = if let Some(token) = self.pending_token.take() {
-                token
-            } else {
-                match self.tokenizer.next_token() {
-                    Ok(token) => token,
-                    Err(TokenizerError::Eof) => return Ok(None),
-                }
+            let token = match self.pull_token() {
+                Ok(token) => token,
+                Err(TokenizerError::Eof) => return Ok(None),
             };
 
             if self.process_skipped_tags(&token) {
@@ -710,13 +790,9 @@ impl<'a> Parser<'a> {
         let mut buffer = String::new();
 
         loop {
-            let token = if let Some(token) = self.pending_token.take() {
-                token
-            } else {
-                match self.tokenizer.next_token() {
-                    Ok(token) => token,
-                    Err(TokenizerError::Eof) => return Ok((buffer, None)),
-                }
+            let token = match self.pull_token() {
+                Ok(token) => token,
+                Err(TokenizerError::Eof) => return Ok((buffer, None)),
             };
 
             if self.process_skipped_tags(&token) {
@@ -1704,6 +1780,34 @@ mod tests {
             .all(|paragraph| paragraph.paragraph_type() == ParagraphType::Text));
         assert_eq!(document.paragraphs[0].content()[0].text, "One");
         assert_eq!(document.paragraphs[1].content()[0].text, "Two");
+    }
+
+    #[test]
+    fn layout_table_preserves_block_structure() {
+        // A presentational wrapper around real block content: the table is
+        // dropped, but the heading, paragraph, and list survive as distinct
+        // blocks rather than being mashed into one inline blob.
+        let input = "<table role=\"presentation\"><tr><td>\
+                     <h2>Heading</h2>\
+                     <p>Intro paragraph</p>\
+                     <ul><li>First</li><li>Second</li></ul>\
+                     </td></tr></table>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 3);
+        assert_eq!(
+            document.paragraphs[0].paragraph_type(),
+            ParagraphType::Header2
+        );
+        assert_eq!(document.paragraphs[0].content()[0].text, "Heading");
+        assert_eq!(document.paragraphs[1].paragraph_type(), ParagraphType::Text);
+        assert_eq!(document.paragraphs[1].content()[0].text, "Intro paragraph");
+
+        let list = &document.paragraphs[2];
+        assert_eq!(list.paragraph_type(), ParagraphType::UnorderedList);
+        assert_eq!(list.entries().len(), 2);
+        assert_eq!(list.entries()[0][0].content()[0].text, "First");
+        assert_eq!(list.entries()[1][0].content()[0].text, "Second");
     }
 
     #[test]

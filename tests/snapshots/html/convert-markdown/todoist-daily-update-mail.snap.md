@@ -10,7 +10,7 @@ Heute
 
 My Todo
 
-My Todo
+My Todo &emsp14;
 
 171 überfällige Aufgaben
 
@@ -18,13 +18,16 @@ My Todo
 
 Deine Produktivitätsziele
 
-Ziel von gestern\
+Ziel von gestern
+
 0/3 Aufgaben
 
-Wochenziel\
+Wochenziel
+
 0/20 Aufgaben
 
-Dein Level\
+Dein Level
+
 Meister:in\*
 
 \*Noch 7324 Punkte, um das Level Großmeister:in zu erreichen
@@ -49,7 +52,8 @@ hinzufügen“.
 Team\-Aufgaben managen leicht gemacht
 
 Vergiss deine komplexe Teamarbeits\-Software.\
-Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.\
+Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen sind.
+
 [Vereinfache deine Teamarbeit](https://example.example/TRACKINGLINK/)
 
 [Inspiration

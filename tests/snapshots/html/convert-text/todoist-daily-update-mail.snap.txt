@@ -20,12 +20,15 @@ Todoist öffnen²
 Deine Produktivitätsziele
 
 Ziel von gestern
+
 0/3 Aufgaben
 
 Wochenziel
+
 0/20 Aufgaben
 
 Dein Level
+
 Meister:in*
 
 *Noch 7324 Punkte, um das Level Großmeister:in zu erreichen
@@ -52,6 +55,7 @@ Team-Aufgaben managen leicht gemacht
 Vergiss deine komplexe Teamarbeits-Software.
 Schließe dich über 50.000 Teams an, die bereits auf Todoist umgestiegen
 sind.
+
 Vereinfache deine Teamarbeit¹
 
 Inspiration Hub¹   |   Apps herunterladen¹   |   Help Center¹
