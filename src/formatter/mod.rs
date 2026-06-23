@@ -44,6 +44,63 @@ pub enum LinkIndexFormat {
     Bracketed,
 }
 
+/// Glyphs used to draw the lines and junctions of a rendered table grid.
+///
+/// Two presets are provided: [`TableBorders::ascii`] uses the portable `+`,
+/// `-`, and `|` characters (suitable for plain-text exports), while
+/// [`TableBorders::unicode`] uses box-drawing characters for terminals that
+/// support them.
+#[derive(Clone)]
+pub struct TableBorders {
+    pub horizontal: char,
+    pub vertical: char,
+    pub top_left: char,
+    pub top_join: char,
+    pub top_right: char,
+    pub left_join: char,
+    pub cross: char,
+    pub right_join: char,
+    pub bottom_left: char,
+    pub bottom_join: char,
+    pub bottom_right: char,
+}
+
+impl TableBorders {
+    /// Portable borders built from `+`, `-`, and `|`.
+    pub fn ascii() -> Self {
+        Self {
+            horizontal: '-',
+            vertical: '|',
+            top_left: '+',
+            top_join: '+',
+            top_right: '+',
+            left_join: '+',
+            cross: '+',
+            right_join: '+',
+            bottom_left: '+',
+            bottom_join: '+',
+            bottom_right: '+',
+        }
+    }
+
+    /// Box-drawing borders for terminals that support Unicode.
+    pub fn unicode() -> Self {
+        Self {
+            horizontal: '─',
+            vertical: '│',
+            top_left: '┌',
+            top_join: '┬',
+            top_right: '┐',
+            left_join: '├',
+            cross: '┼',
+            right_join: '┤',
+            bottom_left: '└',
+            bottom_join: '┴',
+            bottom_right: '┘',
+        }
+    }
+}
+
 #[derive(Clone)]
 /// High-level configuration that influences how the [`Formatter`] renders output.
 pub struct FormattingStyle {
@@ -59,6 +116,8 @@ pub struct FormattingStyle {
     pub link_index_format: LinkIndexFormat,
     /// When true, numbered link references are emitted after each section.
     pub link_footnotes: bool,
+    /// Glyphs used to draw table borders.
+    pub table_borders: TableBorders,
 }
 
 impl Default for FormattingStyle {
@@ -73,6 +132,7 @@ impl Default for FormattingStyle {
             enable_osc8_hyperlinks: false,
             link_index_format: LinkIndexFormat::default(),
             link_footnotes: true,
+            table_borders: TableBorders::ascii(),
         }
     }
 }
@@ -108,6 +168,7 @@ impl FormattingStyle {
             enable_osc8_hyperlinks: true,
             link_index_format: LinkIndexFormat::default(),
             link_footnotes: true,
+            table_borders: TableBorders::unicode(),
         }
     }
 }
@@ -558,17 +619,37 @@ impl<W: Write> Formatter<W> {
         }
 
         let border_prefix = continuation_prefix.to_string();
+        let vertical = self.style.table_borders.vertical;
 
-        let mut horizontal = String::new();
-        horizontal.push('+');
-        for &w in &widths {
-            horizontal.push_str(&"-".repeat(w + 2));
-            horizontal.push('+');
-        }
+        // Build the three horizontal rules (top, between rows, bottom). They
+        // share the same column segments and differ only in their corner and
+        // junction glyphs: the box-drawing preset gives each rule its proper
+        // corners, while the ASCII preset renders every junction as `+`.
+        let (top_rule, separator_rule, bottom_rule) = {
+            let borders = &self.style.table_borders;
+            let rule = |left: char, join: char, right: char| {
+                let mut s = String::new();
+                s.push(left);
+                for (i, &w) in widths.iter().enumerate() {
+                    if i > 0 {
+                        s.push(join);
+                    }
+                    s.push_str(&borders.horizontal.to_string().repeat(w + 2));
+                }
+                s.push(right);
+                s
+            };
+            (
+                rule(borders.top_left, borders.top_join, borders.top_right),
+                rule(borders.left_join, borders.cross, borders.right_join),
+                rule(borders.bottom_left, borders.bottom_join, borders.bottom_right),
+            )
+        };
 
-        writeln!(self.writer, "{}{}", prefix, horizontal)?;
+        writeln!(self.writer, "{}{}", prefix, top_rule)?;
 
-        for wrapped_row in &wrapped {
+        let last_row = wrapped.len().saturating_sub(1);
+        for (row_idx, wrapped_row) in wrapped.iter().enumerate() {
             let row_height = wrapped_row
                 .iter()
                 .map(|cell| cell.len())
@@ -576,16 +657,21 @@ impl<W: Write> Formatter<W> {
                 .unwrap_or(1)
                 .max(1);
             for line_idx in 0..row_height {
-                write!(self.writer, "{}|", border_prefix)?;
+                write!(self.writer, "{}{}", border_prefix, vertical)?;
                 for (col, cell_lines) in wrapped_row.iter().enumerate() {
                     let text = cell_lines.get(line_idx).map(String::as_str).unwrap_or("");
                     let visible = self.visible_width(text);
                     let pad = widths[col].saturating_sub(visible);
-                    write!(self.writer, " {}{} |", text, " ".repeat(pad))?;
+                    write!(self.writer, " {}{} {}", text, " ".repeat(pad), vertical)?;
                 }
                 writeln!(self.writer)?;
             }
-            writeln!(self.writer, "{}{}", border_prefix, horizontal)?;
+            let rule = if row_idx == last_row {
+                &bottom_rule
+            } else {
+                &separator_rule
+            };
+            writeln!(self.writer, "{}{}", border_prefix, rule)?;
         }
 
         Ok(())
@@ -1911,11 +1997,17 @@ mod tests {
             grid_width <= max_width,
             "table width {grid_width} exceeds available width {max_width}"
         );
+        // Glyphs that may appear in a horizontal rule row, across both the
+        // ASCII and box-drawing border presets.
+        const RULE_GLYPHS: &[char] = &[
+            '+', '-', '─', '┌', '┬', '┐', '├', '┼', '┤', '└', '┴', '┘',
+        ];
+        const RULE_STARTS: &[char] = &['+', '┌', '├', '└'];
         for line in &lines {
             let stripped = ANSI_ESCAPE_REGEX.replace_all(line, "");
-            if stripped.starts_with('+') {
+            if stripped.starts_with(RULE_STARTS) {
                 assert!(
-                    stripped.chars().all(|c| c == '+' || c == '-'),
+                    stripped.chars().all(|c| RULE_GLYPHS.contains(&c)),
                     "malformed border row {line:?}"
                 );
             }
@@ -1939,6 +2031,31 @@ mod tests {
                         | Alice | 30  |\n\
                         +-------+-----+\n";
         assert_eq!(rendered, expected);
+    }
+
+    #[test]
+    fn table_uses_box_drawing_borders_in_ansi() {
+        // Terminal output draws the grid with Unicode box-drawing characters,
+        // with proper corners and junctions rather than a uniform `+`.
+        let mut style = FormattingStyle::ansi();
+        style.wrap_width = 72;
+        let rendered = render_doc(
+            doc(vec![Paragraph::new_table().with_rows(vec![
+                trow(vec![th("Name"), th("Age")]),
+                trow(vec![td("Alice"), td("30")]),
+            ])]),
+            style,
+        );
+        let stripped = ANSI_ESCAPE_REGEX.replace_all(&rendered, "");
+        let expected = "┌───────┬─────┐\n\
+                        │ Name  │ Age │\n\
+                        ├───────┼─────┤\n\
+                        │ Alice │ 30  │\n\
+                        └───────┴─────┘\n";
+        assert_eq!(stripped, expected);
+        // The portable ASCII characters must not leak into terminal output.
+        assert!(!stripped.contains('+'));
+        assert!(!stripped.contains('|'));
     }
 
     #[test]
