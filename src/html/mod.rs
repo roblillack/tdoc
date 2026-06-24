@@ -1511,12 +1511,133 @@ pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<(
     Writer::new_html().write(writer, document)
 }
 
-/// Writes a [`Document`] wrapped in a minimal HTML page (`<!DOCTYPE>`,
-/// `<html>`, `<head>`, `<body>`).
+/// A self-contained stylesheet embedded in [`write_document`] output. It is
+/// modelled on the clean, professional look of Visual Studio Code's Markdown
+/// preview: a system font stack, a centered reading column, GitHub-flavoured
+/// headings, code blocks, tables, and blockquotes, plus an automatic dark mode
+/// that follows the reader's `prefers-color-scheme`.
+const STYLESHEET: &str = r##"
+:root { color-scheme: light dark; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI",
+    system-ui, "Ubuntu", "Droid Sans", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2328;
+  background-color: #ffffff;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 26px 64px;
+  word-wrap: break-word;
+}
+
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+h1 { font-size: 2em; padding-bottom: 0.3em; border-bottom: 1px solid #d8dee4; }
+h2 { font-size: 1.5em; padding-bottom: 0.3em; border-bottom: 1px solid #d8dee4; }
+h3 { font-size: 1.25em; }
+
+body > :first-child { margin-top: 0; }
+
+p { margin-top: 0; margin-bottom: 16px; }
+
+ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 2em; }
+li + li { margin-top: 0.25em; }
+li > ul, li > ol { margin-top: 0.25em; margin-bottom: 0; }
+li:has(> input[type="checkbox"]) { list-style: none; }
+li > input[type="checkbox"] { margin: 0 0.4em 0 -1.4em; vertical-align: middle; }
+
+blockquote {
+  margin: 0 0 16px 0;
+  padding: 0 1em;
+  color: #656d76;
+  border-left: 0.25em solid #d0d7de;
+}
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child { margin-bottom: 0; }
+
+code, tt {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  background-color: rgba(175, 184, 193, 0.2);
+  border-radius: 6px;
+}
+
+pre {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding: 16px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.9em;
+  line-height: 1.45;
+  background-color: #f6f8fa;
+  border-radius: 6px;
+}
+pre code, pre tt {
+  padding: 0;
+  font-size: inherit;
+  background-color: transparent;
+  border-radius: 0;
+}
+
+table {
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-collapse: collapse;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+}
+th, td { padding: 6px 13px; border: 1px solid #d0d7de; }
+th { font-weight: 600; }
+tr:nth-child(2n) { background-color: #f6f8fa; }
+
+mark { background-color: #fff8c5; color: inherit; }
+
+hr { height: 0.25em; margin: 24px 0; background-color: #d0d7de; border: 0; }
+
+img { max-width: 100%; }
+
+@media (prefers-color-scheme: dark) {
+  body { color: #e6edf3; background-color: #0d1117; }
+  a { color: #4493f8; }
+  h1, h2 { border-bottom-color: #30363d; }
+  blockquote { color: #9198a1; border-left-color: #30363d; }
+  code, tt { background-color: rgba(110, 118, 129, 0.4); }
+  pre { background-color: #161b22; }
+  th, td { border-color: #30363d; }
+  tr:nth-child(2n) { background-color: #161b22; }
+  mark { background-color: #bb8009; color: #1f2328; }
+  hr { background-color: #30363d; }
+}
+"##;
+
+/// Writes a [`Document`] wrapped in a complete, styled HTML page (`<!DOCTYPE>`,
+/// `<html>`, `<head>`, `<body>`). The `<head>` embeds [`STYLESHEET`], a
+/// self-contained stylesheet that gives the document the clean, professional
+/// look of Visual Studio Code's Markdown preview.
 pub fn write_document<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
     writer.write_all(
-        b"<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\" />\n</head>\n<body>\n",
+        b"<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n\
+          <meta charset=\"utf-8\" />\n\
+          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n\
+          <style>",
     )?;
+    writer.write_all(STYLESHEET.as_bytes())?;
+    writer.write_all(b"</style>\n</head>\n<body>\n")?;
     write(writer, document)?;
     writer.write_all(b"\n</body>\n</html>\n")
 }
@@ -1817,5 +1938,24 @@ mod tests {
         let document = parse(Cursor::new(input)).unwrap();
 
         assert!(document.paragraphs.is_empty());
+    }
+
+    #[test]
+    fn write_document_embeds_stylesheet_and_body() {
+        let doc = parse(Cursor::new("<h1>Title</h1><p>Body</p>")).unwrap();
+
+        let mut output = Vec::new();
+        write_document(&mut output, &doc).unwrap();
+        let html = String::from_utf8(output).unwrap();
+
+        assert!(html.starts_with("<!DOCTYPE html>"));
+        assert!(html.contains("<style>"));
+        assert!(html.contains("prefers-color-scheme: dark"));
+        assert!(html.contains("</style>"));
+        // The styled <head> must precede the document content in the <body>.
+        let style_end = html.find("</style>").unwrap();
+        let body_start = html.find("<h1>Title</h1>").unwrap();
+        assert!(style_end < body_start);
+        assert!(html.trim_end().ends_with("</html>"));
     }
 }

@@ -642,7 +642,11 @@ impl<W: Write> Formatter<W> {
             (
                 rule(borders.top_left, borders.top_join, borders.top_right),
                 rule(borders.left_join, borders.cross, borders.right_join),
-                rule(borders.bottom_left, borders.bottom_join, borders.bottom_right),
+                rule(
+                    borders.bottom_left,
+                    borders.bottom_join,
+                    borders.bottom_right,
+                ),
             )
         };
 
@@ -1999,9 +2003,7 @@ mod tests {
         );
         // Glyphs that may appear in a horizontal rule row, across both the
         // ASCII and box-drawing border presets.
-        const RULE_GLYPHS: &[char] = &[
-            '+', '-', '─', '┌', '┬', '┐', '├', '┼', '┤', '└', '┴', '┘',
-        ];
+        const RULE_GLYPHS: &[char] = &['+', '-', '─', '┌', '┬', '┐', '├', '┼', '┤', '└', '┴', '┘'];
         const RULE_STARTS: &[char] = &['+', '┌', '├', '└'];
         for line in &lines {
             let stripped = ANSI_ESCAPE_REGEX.replace_all(line, "");
