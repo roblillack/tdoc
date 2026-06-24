@@ -1,8 +1,8 @@
-use tdoc::ftml;
 use tdoc::test_helpers::{
     b__, code__, code_block__, doc as doc_, h1_, i__, li_, link_, link__, link_text__, mark__, ol_,
     p_, p__, quote_, s__, span, u__, ul_,
 };
+use tdoc::{doc, ftml, Paragraph, Span, TableCell, TableRow};
 
 #[test]
 fn builds_document_trees() {
@@ -114,4 +114,72 @@ fn supports_code_blocks() {
     let expected = doc_(vec![code_block__("fn main() {}\nprintln!(\"hi\");")]);
 
     assert_eq!(doc, expected);
+}
+
+#[test]
+fn doc_accepts_the_same_syntax_as_ftml() {
+    // `doc!` is a superset of `ftml!`, so any strict-FTML document builds
+    // identically with either macro.
+    let via_ftml = ftml! {
+        h1 { "Hello World!" }
+        p { "Inline styles work " b { "just as well" } "." }
+        ul { li { p { "Item" } } }
+    };
+    let via_doc = doc! {
+        h1 { "Hello World!" }
+        p { "Inline styles work " b { "just as well" } "." }
+        ul { li { p { "Item" } } }
+    };
+
+    assert_eq!(via_ftml, via_doc);
+}
+
+#[test]
+fn doc_supports_tables() {
+    let document = doc! {
+        h1 { "Report" }
+        table {
+            row { th { "Name" } th { "Score" } }
+            row { td { "Alice" } td { "42" } }
+        }
+    };
+
+    let header = TableRow::new().with_cells(vec![
+        TableCell::new_header().with_content(vec![Span::new_text("Name")]),
+        TableCell::new_header().with_content(vec![Span::new_text("Score")]),
+    ]);
+    let body = TableRow::new().with_cells(vec![
+        TableCell::new_data().with_content(vec![Span::new_text("Alice")]),
+        TableCell::new_data().with_content(vec![Span::new_text("42")]),
+    ]);
+    let expected = doc_(vec![
+        h1_("Report"),
+        Paragraph::new_table().with_rows(vec![header, body]),
+    ]);
+
+    assert_eq!(document, expected);
+}
+
+#[test]
+fn doc_supports_tables_nested_in_other_blocks() {
+    // The `mode` token must thread through nested block contexts so extensions
+    // are available inside lists, quotes, etc. — not just at the top level.
+    let document = doc! {
+        ul {
+            li {
+                table {
+                    row { td { "cell" } }
+                }
+            }
+        }
+    };
+
+    let table = Paragraph::new_table().with_rows(vec![
+        TableRow::new().with_cells(vec![TableCell::new_data().with_content(vec![Span::new_text(
+            "cell",
+        )])]),
+    ]);
+    let expected = doc_(vec![ul_(vec![li_(vec![table])])]);
+
+    assert_eq!(document, expected);
 }

@@ -62,7 +62,7 @@ tdoc provides a comprehensive toolkit for working with text documents in Rust:
   - **FTML**: Import and export FTML (a strict subset of HTML5) with full round-trip support
   - **HTML**: Import HTML documents (basic support), with plans for full HTML export
 - **Document Manipulation**: Build and modify documents programmatically with a clean, type-safe API
-- **Inline `ftml!` macro**: Compose document trees inline for ergonomic test fixtures and examples
+- **Inline `doc!` macro**: Compose document trees inline for ergonomic test fixtures and examples (with a strict `ftml!` variant)
 - **Command-line Tool**: A ready-to-use CLI for viewing, converting, and formatting documents
 
 ## Supported formats
@@ -108,7 +108,7 @@ Task lists are a special kind of unordered list whose entries start with checkbo
 
 ### Code Blocks
 
-- Represented in FTML/HTML as `<pre>` elements and emitted via the `code { "..." }` block in the `ftml!` macro.
+- Represented in FTML/HTML as `<pre>` elements and emitted via the `code { "..." }` block in the `doc!`/`ftml!` macros.
 - When rendered in ASCII or ANSI, code blocks maintain paragraph spacing and are wrapped in `----` separators with hard character-level wrapping.
 - Markdown export uses fenced code blocks (`````), and the HTML/FTML writers preserve the original whitespace verbatim.
 
@@ -194,14 +194,14 @@ fn main() -> tdoc::Result<()> {
 }
 ```
 
-### Building with the `ftml!` macro
+### Building with the `doc!` macro
 
 ```rust
-use tdoc::{ftml, write};
+use tdoc::{doc, ftml};
 
 fn main() -> tdoc::Result<()> {
     // Compose a document inline, similar to RSX or JSX
-    let doc = ftml! {
+    let document = doc! {
         h1 { "Hello World!" }
         ul {
             li {
@@ -210,17 +210,20 @@ fn main() -> tdoc::Result<()> {
             }
         }
         p { "Inline styles work " b { "just as well" } "." }
-        code {
-            "fn main() {\n"
-            "    println!(\"Hello from tdoc!\");\n"
-            "}\n"
+        table {
+            row { th { "Feature" } th { "Status" } }
+            row { td { "Tables" } td { "Supported" } }
         }
     };
 
-    write(&mut std::io::stdout(), &doc)?;
+    ftml::write(&mut std::io::stdout(), &document)?;
     Ok(())
 }
 ```
+
+`doc!` understands tdoc's full element set. Use the [`ftml!`](https://docs.rs/tdoc/latest/tdoc/macro.ftml.html)
+macro instead when you want the document restricted to strict FTML — it accepts
+the same syntax but rejects extensions such as `table` at compile time.
 
 ### Converting between formats
 
