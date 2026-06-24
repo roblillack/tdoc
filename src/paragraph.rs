@@ -119,7 +119,7 @@ impl ParagraphType {
 /// use tdoc::{Paragraph, ParagraphType, Span};
 ///
 /// // Simple paragraph with inline content.
-/// let text = Paragraph::new_text().with_content(vec![Span::new_text("Hello FTML!")]);
+/// let text = Paragraph::new_text().with_content(vec![Span::new_text("Hello!")]);
 /// assert!(text.is_leaf());
 ///
 /// // List paragraphs manage their items via entries.

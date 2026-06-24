@@ -2,7 +2,7 @@
 name = "tdoc"
 version = "0.10.0"
 edition = "2021"
-description = "Library and assorted CLI tools for working with FTML (Formatted Text Markup Language) documents"
+description = "Library and CLI for reading, rendering, and converting text documents across Markdown, HTML, Gemini, and FTML"
 authors = ["Rob Lillack <rob@lillack.net>"]
 license = "MIT"
 readme = "README.md"

@@ -5,81 +5,86 @@
 [![Downloads](https://img.shields.io/crates/d/tdoc.svg)](https://crates.io/crates/tdoc)
 [![Docs.rs](https://docs.rs/tdoc/badge.svg)](https://docs.rs/tdoc)
 
-A command-line tool and Rust library for handling all kinds of text documents (Markdown, HTML, Gemini, and FTML - Formatted Text Markup Language).
+A command-line tool and Rust library for reading, rendering, and converting text
+documents — across Markdown, HTML, Gemini, and FTML.
 
-This project is a partial rewrite of the Go library available at https://github.com/roblillack/ftml, bringing FTML support to the Rust ecosystem with improved performance and memory safety.
+Point `tdoc` at a file, a URL, or stdin and it renders the content as richly styled
+terminal output, or converts it from one format into another. Every supported format
+is parsed into a single in-memory document tree, so anything tdoc can read it can also
+render and re-emit in any other format it knows.
+
+tdoc began as a Rust rewrite of the Go [ftml](https://github.com/roblillack/ftml)
+library — and still handles FTML as a first-class format — but it has since grown into
+a general-purpose text document toolkit where FTML is simply one of the formats it
+happens to support.
 
 ![tdoc terminal rendering example](screenshot.png)
 
 ## CLI usage
 
-`tdoc` is the unified CLI for viewing and exporting FTML, HTML, Markdown, and Gemini content.
-When no input path is provided it reads from stdin. The output format is detected
-from the `--output/-o` file extension.
+`tdoc` is a single binary for viewing and converting Markdown, HTML, Gemini, and FTML.
+When no input path is provided it reads from stdin. The input format is detected from the
+file extension (override it with `--input-format`), and the output format is detected from
+the `--output`/`-o` file extension.
 
 ```bash
-# View a local FTML file with ANSI styling (defaults to a pager)
-tdoc document.ftml
-
-# View a local Markdown file with ANSI styling
+# View a local file with ANSI styling (defaults to a pager)
 tdoc notes.md
-
-# View a local HTML file with ANSI styling
 tdoc email.html
-
-# View a local Gemini file with ANSI styling
 tdoc capsule.gmi
+tdoc document.ftml
 
 # View from a URL
 tdoc https://example.com/document.html
 
 # Disable ANSI formatting (disables the pager and emits ASCII)
-tdoc --no-ansi document.ftml
+tdoc --no-ansi notes.md
 
-# Read from stdin (defaults to FTML)
-cat document.ftml | tdoc
-
-# Force the input format for stdin/unknown extensions
+# Read from stdin (defaults to FTML; override with --input-format)
 cat notes.md | tdoc --input-format markdown
 
-# Export to different formats (extension determines the output)
-tdoc paper.ftml --output paper.md      # Markdown
-tdoc paper.ftml --output paper.ftml    # FTML
-tdoc paper.ftml --output paper.html    # HTML
-tdoc paper.ftml --output paper.gmi     # Gemini
-tdoc paper.ftml --output paper.txt     # Wrapped ASCII text
+# Convert between formats (the output extension picks the target)
+tdoc paper.md   --output paper.html    # Markdown -> HTML
+tdoc paper.html --output paper.md      # HTML -> Markdown
+tdoc paper.ftml --output paper.gmi     # FTML -> Gemini
+tdoc paper.md   --output paper.txt     # Wrapped ASCII text
 ```
-
-## What is FTML?
-
-**FTML (Formatted Text Markup Language)** is a lightweight document format designed for simplicity and ease of processing. As a **strict subset of HTML5**, it remains fully compatible with standard web technologies while being far easier to parse and work with programmatically. FTML provides the essential features needed for rich text documents—such as paragraph structures, headings, lists, and inline styles—without the complexity of full HTML or Markdown. It’s ideal for straightforward text content like emails, memos, notes, and help documentation.
-
-**Key features:**
-
-- **Simple structure**: Only the most essential formatting options
-- **HTML-compatible**: Valid FTML is valid HTML5
-- **Diffable**: Designed to work well with version control
-- **Unambiguous**: Usually only one way to express something
-
-For the full FTML specification, see the [original repository](https://github.com/roblillack/ftml).
 
 ## Features
 
-tdoc provides a comprehensive toolkit for working with FTML documents in Rust:
+tdoc provides a comprehensive toolkit for working with text documents in Rust:
 
-- **Load and Save**: Parse FTML documents from files or streams, and write them back with proper formatting
-- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code`, [clickable links](https://github.com/roblillack/tdoc) and all supported paragraph types
-- **Format Conversion**: Convert between FTML and other formats:
+- **Read and Write**: Parse documents from files, URLs, or streams, and write them back with proper formatting
+- **Terminal Rendering**: Render documents to terminal screens with full support for ASCII/ANSI formatting, including **bold**, _italic_, <u>underline</u>, <del>strikethrough</del>, <mark>highlight</mark>, `code`, [clickable links](https://github.com/roblillack/tdoc), tables, checklists, and all supported paragraph types
+- **Format Conversion**: Convert between formats with a shared document model:
   - **Markdown**: Import and export Markdown documents with full round-trip support
   - **Gemini**: Import and export Gemini text (.gmi) documents with full round-trip support
-  - **HTML**: Import HTML documents into FTML (basic support), with plans for full HTML export
-- **Document Manipulation**: Build and modify FTML documents programmatically with a clean, type-safe API
-- **Inline FTML macro**: Compose FTML document trees inline with the `ftml!` macro for ergonomic test fixtures and examples
-- **Command-line Tools**: Ready-to-use CLI utilities for viewing, converting, and formatting FTML documents
+  - **FTML**: Import and export FTML (a strict subset of HTML5) with full round-trip support
+  - **HTML**: Import HTML documents (basic support), with plans for full HTML export
+- **Document Manipulation**: Build and modify documents programmatically with a clean, type-safe API
+- **Inline `ftml!` macro**: Compose document trees inline for ergonomic test fixtures and examples
+- **Command-line Tool**: A ready-to-use CLI for viewing, converting, and formatting documents
 
-## Document Structure
+## Supported formats
 
-FTML documents consist of a hierarchy of elements:
+Every format tdoc understands maps onto the same in-memory document tree, so any supported
+input can be rendered to the terminal or converted to any supported output:
+
+- **Markdown** — the familiar lightweight markup, including task lists and tables
+- **HTML** — imported into the document tree (basic support)
+- **Gemini** (`.gmi`) — the text format of the Gemini protocol
+- **FTML** — Formatted Text Markup Language (see below)
+
+### What is FTML?
+
+**FTML (Formatted Text Markup Language)** is a lightweight document format designed for simplicity and ease of processing. As a **strict subset of HTML5**, it stays fully compatible with standard web technologies while being far easier to parse and work with programmatically. It provides the essentials of rich text — paragraphs, headings, lists, and inline styles — without the complexity of full HTML, which makes it well suited to emails, memos, notes, and help documentation. FTML is also **diffable** (designed to work well with version control) and **unambiguous** (usually only one way to express something).
+
+For the full FTML specification, see the [original repository](https://github.com/roblillack/ftml).
+
+## Document model
+
+Whatever format you read, tdoc parses it into the same document tree, a hierarchy of elements
+(shown here with their FTML/HTML tags):
 
 ### Block-level Elements
 
@@ -89,10 +94,11 @@ FTML documents consist of a hierarchy of elements:
 - **Lists** - ordered (`<ol>`) or unordered (`<ul>`)
 - **Checklists** (`<ul>` whose items begin with checkboxes, or Markdown `- [ ]` task lists)
 - **Blockquotes** (`<blockquote>`)
+- **Tables** (`<table>`)
 
 ### Checklists
 
-Task lists are a special kind of unordered list whose entries start with checkbox inputs (HTML/FTML) or Markdown’s `- [ ]` syntax. tdoc now keeps those entries intact—including deeply nested child tasks—across the parser, Markdown/HTML writers, and the terminal formatter. That means you can read Markdown like this:
+Task lists are a special kind of unordered list whose entries start with checkbox inputs (HTML/FTML) or Markdown’s `- [ ]` syntax. tdoc keeps those entries intact—including deeply nested child tasks—across the parser, Markdown/HTML writers, and the terminal formatter. That means you can read Markdown like this:
 
 ```markdown
 - [x] Ship release
@@ -102,9 +108,9 @@ Task lists are a special kind of unordered list whose entries start with checkbo
 
 ### Code Blocks
 
-- Represented in FTML as `<pre>` elements and emitted via the `code { "..." }` block in the `ftml!` macro.
+- Represented in FTML/HTML as `<pre>` elements and emitted via the `code { "..." }` block in the `ftml!` macro.
 - When rendered in ASCII or ANSI, code blocks maintain paragraph spacing and are wrapped in `----` separators with hard character-level wrapping.
-- Markdown export uses fenced code blocks (`````), and HTML/FTML writers preserve the original whitespace verbatim.
+- Markdown export uses fenced code blocks (`````), and the HTML/FTML writers preserve the original whitespace verbatim.
 
 ### Inline Styles
 
@@ -129,7 +135,7 @@ Text spans can have optional styles:
 
 ```ftml
 <h1>This <i>very</i> simple example shows ...</h1>
-<p>How FTML really is this:</p>
+<p>How an FTML document looks:</p>
 <ul>
   <li><p>A <mark>strict</mark> subset of HTML,</p></li>
   <li><p>That is <b>easy</b> to wrap your head around.</p></li>
@@ -138,16 +144,20 @@ Text spans can have optional styles:
 
 ## Library Usage
 
+Each format lives in its own module (`tdoc::ftml`, `tdoc::markdown`, `tdoc::gemini`, and
+`tdoc::html`), and every module exposes a `parse` function returning a `Document` and a
+`write` function to emit one.
+
 ### Reading Documents
 
 ```rust
-use tdoc::{parse, Document};
+use tdoc::markdown;
 use std::fs::File;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Parse from a file
-    let file = File::open("document.ftml")?;
-    let document = parse(file)?;
+fn main() -> tdoc::Result<()> {
+    // Parse from a file (swap `markdown` for `ftml`, `gemini`, or `html`)
+    let file = File::open("notes.md")?;
+    let document = markdown::parse(file)?;
 
     // Access document structure
     for paragraph in &document.paragraphs {
@@ -161,10 +171,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Writing Documents
 
 ```rust
-use tdoc::{write, Document, Paragraph, Span};
+use tdoc::{ftml, Document, Paragraph, Span};
 use std::io::stdout;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> tdoc::Result<()> {
     // Create a document programmatically
     let mut doc = Document::new();
 
@@ -177,8 +187,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     doc.add_paragraph(paragraph);
 
-    // Write to stdout
-    write(&mut stdout(), &doc)?;
+    // Write it out as FTML
+    ftml::write(&mut stdout(), &doc)?;
 
     Ok(())
 }
@@ -202,7 +212,7 @@ fn main() -> tdoc::Result<()> {
         p { "Inline styles work " b { "just as well" } "." }
         code {
             "fn main() {\n"
-            "    println!(\"Hello from FTML!\");\n"
+            "    println!(\"Hello from tdoc!\");\n"
             "}\n"
         }
     };
@@ -212,35 +222,18 @@ fn main() -> tdoc::Result<()> {
 }
 ```
 
-### Exporting to Markdown
+### Converting between formats
 
 ```rust
-use tdoc::{parse, markdown};
+use tdoc::{markdown, gemini};
 use std::fs::File;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::open("document.ftml")?;
-    let document = parse(file)?;
+fn main() -> tdoc::Result<()> {
+    // Read Markdown ...
+    let file = File::open("notes.md")?;
+    let document = markdown::parse(file)?;
 
-    // Export to Markdown
-    markdown::write(&mut std::io::stdout(), &document)?;
-
-    Ok(())
-}
-```
-
-### Working with Gemini format
-
-```rust
-use tdoc::gemini;
-use std::fs::File;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Parse a Gemini file
-    let file = File::open("capsule.gmi")?;
-    let document = gemini::parse(file)?;
-
-    // Export to Gemini
+    // ... and write it back out as Gemini
     gemini::write(&mut std::io::stdout(), &document)?;
 
     Ok(())
@@ -253,20 +246,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 use tdoc::html;
 use std::fs::File;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> tdoc::Result<()> {
     let file = File::open("document.html")?;
     let document = html::parse(file)?;
 
-    // Now you have an FTML document
     println!("Parsed {} paragraphs", document.paragraphs.len());
 
     Ok(())
 }
 ```
 
-## Implementation Status
+## Format & feature support
 
-This Rust implementation is a work in progress. Here's how it compares to the [Go version](https://github.com/roblillack/ftml):
+tdoc descends from the Go [ftml](https://github.com/roblillack/ftml) library, and a few
+capabilities are still being filled in. Here is where each one stands, compared with the
+Go version:
 
 | Feature                | Rust (tdoc) | Go (ftml)     | Notes                                     |
 | ---------------------- | ----------- | ------------- | ----------------------------------------- |
@@ -294,17 +288,17 @@ This Rust implementation is a work in progress. Here's how it compares to the [G
 ## Building from Source
 
 ```bash
-# Ensure the OpenSSL/LibreSSL headers are available, for example:
-sudo apt install libssl-dev
-
-# Build the library and all tools
+# Build the library and the CLI
 cargo build --release
 
 # Run tests
 cargo test
 
-# Build specific binary
+# Build just the CLI binary
 cargo build --release --bin tdoc
+
+# Build without network/URL support (drops the reqwest/rustls dependencies)
+cargo build --release --no-default-features
 ```
 
 ## License
@@ -313,4 +307,4 @@ MIT
 
 ## Contributing
 
-This is a work in progress. Contributions are welcome! Please see the [original FTML repository](https://github.com/roblillack/ftml) for the specification details.
+Contributions are welcome! For the FTML format details, see the [original FTML repository](https://github.com/roblillack/ftml) for the specification.

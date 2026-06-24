@@ -1,10 +1,10 @@
-//! Defines the [`Document`] root node for FTML content.
+//! Defines the [`Document`] root node of the document tree.
 
 use crate::metadata::Metadata;
 use crate::Paragraph;
 
 #[derive(Debug, Clone, PartialEq)]
-/// A collection of top-level [`Paragraph`] nodes that make up an FTML document.
+/// A collection of top-level [`Paragraph`] nodes that make up a document.
 ///
 /// The struct is intentionally lightweight: it simply stores the top-level
 /// paragraphs in the order in which they should render.
