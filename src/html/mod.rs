@@ -7,12 +7,15 @@
 
 pub mod gockl;
 
+use crate::custom::CustomRegistry;
 use crate::ftml::Writer;
 use crate::{
-    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+    ChecklistItem, CustomParagraph, Document, InlineStyle, Paragraph, ParagraphType, Span,
+    TableCell, TableRow,
 };
 use gockl::{StartElementToken, Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
+use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
@@ -40,11 +43,18 @@ struct SpanOutcome {
 /// let document = html::parse(html).unwrap();
 /// assert_eq!(document.paragraphs.len(), 1);
 /// ```
-pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
+pub fn parse<R: Read>(reader: R) -> crate::Result<Document> {
+    parse_with(reader, &CustomRegistry::new())
+}
+
+/// Parses HTML into a [`Document`], capturing registered custom tags (see
+/// [`CustomRegistry`]) as [`Paragraph::Custom`] with their attributes and inner
+/// markup preserved verbatim.
+pub fn parse_with<R: Read>(mut reader: R, registry: &CustomRegistry) -> crate::Result<Document> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
 
-    Parser::new(&input)
+    Parser::new(&input, registry.clone())
         .parse()
         .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
 }
@@ -63,10 +73,12 @@ struct Parser<'a> {
     /// instead of falling through to the live tokenizer, keeping a replay
     /// bounded to its buffered tokens.
     replaying: bool,
+    /// Tags captured verbatim as [`Paragraph::Custom`].
+    custom: CustomRegistry,
 }
 
 impl<'a> Parser<'a> {
-    fn new(input: &'a str) -> Self {
+    fn new(input: &'a str, custom: CustomRegistry) -> Self {
         Self {
             tokenizer: Tokenizer::new(input),
             document: Vec::new(),
@@ -76,6 +88,7 @@ impl<'a> Parser<'a> {
             pending_token: None,
             injected: VecDeque::new(),
             replaying: false,
+            custom,
         }
     }
 
@@ -151,6 +164,10 @@ impl<'a> Parser<'a> {
 
                 if let Some(para_type) = paragraph_type_for(&tag) {
                     return self.read_paragraph(para_type, Some(tag), None);
+                }
+
+                if self.custom.captures_tag(&tag) {
+                    return self.read_custom(&tag, &start);
                 }
 
                 if inline_style_for(&tag).is_some() {
@@ -263,6 +280,49 @@ impl<'a> Parser<'a> {
             self.remove_leaf(&node);
         }
 
+        Ok(())
+    }
+
+    /// Captures a registered custom element verbatim: its attributes and the
+    /// raw source between its start and matching close tag become a
+    /// [`Paragraph::Custom`].
+    fn read_custom(&mut self, tag: &str, start: &StartElementToken) -> Result<(), HtmlError> {
+        let kind = self.custom.kind_for_tag(tag).unwrap_or(tag).to_string();
+
+        let mut attributes = IndexMap::new();
+        for attr in start.attributes() {
+            attributes.insert(attr.name, attr.content);
+        }
+
+        // The tokenizer is positioned just after the start tag; scan to the
+        // matching close tag (balancing same-name nesting) and slice the source.
+        let begin = self.tokenizer.position();
+        let mut depth = 0usize;
+        let end_at = loop {
+            let before = self.tokenizer.position();
+            let Ok(token) = self.tokenizer.next_token() else {
+                break before;
+            };
+            match &token {
+                Token::StartElement(s) if lowercase_name(s.name()) == tag => depth += 1,
+                Token::EndElement(e) if lowercase_name(e.name()) == tag => {
+                    if depth == 0 {
+                        break before;
+                    }
+                    depth -= 1;
+                }
+                _ => {}
+            }
+        };
+        let raw = self.tokenizer.slice(begin, end_at).to_string();
+
+        let mut custom = CustomParagraph::new(kind).with_attributes(attributes);
+        if !raw.trim().is_empty() {
+            custom.raw = Some(raw);
+        }
+
+        let node = self.down(ParagraphType::Custom)?;
+        node.borrow_mut().custom = Some(custom);
         Ok(())
     }
 
@@ -988,6 +1048,8 @@ struct ParagraphBuilder {
     entries: Vec<Vec<ParagraphNode>>,
     checklist_states: Vec<Option<bool>>,
     table_rows: Vec<TableRow>,
+    /// Payload for [`ParagraphType::Custom`] nodes.
+    custom: Option<CustomParagraph>,
 }
 
 impl ParagraphBuilder {
@@ -999,6 +1061,7 @@ impl ParagraphBuilder {
             entries: Vec::new(),
             checklist_states: Vec::new(),
             table_rows: Vec::new(),
+            custom: None,
         }
     }
 
@@ -1089,6 +1152,9 @@ impl ParagraphBuilder {
                 ParagraphType::Table => {
                     Paragraph::new_table().with_rows(borrowed.table_rows.clone())
                 }
+                ParagraphType::Custom => {
+                    Paragraph::Custom(borrowed.custom.clone().unwrap_or_default())
+                }
             }
         }
     }
@@ -1115,6 +1181,16 @@ impl ParagraphBuilder {
                         content.push(Span::new_text("\n"));
                     }
 
+                    content.append(&mut spans);
+                }
+                Paragraph::Custom(custom) => {
+                    let mut spans = custom.content;
+                    if spans.is_empty() {
+                        continue;
+                    }
+                    if !content.is_empty() {
+                        content.push(Span::new_text("\n"));
+                    }
                     content.append(&mut spans);
                 }
                 _ => {}
@@ -1162,6 +1238,9 @@ fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {
         Paragraph::Table { rows } => rows
             .iter()
             .any(|row| row.cells.iter().any(|cell| !cell.content.is_empty())),
+        Paragraph::Custom(custom) => {
+            custom.raw.is_some() || !custom.attributes.is_empty() || !custom.content.is_empty()
+        }
     }
 }
 
@@ -1511,6 +1590,18 @@ pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<(
     Writer::new_html().write(writer, document)
 }
 
+/// Writes a [`Document`] as HTML, using `registry` to serialize any
+/// [`Paragraph::Custom`] paragraphs via their registered handler.
+pub fn write_with<W: Write>(
+    writer: &mut W,
+    document: &Document,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
+    Writer::new_html()
+        .with_custom_registry(registry.clone())
+        .write(writer, document)
+}
+
 /// A self-contained stylesheet embedded in [`write_document`] output. It is
 /// modelled on the clean, professional look of Visual Studio Code's Markdown
 /// preview: a system font stack, a centered reading column, GitHub-flavoured
@@ -1630,6 +1721,16 @@ img { max-width: 100%; }
 /// self-contained stylesheet that gives the document the clean, professional
 /// look of Visual Studio Code's Markdown preview.
 pub fn write_document<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    write_document_with(writer, document, &CustomRegistry::new())
+}
+
+/// Like [`write_document`], but serializes [`Paragraph::Custom`] paragraphs via
+/// the supplied `registry`.
+pub fn write_document_with<W: Write>(
+    writer: &mut W,
+    document: &Document,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
     writer.write_all(
         b"<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n\
           <meta charset=\"utf-8\" />\n\
@@ -1638,7 +1739,7 @@ pub fn write_document<W: Write>(writer: &mut W, document: &Document) -> std::io:
     )?;
     writer.write_all(STYLESHEET.as_bytes())?;
     writer.write_all(b"</style>\n</head>\n<body>\n")?;
-    write(writer, document)?;
+    write_with(writer, document, registry)?;
     writer.write_all(b"\n</body>\n</html>\n")
 }
 

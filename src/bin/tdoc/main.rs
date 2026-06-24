@@ -15,12 +15,20 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 #[cfg(feature = "remote")]
 use std::time::Duration;
+use tdoc::custom::{builtins::Image, CustomRegistry};
 use tdoc::formatter::{Formatter, FormattingStyle};
 use tdoc::{ftml, gemini, html, markdown, pager, Document};
 use url::Url;
 
 /// How often `--watch` polls the input file for modifications.
 const WATCH_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(200);
+
+/// The custom paragraph types the CLI understands. Currently just images, so a
+/// Markdown `![alt](src)`, FTML/HTML `<img>`, or Gemini link survives viewing
+/// and round-trips through every conversion instead of being lost or flattened.
+fn custom_registry() -> CustomRegistry {
+    CustomRegistry::new().register(Image)
+}
 
 #[derive(Parser)]
 #[command(
@@ -149,7 +157,9 @@ fn run() -> Result<(), String> {
 /// Most recent modification time of `path`, or `None` if it can't be read
 /// (e.g. the file is momentarily absent while an editor saves it).
 fn file_mtime(path: &Path) -> Option<std::time::SystemTime> {
-    std::fs::metadata(path).and_then(|meta| meta.modified()).ok()
+    std::fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .ok()
 }
 
 /// Re-read and parse the input from scratch, reusing the same detection logic
@@ -435,12 +445,15 @@ fn parse_document(
     reader: Box<dyn Read>,
     display_name: &str,
 ) -> Result<Document, String> {
+    let registry = custom_registry();
     match format {
+        // FTML is a strict format with a closed element set, so it does not
+        // participate in custom-paragraph capture.
         InputFormat::Ftml => ftml::parse(reader)
             .map_err(|err| format!("Unable to parse {display_name} as FTML: {err}")),
-        InputFormat::Html => html::parse(reader)
+        InputFormat::Html => html::parse_with(reader, &registry)
             .map_err(|err| format!("Unable to parse {display_name} as HTML: {err}")),
-        InputFormat::Markdown => markdown::parse(reader)
+        InputFormat::Markdown => markdown::parse_with(reader, &registry)
             .map_err(|err| format!("Unable to parse {display_name} as Markdown: {err}")),
         InputFormat::Gemini => gemini::parse(reader)
             .map_err(|err| format!("Unable to parse {display_name} as Gemini: {err}")),
@@ -464,7 +477,8 @@ fn view_document(
             Formatter::new(io::stdout(), style)
         } else {
             Formatter::new_ascii(io::stdout())
-        };
+        }
+        .with_custom_registry(custom_registry());
 
         return formatter
             .write_document(&document)
@@ -541,7 +555,7 @@ fn render_document_for_terminal(
         style.link_footnotes = false;
     }
     {
-        let mut formatter = Formatter::new(&mut buf, style);
+        let mut formatter = Formatter::new(&mut buf, style).with_custom_registry(custom_registry());
         formatter
             .write_document(document)
             .map_err(|err| format!("Unable to write document: {err}"))?;
@@ -561,7 +575,7 @@ fn render_document_for_width(
         style.link_footnotes = false;
     }
     {
-        let mut formatter = Formatter::new(&mut buf, style);
+        let mut formatter = Formatter::new(&mut buf, style).with_custom_registry(custom_registry());
         formatter
             .write_document(document)
             .map_err(|err| format!("Unable to write document: {err}"))?;
@@ -792,7 +806,7 @@ fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {
                     output_path.display()
                 )
             })?;
-            let mut formatter = Formatter::new_ascii(file);
+            let mut formatter = Formatter::new_ascii(file).with_custom_registry(custom_registry());
             formatter.write_document(document).map_err(|err| {
                 format!(
                     "Unable to write document to {}: {err}",
@@ -821,7 +835,7 @@ fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {
                     output_path.display()
                 )
             })?;
-            markdown::write(&mut file, document).map_err(|err| {
+            markdown::write_with(&mut file, document, &custom_registry()).map_err(|err| {
                 format!(
                     "Unable to write Markdown to {}: {err}",
                     output_path.display()
@@ -850,7 +864,7 @@ fn write_output(document: &Document, output_path: &Path) -> Result<(), String> {
                     output_path.display()
                 )
             })?;
-            gemini::write(&mut file, document).map_err(|err| {
+            gemini::write_with(&mut file, document, &custom_registry()).map_err(|err| {
                 format!("Unable to write Gemini to {}: {err}", output_path.display())
             })?;
             file.flush()
@@ -872,5 +886,5 @@ fn determine_output_format(extension: Option<&str>) -> Option<OutputFormat> {
 }
 
 fn write_html_document<W: Write>(mut writer: W, document: &Document) -> io::Result<()> {
-    html::write_document(&mut writer, document)
+    html::write_document_with(&mut writer, document, &custom_registry())
 }

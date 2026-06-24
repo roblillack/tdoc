@@ -4,7 +4,8 @@
 //! This module provides bidirectional conversion between Gemini text
 //! and FTML documents.
 
-use crate::{Document, InlineStyle, Paragraph, ParagraphType, Span};
+use crate::custom::CustomRegistry;
+use crate::{CustomParagraph, Document, InlineStyle, Paragraph, ParagraphType, Span};
 use std::io::{BufRead, BufReader, Read, Write};
 
 /// Parses Gemini text into a [`Document`].
@@ -243,18 +244,32 @@ fn parse_link_line(rest: &str) -> Option<(&str, &str)> {
 /// assert_eq!(String::from_utf8(output).unwrap(), "Hello\n");
 /// ```
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    write_with(writer, document, &CustomRegistry::new())
+}
+
+/// Writes a [`Document`] as Gemini text, using `registry` to serialize any
+/// [`Paragraph::Custom`] paragraphs via their registered handler.
+pub fn write_with<W: Write>(
+    writer: &mut W,
+    document: &Document,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
     let mut first = true;
     for paragraph in &document.paragraphs {
         if !first {
             writeln!(writer)?;
         }
-        write_paragraph(writer, paragraph)?;
+        write_paragraph(writer, paragraph, registry)?;
         first = false;
     }
     Ok(())
 }
 
-fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::Result<()> {
+fn write_paragraph<W: Write>(
+    writer: &mut W,
+    paragraph: &Paragraph,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
     match paragraph {
         Paragraph::Text { content } => {
             write_text_paragraph(writer, content)?;
@@ -281,7 +296,7 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
         }
         Paragraph::Quote { children } => {
             for child in children {
-                write_quoted_paragraph(writer, child)?;
+                write_quoted_paragraph(writer, child, registry)?;
             }
         }
         Paragraph::UnorderedList { entries } | Paragraph::OrderedList { entries } => {
@@ -291,7 +306,7 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
                     if i > 0 {
                         write!(writer, " ")?;
                     }
-                    write_paragraph_inline(writer, p)?;
+                    write_paragraph_inline(writer, p, registry)?;
                 }
                 writeln!(writer)?;
             }
@@ -325,6 +340,25 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
                 }
             }
         }
+        Paragraph::Custom(custom) => {
+            write_custom_paragraph(writer, custom, registry)?;
+        }
+    }
+    Ok(())
+}
+
+fn write_custom_paragraph<W: Write>(
+    writer: &mut W,
+    custom: &CustomParagraph,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
+    if let Some(text) = registry.get(&custom.kind).and_then(|h| h.to_gemini(custom)) {
+        writeln!(writer, "{}", text)?;
+    } else if let Some(raw) = &custom.raw {
+        writeln!(writer, "{}", raw)?;
+    } else if !custom.content.is_empty() {
+        write_spans_plain(writer, &custom.content)?;
+        writeln!(writer)?;
     }
     Ok(())
 }
@@ -352,7 +386,11 @@ fn write_text_paragraph<W: Write>(writer: &mut W, content: &[Span]) -> std::io::
     Ok(())
 }
 
-fn write_quoted_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::Result<()> {
+fn write_quoted_paragraph<W: Write>(
+    writer: &mut W,
+    paragraph: &Paragraph,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
     match paragraph {
         Paragraph::Text { content } => {
             // Split content by newlines and prefix each with >
@@ -363,19 +401,23 @@ fn write_quoted_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> st
         }
         Paragraph::Quote { children } => {
             for child in children {
-                write_quoted_paragraph(writer, child)?;
+                write_quoted_paragraph(writer, child, registry)?;
             }
         }
         _ => {
             write!(writer, "> ")?;
-            write_paragraph_inline(writer, paragraph)?;
+            write_paragraph_inline(writer, paragraph, registry)?;
             writeln!(writer)?;
         }
     }
     Ok(())
 }
 
-fn write_paragraph_inline<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::Result<()> {
+fn write_paragraph_inline<W: Write>(
+    writer: &mut W,
+    paragraph: &Paragraph,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
     match paragraph {
         Paragraph::Text { content }
         | Paragraph::Header1 { content }
@@ -385,6 +427,15 @@ fn write_paragraph_inline<W: Write>(writer: &mut W, paragraph: &Paragraph) -> st
         }
         Paragraph::CodeBlock { content } => {
             write_spans_plain(writer, content)?;
+        }
+        Paragraph::Custom(custom) => {
+            if let Some(text) = registry.get(&custom.kind).and_then(|h| h.to_gemini(custom)) {
+                write!(writer, "{}", text)?;
+            } else if let Some(raw) = &custom.raw {
+                write!(writer, "{}", raw)?;
+            } else {
+                write_spans_plain(writer, &custom.content)?;
+            }
         }
         _ => {}
     }
