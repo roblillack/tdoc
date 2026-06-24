@@ -17,11 +17,21 @@ use std::collections::HashMap;
 use std::io::{self, Stdout, Write};
 use std::ops::Range;
 use std::sync::Arc;
+use std::time::Duration;
 use unicode_width::UnicodeWidthChar;
 use url::Url;
 
 type RegeneratorFn = Box<dyn FnMut(u16, u16) -> Result<String, String>>;
 type RegeneratorHandle<'a> = &'a mut Option<RegeneratorFn>;
+
+/// Polled while the pager is idle. Given the current terminal width, returns
+/// `Some(Ok(content))` with freshly rendered output when the watched source
+/// changed, `Some(Err(message))` to surface an error in the status line, or
+/// `None` when nothing changed.
+type WatcherFn = Box<dyn FnMut(u16) -> Option<Result<String, String>>>;
+
+/// How often the pager wakes to poll the watcher for source changes.
+const WATCH_POLL_INTERVAL: Duration = Duration::from_millis(200);
 
 /// ANSI-aware segment ready for rendering.
 #[derive(Clone, Debug)]
@@ -2122,9 +2132,35 @@ fn parse_content_to_lines(content: &str) -> Vec<ParsedLine> {
     content.lines().map(ParsedLine::from_ansi).collect()
 }
 
+/// Replace the pager's content with freshly rendered output while keeping the
+/// reader's scroll position (clamped to the new length). Used for live reloads
+/// so the view doesn't jump back to the top on every edit.
+fn apply_watched_content(content: &mut Vec<ParsedLine>, state: &mut PagerState, new_content: &str) {
+    let active_match_line = match &state.search_mode {
+        SearchMode::Active {
+            matches,
+            current_match,
+            ..
+        } => matches.get(*current_match).map(|m| m.line_idx),
+        _ => None,
+    };
+
+    let new_lines = parse_content_to_lines(new_content);
+    state.rebuild_search_results(&new_lines, active_match_line);
+    *content = new_lines;
+    state.total_lines = content.len();
+    state.clamp_scroll();
+    state.focused_link = None;
+    state.hovered_link = None;
+    state.drag_state = None;
+    state.set_status_message(None);
+    state.rebuild_links(content);
+}
+
 fn run_interactive_pager(
     mut content: Vec<ParsedLine>,
     mut regenerator: Option<RegeneratorFn>,
+    mut watcher: Option<WatcherFn>,
     options: PagerOptions,
 ) -> io::Result<()> {
     let PagerOptions {
@@ -2189,7 +2225,34 @@ fn run_interactive_pager(
             }
         }
 
-        match event::read()? {
+        // When watching a source, wake periodically to poll for changes instead
+        // of blocking indefinitely on input. Without a watcher we keep the
+        // original blocking read so an idle pager consumes no CPU.
+        let event = if watcher.is_some() {
+            if event::poll(WATCH_POLL_INTERVAL)? {
+                event::read()?
+            } else {
+                if let Some(watch) = watcher.as_mut() {
+                    let width = state.last_terminal_width.min(u16::MAX as usize) as u16;
+                    match watch(width) {
+                        Some(Ok(new_content)) => {
+                            apply_watched_content(&mut content, &mut state, &new_content);
+                            needs_redraw = true;
+                        }
+                        Some(Err(message)) => {
+                            state.set_status_message(Some(message));
+                            needs_redraw = true;
+                        }
+                        None => {}
+                    }
+                }
+                continue 'outer;
+            }
+        } else {
+            event::read()?
+        };
+
+        match event {
             Event::Key(key_event) => {
                 let mut key_redraw = false;
                 if !handle_key_event(
@@ -2331,6 +2394,34 @@ pub fn page_output_with_options_and_regenerator<F>(
 where
     F: FnMut(u16, u16) -> Result<String, String> + 'static,
 {
+    let boxed_regenerator = regenerator.map(|func| Box::new(func) as RegeneratorFn);
+    page_output_boxed(content, boxed_regenerator, None, options)
+}
+
+/// Like [`page_output_with_options_and_regenerator`], but also polls `watcher`
+/// while idle so the displayed content can be refreshed live when its source
+/// changes on disk.
+pub fn page_output_with_options_regenerator_and_watcher<F, W>(
+    content: &str,
+    regenerator: Option<F>,
+    watcher: Option<W>,
+    options: PagerOptions,
+) -> Result<(), String>
+where
+    F: FnMut(u16, u16) -> Result<String, String> + 'static,
+    W: FnMut(u16) -> Option<Result<String, String>> + 'static,
+{
+    let boxed_regenerator = regenerator.map(|func| Box::new(func) as RegeneratorFn);
+    let boxed_watcher = watcher.map(|func| Box::new(func) as WatcherFn);
+    page_output_boxed(content, boxed_regenerator, boxed_watcher, options)
+}
+
+fn page_output_boxed(
+    content: &str,
+    regenerator: Option<RegeneratorFn>,
+    watcher: Option<WatcherFn>,
+    options: PagerOptions,
+) -> Result<(), String> {
     let line_count = content.lines().count();
     let force_page = options.force_page;
     let interactive = is_interactive_terminal();
@@ -2348,9 +2439,7 @@ where
 
     if should_page {
         let parsed_lines = parse_content_to_lines(content);
-        let boxed_regenerator: Option<RegeneratorFn> =
-            regenerator.map(|func| Box::new(func) as RegeneratorFn);
-        run_interactive_pager(parsed_lines, boxed_regenerator, options)
+        run_interactive_pager(parsed_lines, regenerator, watcher, options)
             .map_err(|e| format!("Pager error: {}", e))
     } else {
         print!("{}", content);

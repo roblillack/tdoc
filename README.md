@@ -48,7 +48,16 @@ tdoc paper.md   --output paper.html    # Markdown -> HTML
 tdoc paper.html --output paper.md      # HTML -> Markdown
 tdoc paper.ftml --output paper.gmi     # FTML -> Gemini
 tdoc paper.md   --output paper.txt     # Wrapped ASCII text
+
+# Watch the input and refresh live (Ctrl-C to stop)
+tdoc notes.md --watch                  # re-render in the pager on every change
+tdoc paper.md --output paper.html -w   # regenerate the output file on every change
 ```
+
+The `--watch`/`-w` flag keeps `tdoc` running and re-reads the input file whenever it
+changes on disk. Without `--output` it refreshes the live terminal view (preserving your
+scroll position); with `--output` it regenerates the output file. Watching requires a file
+input — it isn't available for stdin or URLs.
 
 ## Features
 
