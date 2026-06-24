@@ -19,6 +19,9 @@ use tdoc::formatter::{Formatter, FormattingStyle};
 use tdoc::{ftml, gemini, html, markdown, pager, Document};
 use url::Url;
 
+/// How often `--watch` polls the input file for modifications.
+const WATCH_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(200);
+
 #[derive(Parser)]
 #[command(
     name = "tdoc",
@@ -41,6 +44,10 @@ struct Cli {
     /// Write the rendered document to a file instead of the terminal
     #[arg(short = 'o', long = "output", value_name = "FILE", value_hint = ValueHint::FilePath)]
     output: Option<PathBuf>,
+
+    /// Watch the input file and refresh the view (or regenerate --output) on every change
+    #[arg(short = 'w', long = "watch")]
+    watch: bool,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -112,6 +119,24 @@ fn run() -> Result<(), String> {
     } = input_source;
     let document = parse_document(format, reader, &display_name)?;
 
+    if cli.watch {
+        let watch_path = match &origin {
+            ContentOrigin::File(path) => path.clone(),
+            _ => return Err("--watch is only supported for file inputs".to_string()),
+        };
+
+        if let Some(output_path) = cli.output {
+            return watch_to_file(
+                cli.input.as_deref(),
+                &watch_path,
+                &output_path,
+                input_override,
+            );
+        }
+
+        return watch_in_terminal(document, cli.no_ansi, origin, input_override);
+    }
+
     if let Some(output_path) = cli.output {
         write_output(&document, &output_path)?;
     } else {
@@ -119,6 +144,164 @@ fn run() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+/// Most recent modification time of `path`, or `None` if it can't be read
+/// (e.g. the file is momentarily absent while an editor saves it).
+fn file_mtime(path: &Path) -> Option<std::time::SystemTime> {
+    std::fs::metadata(path).and_then(|meta| meta.modified()).ok()
+}
+
+/// Re-read and parse the input from scratch, reusing the same detection logic
+/// as the initial load so format overrides and extension sniffing still apply.
+fn reload_document(
+    input: Option<&str>,
+    input_override: Option<InputFormat>,
+) -> Result<Document, String> {
+    let InputSource {
+        format,
+        reader,
+        display_name,
+        ..
+    } = create_reader(input, input_override)?;
+    parse_document(format, reader, &display_name)
+}
+
+/// Regenerate `output_path` from `watch_path` whenever the input changes,
+/// looping until interrupted (Ctrl-C).
+fn watch_to_file(
+    input: Option<&str>,
+    watch_path: &Path,
+    output_path: &Path,
+    input_override: Option<InputFormat>,
+) -> Result<(), String> {
+    eprintln!(
+        "Watching {} -> {} (press Ctrl-C to stop)",
+        watch_path.display(),
+        output_path.display()
+    );
+
+    let mut last_mtime: Option<std::time::SystemTime> = None;
+    loop {
+        let mtime = file_mtime(watch_path);
+        if mtime.is_some() && mtime != last_mtime {
+            last_mtime = mtime;
+            match reload_document(input, input_override)
+                .and_then(|document| write_output(&document, output_path))
+            {
+                Ok(()) => eprintln!("Regenerated {}", output_path.display()),
+                Err(message) => eprintln!("{message}"),
+            }
+        }
+        std::thread::sleep(WATCH_POLL_INTERVAL);
+    }
+}
+
+/// View the document in the pager, reloading and re-rendering live whenever the
+/// underlying file changes on disk.
+fn watch_in_terminal(
+    document: Document,
+    no_ansi: bool,
+    origin: ContentOrigin,
+    input_override: Option<InputFormat>,
+) -> Result<(), String> {
+    let stdout_is_tty = atty::is(atty::Stream::Stdout);
+    let use_ansi = !no_ansi && stdout_is_tty;
+
+    // Watching only makes sense in the interactive pager; fall back to a plain
+    // one-shot render when output isn't an ANSI terminal.
+    if !use_ansi {
+        return view_document(document, no_ansi, origin, input_override);
+    }
+
+    let shared_state = Arc::new(Mutex::new(LinkEnvironment {
+        document: document.clone(),
+        origin: origin.clone(),
+    }));
+
+    let initial = render_document_for_terminal(&document, matches!(origin, ContentOrigin::Url(_)))?;
+
+    let regen_state = shared_state.clone();
+    let regenerator = move |new_width: u16, _new_height: u16| -> Result<String, String> {
+        let guard = regen_state
+            .lock()
+            .map_err(|_| "Failed to access document for resize".to_string())?;
+        render_document_for_width(
+            &guard.document,
+            new_width as usize,
+            matches!(guard.origin, ContentOrigin::Url(_)),
+        )
+    };
+
+    let watch_state = shared_state.clone();
+    let mut watched: Option<(PathBuf, Option<std::time::SystemTime>)> = match &origin {
+        ContentOrigin::File(path) => Some((path.clone(), file_mtime(path))),
+        _ => None,
+    };
+    let watcher = move |width: u16| -> Option<Result<String, String>> {
+        // Follow the document currently shown so that navigating to another
+        // local file via a link transfers the watch to that file.
+        let current_origin = {
+            let guard = watch_state.lock().ok()?;
+            guard.origin.clone()
+        };
+        let path = match current_origin {
+            ContentOrigin::File(path) => path,
+            _ => {
+                watched = None;
+                return None;
+            }
+        };
+
+        let current_mtime = file_mtime(&path);
+        let changed = match &watched {
+            Some((watched_path, watched_mtime)) if *watched_path == path => {
+                current_mtime.is_some() && current_mtime != *watched_mtime
+            }
+            _ => {
+                // First sight of this path (initial load or just navigated here):
+                // adopt it without reloading, since it is already displayed.
+                watched = Some((path, current_mtime));
+                return None;
+            }
+        };
+        if !changed {
+            return None;
+        }
+        watched = Some((path.clone(), current_mtime));
+
+        let path_str = path.to_str()?;
+        match reload_document(Some(path_str), input_override) {
+            Ok(reloaded) => {
+                let rendered = render_document_for_width(&reloaded, width as usize, false);
+                if let Ok(mut guard) = watch_state.lock() {
+                    guard.document = reloaded;
+                }
+                Some(rendered)
+            }
+            Err(message) => Some(Err(message)),
+        }
+    };
+
+    let link_policy = build_link_policy(&origin);
+    let link_callback: Option<Arc<dyn pager::LinkCallback>> = Some(Arc::new(
+        LinkCallbackState::new(shared_state.clone(), input_override),
+    ));
+
+    let options = pager::PagerOptions {
+        link_policy,
+        link_callback,
+        // Always enter the interactive pager so short documents stay live too.
+        force_page: true,
+        ..pager::PagerOptions::default()
+    };
+
+    pager::page_output_with_options_regenerator_and_watcher(
+        &initial,
+        Some(regenerator),
+        Some(watcher),
+        options,
+    )
 }
 
 fn create_reader(
