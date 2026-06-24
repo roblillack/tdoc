@@ -7,6 +7,12 @@ authors = ["Rob Lillack <rob@lillack.net>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/roblillack/tdoc"
+exclude = [
+    "tests/",
+    "screenshot.png",
+    ".github/",
+    ".gitignore",
+]
 
 [lib]
 name = "tdoc"
