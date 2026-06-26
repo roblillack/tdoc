@@ -2,8 +2,10 @@
 //!
 //! For HTML output that preserves table structure, see [`crate::html::write`].
 
+use crate::custom::CustomRegistry;
 use crate::{
-    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+    ChecklistItem, CustomParagraph, Document, InlineStyle, Paragraph, ParagraphType, Span,
+    TableCell, TableRow,
 };
 use regex::Regex;
 use std::collections::HashMap;
@@ -39,6 +41,9 @@ pub struct Writer {
     /// `false` (FTML default), tables are flattened into individual `<p>`
     /// paragraphs because FTML has no table syntax.
     emit_tables: bool,
+    /// Registered handlers for [`Paragraph::Custom`] serialization. Empty by
+    /// default, in which case custom paragraphs use a generic `<kind …>` form.
+    custom: CustomRegistry,
     multiple_spaces_regex: Regex,
     trailing_spaces_regex: Regex,
     leading_spaces_regex: Regex,
@@ -80,6 +85,7 @@ impl Writer {
             max_width: 80,
             style_tags,
             emit_tables,
+            custom: CustomRegistry::new(),
             multiple_spaces_regex: Regex::new(r"  +").unwrap(),
             trailing_spaces_regex: Regex::new(r"\s +").unwrap(),
             leading_spaces_regex: Regex::new(r" +\s").unwrap(),
@@ -87,6 +93,19 @@ impl Writer {
             spaces_at_end_regex: Regex::new(r" +$").unwrap(),
             any_space_regex: Regex::new(r"\s").unwrap(),
         }
+    }
+
+    /// Attaches a [`CustomRegistry`] used when emitting **HTML** (see
+    /// [`Writer::new_html`] / [`crate::html::write`]): [`Paragraph::Custom`]
+    /// paragraphs are serialized via their registered handler, falling back to a
+    /// generic `<kind …>` element.
+    ///
+    /// It has no effect on FTML output. FTML is a strict, closed subset of HTML5
+    /// and does not model custom paragraphs, so the FTML writer instead salvages
+    /// a custom paragraph's inline content as a `<p>` (omitting it when empty).
+    pub fn with_custom_registry(mut self, registry: CustomRegistry) -> Self {
+        self.custom = registry;
+        self
     }
 
     /// Renders the document into a `String` buffer.
@@ -121,6 +140,10 @@ impl Writer {
 
         if paragraph_type == ParagraphType::Table {
             return self.write_table_paragraph(writer, paragraph.rows(), level);
+        }
+
+        if let Paragraph::Custom(custom) = paragraph {
+            return self.write_custom_paragraph(writer, custom, level);
         }
 
         if paragraph_type.is_leaf() {
@@ -172,6 +195,51 @@ impl Writer {
             self.write_indent(writer, level)?;
             writeln!(writer, "</{}>", tag)
         }
+    }
+
+    fn write_custom_paragraph<W: Write>(
+        &self,
+        writer: &mut W,
+        custom: &CustomParagraph,
+        level: usize,
+    ) -> io::Result<()> {
+        if !self.emit_tables {
+            // FTML is a strict, closed subset of HTML5; application-defined
+            // paragraphs are not part of its grammar. Rather than invent
+            // non-FTML markup, salvage any representable inline content as a
+            // `<p>` and otherwise omit the paragraph entirely.
+            if !custom.content.is_empty() {
+                return self.write_leaf_paragraph(writer, &custom.content, "p", level);
+            }
+            return Ok(());
+        }
+
+        // HTML output is a genuine superset and can represent custom elements.
+        // Prefer an application-provided serializer for this kind…
+        if let Some(markup) = self
+            .custom
+            .get(&custom.kind)
+            .and_then(|handler| handler.to_html(custom))
+        {
+            self.write_indent(writer, level)?;
+            return writeln!(writer, "{}", markup);
+        }
+
+        // …otherwise emit a generic <kind attrs>raw-or-content</kind> element.
+        self.write_indent(writer, level)?;
+        write!(writer, "<{}", custom.kind)?;
+        for (key, value) in &custom.attributes {
+            write!(writer, " {}=\"{}\"", key, self.encode_attribute(value))?;
+        }
+        write!(writer, ">")?;
+
+        if let Some(raw) = &custom.raw {
+            write!(writer, "{}", raw)?;
+        } else if !custom.content.is_empty() {
+            self.write_spans(writer, &custom.content, level, true, true)?;
+        }
+
+        writeln!(writer, "</{}>", custom.kind)
     }
 
     fn write_code_block_paragraph<W: Write>(

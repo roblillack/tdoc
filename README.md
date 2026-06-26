@@ -104,6 +104,52 @@ Whatever format you read, tdoc parses it into the same document tree, a hierarch
 - **Checklists** (`<ul>` whose items begin with checkboxes, or Markdown `- [ ]` task lists)
 - **Blockquotes** (`<blockquote>`)
 - **Tables** (`<table>`)
+- **Custom paragraphs** — application-defined block types the library preserves verbatim (see below)
+
+### Custom paragraph types
+
+Some content doesn't fit the built-in types — images, text diagrams, email
+signatures. Rather than dropping or misrepresenting it, an application can
+**register custom paragraph kinds**. tdoc carries them through parsing, diffing,
+and serialization unchanged, and the application plugs in how to recognize,
+render, and re-emit each kind.
+
+Custom paragraphs are plain data (`kind` + ordered attributes + inline content +
+an optional verbatim body), so the document tree stays cloneable and diffable. A
+[`CustomRegistry`] of `CustomType` handlers is passed to the parsers, writers,
+and the terminal formatter; an empty registry reproduces the default behavior, so
+the feature is entirely opt-in.
+
+A ready-made `builtins::Image` handler ships with the crate. Registering it lets
+Markdown images survive editing and round-trip across every format:
+
+```rust
+use std::io::Cursor;
+use tdoc::custom::{builtins::Image, CustomRegistry};
+use tdoc::{markdown, html};
+
+let registry = CustomRegistry::new().register(Image);
+
+// A standalone `![alt](src)` becomes a custom "image" paragraph instead of
+// being flattened into a bare link…
+let doc = markdown::parse_with(Cursor::new("![Logo](logo.png)\n"), &registry).unwrap();
+
+// …and re-emits as `<img>` in HTML, `![alt](src)` in Markdown, and so on.
+let mut html = Vec::new();
+html::write_with(&mut html, &doc, &registry).unwrap();
+assert_eq!(String::from_utf8(html).unwrap(), "<img src=\"logo.png\" alt=\"Logo\" />\n");
+```
+
+For HTML, any registered tag (e.g. `<email-signature>…</email-signature>`) is
+captured verbatim with its attributes and inner markup, so it round-trips
+losslessly even without a per-kind handler. **FTML stays strict**: as a closed,
+unambiguous subset of HTML5 it deliberately does *not* model custom paragraphs —
+its parser never captures them and its writer salvages a custom paragraph's
+inline content as a `<p>` (omitting it when there is none). Custom paragraph
+types are block-level; inline images embedded mid-sentence keep tdoc's existing
+link behavior.
+
+[`CustomRegistry`]: https://docs.rs/tdoc/latest/tdoc/custom/struct.CustomRegistry.html
 
 ### Checklists
 
@@ -296,6 +342,7 @@ Go version:
 | **Advanced Features**  |             |               |                                           |
 | URL Fetching           | ✅ Yes      | ✅ Yes        | `tdoc` & `viewftml` can fetch from URLs   |
 | Paged Output           | ✅ Yes      | ✅ Yes        | Both support pager integration            |
+| Custom Paragraphs      | ✅ Yes      | ❌ None       | App-defined block types (e.g. images)     |
 
 ## Building from Source
 

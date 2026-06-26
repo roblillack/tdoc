@@ -1419,7 +1419,8 @@ fn normalize_paragraph_spaces(paragraph: &mut Paragraph) {
         | Paragraph::Header1 { .. }
         | Paragraph::Header2 { .. }
         | Paragraph::Header3 { .. }
-        | Paragraph::CodeBlock { .. } => {}
+        | Paragraph::CodeBlock { .. }
+        | Paragraph::Custom(_) => {}
     }
 }
 

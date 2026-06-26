@@ -42,6 +42,20 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    /// Byte offset of the next unconsumed character.
+    ///
+    /// Used to capture the verbatim source of a custom element by recording the
+    /// offset just after its start tag and slicing up to its closing tag.
+    pub fn position(&self) -> usize {
+        self.position
+    }
+
+    /// Returns the source slice in `[start, end)`, or `""` for an out-of-range
+    /// or non-`char`-boundary range.
+    pub fn slice(&self, start: usize, end: usize) -> &str {
+        self.input.get(start..end).unwrap_or("")
+    }
+
     fn shift(&mut self, end: &str) -> String {
         if let Some(pattern_pos) = find_subslice(self.bytes, self.position, end.as_bytes()) {
             let end_pos = pattern_pos + end.len();

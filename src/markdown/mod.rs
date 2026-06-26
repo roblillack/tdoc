@@ -1,8 +1,10 @@
 //! Convert between Markdown text and FTML [`Document`](crate::Document) trees.
 
+use crate::custom::CustomRegistry;
 use crate::metadata;
 use crate::{
-    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+    ChecklistItem, CustomParagraph, Document, InlineStyle, Paragraph, ParagraphType, Span,
+    TableCell, TableRow,
 };
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::borrow::Cow;
@@ -32,21 +34,22 @@ use std::io::{Read, Write};
 /// let meta = doc.metadata.as_ref().unwrap();
 /// assert_eq!(meta.get("title").unwrap().as_str(), Some("Hello"));
 /// ```
-pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
+pub fn parse<R: Read>(reader: R) -> crate::Result<Document> {
+    parse_with(reader, &CustomRegistry::new())
+}
+
+/// Parses Markdown into a [`Document`] (including frontmatter), preserving
+/// standalone images as [`Paragraph::Custom`] when the `registry` registers an
+/// [image kind](CustomRegistry::image_kind).
+pub fn parse_with<R: Read>(mut reader: R, registry: &CustomRegistry) -> crate::Result<Document> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
 
     // Extract metadata (frontmatter) if present
     let (metadata, content) = metadata::extract(&input)?;
 
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_TASKLISTS);
-    options.insert(Options::ENABLE_WIKILINKS);
-    options.insert(Options::ENABLE_TABLES);
-
-    let parser = Parser::new_ext(content, options);
-    let mut builder = MarkdownBuilder::new();
+    let parser = Parser::new_ext(content, markdown_options());
+    let mut builder = MarkdownBuilder::new(registry);
 
     for event in parser {
         builder.handle_event(event);
@@ -61,18 +64,21 @@ pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
 ///
 /// Use this if you want to parse metadata separately or don't expect
 /// metadata (frontmatter) in the input.
-pub fn parse_without_metadata<R: Read>(mut reader: R) -> crate::Result<Document> {
+pub fn parse_without_metadata<R: Read>(reader: R) -> crate::Result<Document> {
+    parse_without_metadata_with(reader, &CustomRegistry::new())
+}
+
+/// Like [`parse_without_metadata`], but preserves standalone images via the
+/// supplied `registry`.
+pub fn parse_without_metadata_with<R: Read>(
+    mut reader: R,
+    registry: &CustomRegistry,
+) -> crate::Result<Document> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
 
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_TASKLISTS);
-    options.insert(Options::ENABLE_WIKILINKS);
-    options.insert(Options::ENABLE_TABLES);
-
-    let parser = Parser::new_ext(&input, options);
-    let mut builder = MarkdownBuilder::new();
+    let parser = Parser::new_ext(&input, markdown_options());
+    let mut builder = MarkdownBuilder::new(registry);
 
     for event in parser {
         builder.handle_event(event);
@@ -81,18 +87,47 @@ pub fn parse_without_metadata<R: Read>(mut reader: R) -> crate::Result<Document>
     Ok(builder.finish())
 }
 
+fn markdown_options() -> Options {
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TASKLISTS);
+    options.insert(Options::ENABLE_WIKILINKS);
+    options.insert(Options::ENABLE_TABLES);
+    options
+}
+
 struct MarkdownBuilder {
     stack: Vec<BlockContext>,
     in_html_comment: bool,
+    /// Kind to preserve standalone images as, if registered (else `None`,
+    /// keeping the legacy link-span behavior).
+    image_kind: Option<String>,
+    /// Alt/src/title accumulator active between `Start(Image)` and `End(Image)`.
+    image_capture: Option<ImageCapture>,
+    /// A standalone-image paragraph awaiting confirmation at `End(Paragraph)`;
+    /// demoted to an inline link span if any further content appears.
+    pending_image: Option<CustomParagraph>,
+}
+
+/// Per-image accumulator used while parsing an image's alt text.
+struct ImageCapture {
+    src: String,
+    title: Option<String>,
+    alt: String,
+    /// Whether the enclosing paragraph was empty when the image started.
+    sole_candidate: bool,
 }
 
 impl MarkdownBuilder {
-    fn new() -> Self {
+    fn new(registry: &CustomRegistry) -> Self {
         Self {
             stack: vec![BlockContext::Document {
                 paragraphs: Vec::new(),
             }],
             in_html_comment: false,
+            image_kind: registry.image_kind().map(str::to_string),
+            image_capture: None,
+            pending_image: None,
         }
     }
 
@@ -273,10 +308,26 @@ impl MarkdownBuilder {
                     Span::new_styled(InlineStyle::Link).with_link_target(dest_url.into_string());
                 self.ensure_paragraph().start_inline(span);
             }
-            Tag::Image { dest_url, .. } => {
-                let span =
-                    Span::new_styled(InlineStyle::Link).with_link_target(dest_url.into_string());
-                self.ensure_paragraph().start_inline(span);
+            Tag::Image {
+                dest_url, title, ..
+            } => {
+                if self.image_kind.is_some() {
+                    // Demote any prior pending image: a second image means
+                    // neither is the sole content of the paragraph.
+                    self.demote_pending_image();
+                    let sole_candidate = self.current_paragraph_is_empty();
+                    let title = title.into_string();
+                    self.image_capture = Some(ImageCapture {
+                        src: dest_url.into_string(),
+                        title: (!title.is_empty()).then_some(title),
+                        alt: String::new(),
+                        sole_candidate,
+                    });
+                } else {
+                    let span = Span::new_styled(InlineStyle::Link)
+                        .with_link_target(dest_url.into_string());
+                    self.ensure_paragraph().start_inline(span);
+                }
             }
             Tag::CodeBlock(_) => {
                 self.start_paragraph(ParagraphType::CodeBlock);
@@ -397,8 +448,15 @@ impl MarkdownBuilder {
             TagEnd::Strikethrough => {
                 self.current_paragraph_inline_end(InlineStyle::Strike);
             }
-            TagEnd::Link | TagEnd::Image => {
+            TagEnd::Link => {
                 self.current_paragraph_inline_end(InlineStyle::Link);
+            }
+            TagEnd::Image => {
+                if let Some(capture) = self.image_capture.take() {
+                    self.finish_image_capture(capture);
+                } else {
+                    self.current_paragraph_inline_end(InlineStyle::Link);
+                }
             }
             TagEnd::CodeBlock => {
                 self.finish_paragraph();
@@ -495,6 +553,12 @@ impl MarkdownBuilder {
     }
 
     fn handle_text(&mut self, text: &str) {
+        // While inside an image, text belongs to its alt description.
+        if let Some(capture) = self.image_capture.as_mut() {
+            capture.alt.push_str(text);
+            return;
+        }
+
         let Some(text) = self.strip_html_comments(text) else {
             return;
         };
@@ -579,13 +643,69 @@ impl MarkdownBuilder {
     }
 
     fn push_soft_break(&mut self) {
+        if let Some(capture) = self.image_capture.as_mut() {
+            capture.alt.push(' ');
+            return;
+        }
         let paragraph = self.ensure_paragraph();
         paragraph.push_soft_break();
     }
 
     fn push_hard_break(&mut self) {
+        if let Some(capture) = self.image_capture.as_mut() {
+            capture.alt.push(' ');
+            return;
+        }
         let paragraph = self.ensure_paragraph();
         paragraph.push_hard_break();
+    }
+
+    /// Returns `true` when the current context is a paragraph with no content.
+    fn current_paragraph_is_empty(&self) -> bool {
+        matches!(
+            self.stack.last(),
+            Some(BlockContext::Paragraph(ctx)) if ctx.is_empty()
+        )
+    }
+
+    /// Finalizes an image's captured alt/src/title once `End(Image)` is seen.
+    /// A standalone image becomes a pending custom paragraph; an inline one is
+    /// reconstructed as a link span so existing behavior is preserved.
+    fn finish_image_capture(&mut self, capture: ImageCapture) {
+        let kind = self.image_kind.clone().unwrap_or_default();
+        let mut custom = CustomParagraph::new(kind).with_attribute("src", &capture.src);
+        custom = custom.with_attribute("alt", &capture.alt);
+        if let Some(title) = &capture.title {
+            custom = custom.with_attribute("title", title);
+        }
+
+        if capture.sole_candidate {
+            self.pending_image = Some(custom);
+        } else {
+            let mut link =
+                Span::new_styled(InlineStyle::Link).with_link_target(capture.src.clone());
+            if !capture.alt.is_empty() {
+                link.children.push(Span::new_text(capture.alt.clone()));
+            }
+            self.ensure_paragraph().push_span(link);
+        }
+    }
+
+    /// If a standalone-image paragraph is pending but more content follows,
+    /// reconstruct it as an inline link span (it is no longer the sole content).
+    fn demote_pending_image(&mut self) {
+        let Some(image) = self.pending_image.take() else {
+            return;
+        };
+        let src = image.attribute("src").unwrap_or_default().to_string();
+        let alt = image.attribute("alt").unwrap_or_default().to_string();
+        let mut link = Span::new_styled(InlineStyle::Link).with_link_target(src);
+        if !alt.is_empty() {
+            link.children.push(Span::new_text(alt));
+        }
+        if let Some(BlockContext::Paragraph(ctx)) = self.stack.last_mut() {
+            ctx.push_span(link);
+        }
     }
 
     fn push_task_marker(&mut self, checked: bool) {
@@ -629,6 +749,10 @@ impl MarkdownBuilder {
     }
 
     fn ensure_paragraph(&mut self) -> &mut ParagraphContext {
+        // Any content addition means a pending standalone image is not the sole
+        // content of its paragraph, so fold it back into an inline link span.
+        self.demote_pending_image();
+
         let in_cell = matches!(self.stack.last(), Some(BlockContext::TableCell { .. }));
         if in_cell {
             return match self.stack.last_mut() {
@@ -659,6 +783,14 @@ impl MarkdownBuilder {
 
     fn finish_paragraph(&mut self) {
         if let Some(BlockContext::Paragraph(context)) = self.stack.pop() {
+            // A standalone image (nothing else in the paragraph) becomes a
+            // custom paragraph rather than an empty text paragraph.
+            if let Some(image) = self.pending_image.take() {
+                if context.is_empty() {
+                    self.add_paragraph_to_parent(Paragraph::Custom(image));
+                    return;
+                }
+            }
             let paragraph = context.finish();
             self.add_paragraph_to_parent(paragraph);
         }
@@ -716,6 +848,16 @@ impl MarkdownBuilder {
                 | Paragraph::Header2 { content: mut spans }
                 | Paragraph::Header3 { content: mut spans }
                 | Paragraph::CodeBlock { content: mut spans } => {
+                    if spans.is_empty() {
+                        continue;
+                    }
+                    if !content.is_empty() {
+                        content.push(Span::new_text("\n"));
+                    }
+                    content.append(&mut spans);
+                }
+                Paragraph::Custom(custom) => {
+                    let mut spans = custom.content;
                     if spans.is_empty() {
                         continue;
                     }
@@ -795,6 +937,11 @@ impl ParagraphContext {
         } else {
             &mut self.spans
         }
+    }
+
+    /// Returns `true` when no spans or open inline elements exist yet.
+    fn is_empty(&self) -> bool {
+        self.spans.is_empty() && self.inline_stack.is_empty()
     }
 
     fn push_text(&mut self, text: &str) {
@@ -978,6 +1125,16 @@ const LINE_WIDTH: usize = 80;
 /// assert!(result.contains("title: Test"));
 /// ```
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<()> {
+    write_with(writer, document, &CustomRegistry::new())
+}
+
+/// Serializes a [`Document`] to Markdown, using `registry` to serialize any
+/// [`Paragraph::Custom`] paragraphs (e.g. images) via their registered handler.
+pub fn write_with<W: Write>(
+    writer: &mut W,
+    document: &Document,
+    registry: &CustomRegistry,
+) -> std::io::Result<()> {
     // Write metadata if present
     if let Some(ref meta) = document.metadata {
         let yaml = metadata::serialize(meta).map_err(std::io::Error::other)?;
@@ -988,7 +1145,7 @@ pub fn write<W: Write>(writer: &mut W, document: &Document) -> std::io::Result<(
         }
     }
 
-    write_paragraphs(writer, &document.paragraphs, "", "")
+    write_paragraphs(writer, &document.paragraphs, "", "", registry)
 }
 
 fn write_paragraphs<W: Write>(
@@ -996,6 +1153,7 @@ fn write_paragraphs<W: Write>(
     paragraphs: &[Paragraph],
     prefix: &str,
     continuation_prefix: &str,
+    registry: &CustomRegistry,
 ) -> std::io::Result<()> {
     for (i, paragraph) in paragraphs.iter().enumerate() {
         if i > 0 {
@@ -1015,7 +1173,13 @@ fn write_paragraphs<W: Write>(
             writer.write_all(b"\n")?;
             current_prefix = continuation_prefix;
         }
-        write_paragraph(writer, paragraph, current_prefix, continuation_prefix)?;
+        write_paragraph(
+            writer,
+            paragraph,
+            current_prefix,
+            continuation_prefix,
+            registry,
+        )?;
     }
     Ok(())
 }
@@ -1034,6 +1198,7 @@ fn write_paragraph<W: Write>(
     paragraph: &Paragraph,
     prefix: &str,
     continuation_prefix: &str,
+    registry: &CustomRegistry,
 ) -> std::io::Result<()> {
     match paragraph {
         Paragraph::Text { content } => {
@@ -1067,7 +1232,7 @@ fn write_paragraph<W: Write>(
                     write!(writer, "{}", quote_continuation)?;
                     writeln!(writer)?;
                 }
-                write_paragraph(writer, child, &quote_prefix, &quote_continuation)?;
+                write_paragraph(writer, child, &quote_prefix, &quote_continuation, registry)?;
             }
         }
         Paragraph::UnorderedList { entries } => {
@@ -1075,7 +1240,13 @@ fn write_paragraph<W: Write>(
                 let bullet_prefix = format!("{}- ", prefix);
                 let bullet_continuation = format!("{}  ", continuation_prefix);
 
-                write_paragraphs(writer, entry, &bullet_prefix, &bullet_continuation)?;
+                write_paragraphs(
+                    writer,
+                    entry,
+                    &bullet_prefix,
+                    &bullet_continuation,
+                    registry,
+                )?;
             }
         }
         Paragraph::OrderedList { entries } => {
@@ -1085,7 +1256,13 @@ fn write_paragraph<W: Write>(
                 let bullet_continuation =
                     format!("{}{}", continuation_prefix, " ".repeat(marker.len()));
 
-                write_paragraphs(writer, entry, &bullet_prefix, &bullet_continuation)?;
+                write_paragraphs(
+                    writer,
+                    entry,
+                    &bullet_prefix,
+                    &bullet_continuation,
+                    registry,
+                )?;
             }
         }
         Paragraph::Checklist { items } => {
@@ -1093,6 +1270,18 @@ fn write_paragraph<W: Write>(
         }
         Paragraph::Table { rows } => {
             write_table(writer, rows, prefix, continuation_prefix)?;
+        }
+        Paragraph::Custom(custom) => {
+            let rendered = registry
+                .get(&custom.kind)
+                .and_then(|handler| handler.to_markdown(custom))
+                .or_else(|| custom.raw.clone());
+            if let Some(text) = rendered {
+                write_wrapped_lines(writer, prefix, continuation_prefix, &text, false)?;
+            } else if !custom.content.is_empty() {
+                let content = render_spans_to_string(&custom.content)?;
+                write_wrapped_lines(writer, prefix, continuation_prefix, &content, true)?;
+            }
         }
     }
     Ok(())

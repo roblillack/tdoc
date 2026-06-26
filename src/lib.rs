@@ -20,6 +20,7 @@
 
 mod macros;
 
+pub mod custom;
 pub mod document;
 pub mod formatter;
 pub mod ftml;
@@ -32,10 +33,13 @@ pub mod pager;
 pub mod paragraph;
 pub mod test_helpers;
 
+pub use custom::{CustomRegistry, CustomRenderOptions, CustomType};
 pub use document::Document;
 pub use inline::{InlineStyle, Span};
 pub use pager::*;
-pub use paragraph::{ChecklistItem, Paragraph, ParagraphType, TableCell, TableRow};
+pub use paragraph::{
+    ChecklistItem, CustomParagraph, Paragraph, ParagraphType, TableCell, TableRow,
+};
 
 /// Convenience result type used across parsing and writing APIs.
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;

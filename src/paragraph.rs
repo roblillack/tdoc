@@ -1,6 +1,7 @@
 //! Paragraph primitives that make up the [`Document`](crate::Document) tree.
 
 use crate::Span;
+use indexmap::IndexMap;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +27,12 @@ pub enum ParagraphType {
     Quote,
     /// A tabular data block (`<table>`).
     Table,
+    /// An application-defined paragraph the library preserves verbatim.
+    ///
+    /// The concrete kind (e.g. `"image"`) lives on the
+    /// [`CustomParagraph`] payload, not on this `Copy` enum, so different custom
+    /// kinds all share `ParagraphType::Custom`.
+    Custom,
 }
 
 impl fmt::Display for ParagraphType {
@@ -41,6 +48,7 @@ impl fmt::Display for ParagraphType {
             ParagraphType::Checklist => "Checklist",
             ParagraphType::Quote => "Quote",
             ParagraphType::Table => "Table",
+            ParagraphType::Custom => "Custom",
         };
         write!(f, "{}", s)
     }
@@ -56,6 +64,7 @@ impl ParagraphType {
                 | ParagraphType::Header2
                 | ParagraphType::Header3
                 | ParagraphType::CodeBlock
+                | ParagraphType::Custom
         )
     }
 
@@ -72,6 +81,9 @@ impl ParagraphType {
             ParagraphType::Checklist => "ul",
             ParagraphType::Quote => "blockquote",
             ParagraphType::Table => "table",
+            // Custom paragraphs carry their tag on the payload's `kind`; this
+            // static fallback is unused because writers special-case them.
+            ParagraphType::Custom => "",
         }
     }
 
@@ -149,6 +161,12 @@ pub enum Paragraph {
     Quote { children: Vec<Paragraph> },
     /// A table paragraph composed of rows of cells.
     Table { rows: Vec<TableRow> },
+    /// An application-defined paragraph the library carries through unchanged.
+    ///
+    /// See [`CustomParagraph`] for the payload and the
+    /// [`custom`](crate::custom) module for the registration machinery that
+    /// teaches parsers, writers, and the formatter how to handle a kind.
+    Custom(CustomParagraph),
 }
 
 impl Paragraph {
@@ -165,6 +183,9 @@ impl Paragraph {
             ParagraphType::Checklist => Self::new_checklist(),
             ParagraphType::Quote => Self::new_quote(),
             ParagraphType::Table => Self::new_table(),
+            // The concrete kind is unknown from the type alone; callers that
+            // need a kind should use [`Paragraph::new_custom`].
+            ParagraphType::Custom => Self::new_custom(""),
         }
     }
 
@@ -234,6 +255,11 @@ impl Paragraph {
         Self::Table { rows: Vec::new() }
     }
 
+    /// Convenience constructor for a [`Paragraph::Custom`] of the given kind.
+    pub fn new_custom(kind: impl Into<String>) -> Self {
+        Self::Custom(CustomParagraph::new(kind))
+    }
+
     /// Returns the [`ParagraphType`] of the current paragraph.
     pub fn paragraph_type(&self) -> ParagraphType {
         match self {
@@ -247,6 +273,7 @@ impl Paragraph {
             Paragraph::Checklist { .. } => ParagraphType::Checklist,
             Paragraph::Quote { .. } => ParagraphType::Quote,
             Paragraph::Table { .. } => ParagraphType::Table,
+            Paragraph::Custom(_) => ParagraphType::Custom,
         }
     }
 
@@ -263,6 +290,7 @@ impl Paragraph {
             | Paragraph::Header2 { content }
             | Paragraph::Header3 { content }
             | Paragraph::CodeBlock { content } => content,
+            Paragraph::Custom(custom) => &custom.content,
             _ => &[],
         }
     }
@@ -275,6 +303,7 @@ impl Paragraph {
             | Paragraph::Header2 { content }
             | Paragraph::Header3 { content }
             | Paragraph::CodeBlock { content } => content,
+            Paragraph::Custom(custom) => &mut custom.content,
             _ => panic!("only leaf paragraphs contain inline content"),
         }
     }
@@ -287,6 +316,10 @@ impl Paragraph {
             Paragraph::Header2 { .. } => Paragraph::Header2 { content },
             Paragraph::Header3 { .. } => Paragraph::Header3 { content },
             Paragraph::CodeBlock { .. } => Paragraph::CodeBlock { content },
+            Paragraph::Custom(mut custom) => {
+                custom.content = content;
+                Paragraph::Custom(custom)
+            }
             _ => panic!("only leaf paragraphs can hold inline content"),
         }
     }
@@ -406,6 +439,99 @@ impl Paragraph {
     /// Appends a single row to a table paragraph.
     pub fn add_row(&mut self, row: TableRow) {
         self.rows_mut().push(row);
+    }
+
+    /// Returns the [`CustomParagraph`] payload for custom paragraphs.
+    pub fn custom(&self) -> Option<&CustomParagraph> {
+        match self {
+            Paragraph::Custom(custom) => Some(custom),
+            _ => None,
+        }
+    }
+
+    /// Returns mutable access to the [`CustomParagraph`] payload.
+    pub fn custom_mut(&mut self) -> Option<&mut CustomParagraph> {
+        match self {
+            Paragraph::Custom(custom) => Some(custom),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+/// An application-defined paragraph that the library preserves verbatim.
+///
+/// `tdoc` does not interpret custom paragraphs itself — it carries them through
+/// parsing, diffing, and serialization unchanged. Applications register a
+/// [`CustomType`](crate::custom::CustomType) inside a
+/// [`CustomRegistry`](crate::custom::CustomRegistry) to teach the parsers,
+/// writers, and [`Formatter`](crate::formatter::Formatter) how to recognize,
+/// render, and re-emit a given [`kind`](CustomParagraph::kind).
+///
+/// The struct deliberately holds only plain data so that [`PartialEq`] and
+/// [`Clone`] keep working; that is what lets custom paragraphs take part in
+/// document diffing and round-trip comparisons.
+///
+/// # Examples
+///
+/// ```
+/// use tdoc::{CustomParagraph, Span};
+///
+/// let image = CustomParagraph::new("image")
+///     .with_attribute("src", "logo.png")
+///     .with_attribute("alt", "Logo");
+///
+/// assert_eq!(image.attribute("src"), Some("logo.png"));
+/// ```
+pub struct CustomParagraph {
+    /// Application-defined kind identifier, e.g. `"image"` or `"email-signature"`.
+    pub kind: String,
+    /// Ordered key/value attributes (e.g. an image's `src`, `alt`, `title`).
+    pub attributes: IndexMap<String, String>,
+    /// Inline content used as fallback rendering and for text extraction.
+    pub content: Vec<Span>,
+    /// Optional verbatim body preserved exactly (e.g. diagram or table source).
+    pub raw: Option<String>,
+}
+
+impl CustomParagraph {
+    /// Creates an empty custom paragraph of the given kind.
+    pub fn new(kind: impl Into<String>) -> Self {
+        Self {
+            kind: kind.into(),
+            attributes: IndexMap::new(),
+            content: Vec::new(),
+            raw: None,
+        }
+    }
+
+    /// Sets a single attribute, returning the updated paragraph.
+    pub fn with_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.attributes.insert(key.into(), value.into());
+        self
+    }
+
+    /// Replaces all attributes, returning the updated paragraph.
+    pub fn with_attributes(mut self, attributes: IndexMap<String, String>) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Replaces the inline content, returning the updated paragraph.
+    pub fn with_content(mut self, content: Vec<Span>) -> Self {
+        self.content = content;
+        self
+    }
+
+    /// Sets the verbatim body, returning the updated paragraph.
+    pub fn with_raw(mut self, raw: impl Into<String>) -> Self {
+        self.raw = Some(raw.into());
+        self
+    }
+
+    /// Returns the value of an attribute, if present.
+    pub fn attribute(&self, key: &str) -> Option<&str> {
+        self.attributes.get(key).map(String::as_str)
     }
 }
 
@@ -551,5 +677,26 @@ mod tests {
         assert_eq!(p.paragraph_type(), ParagraphType::Text);
         assert_eq!(p.content().len(), 1);
         assert_eq!(p.content()[0].text, "Hello");
+    }
+
+    #[test]
+    fn test_custom_paragraph() {
+        let custom = CustomParagraph::new("image")
+            .with_attribute("src", "logo.png")
+            .with_attribute("alt", "Logo");
+        assert_eq!(custom.attribute("src"), Some("logo.png"));
+        assert_eq!(custom.attribute("missing"), None);
+
+        let p = Paragraph::Custom(custom);
+        assert_eq!(p.paragraph_type(), ParagraphType::Custom);
+        assert!(p.is_leaf());
+        assert_eq!(p.custom().map(|c| c.kind.as_str()), Some("image"));
+
+        // Custom is also constructible by type and by kind helper.
+        assert_eq!(
+            Paragraph::new(ParagraphType::Custom).paragraph_type(),
+            ParagraphType::Custom
+        );
+        assert_eq!(Paragraph::new_custom("note").custom().unwrap().kind, "note");
     }
 }

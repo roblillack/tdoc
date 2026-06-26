@@ -1,6 +1,9 @@
 //! Render documents to formatted plain text suitable for terminals or logs.
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow};
+use crate::custom::{CustomRegistry, CustomRenderOptions};
+use crate::{
+    ChecklistItem, CustomParagraph, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow,
+};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -196,6 +199,8 @@ pub struct Formatter<W: Write> {
     link_indices: HashMap<String, usize>,
     next_link_index: usize,
     next_hyperlink_id: usize,
+    /// Registered handlers used to render [`Paragraph::Custom`] paragraphs.
+    custom: CustomRegistry,
 }
 
 #[derive(Clone, Debug)]
@@ -229,7 +234,17 @@ impl<W: Write> Formatter<W> {
             link_indices: HashMap::new(),
             next_link_index: 1,
             next_hyperlink_id: 1,
+            custom: CustomRegistry::new(),
         }
+    }
+
+    /// Attaches a [`CustomRegistry`] so [`Paragraph::Custom`] paragraphs render
+    /// via their handler's [`render`](crate::custom::CustomType::render). Custom
+    /// paragraphs without a handler fall back to their inline content, or a
+    /// `[kind]` placeholder.
+    pub fn with_custom_registry(mut self, registry: CustomRegistry) -> Self {
+        self.custom = registry;
+        self
     }
 
     /// Creates a formatter that produces plain ASCII output.
@@ -516,8 +531,50 @@ impl<W: Write> Formatter<W> {
             ParagraphType::Table => {
                 self.write_table_paragraph(paragraph.rows(), prefix, continuation_prefix)?;
             }
+            ParagraphType::Custom => {
+                if let Paragraph::Custom(custom) = paragraph {
+                    self.write_custom_paragraph(custom, prefix, continuation_prefix)?;
+                }
+            }
         }
         Ok(())
+    }
+
+    fn write_custom_paragraph(
+        &mut self,
+        custom: &CustomParagraph,
+        prefix: &str,
+        continuation_prefix: &str,
+    ) -> std::io::Result<()> {
+        let options = CustomRenderOptions {
+            width: self.style.wrap_width.saturating_sub(prefix.chars().count()),
+            ansi: !self.style.text_styles.is_empty(),
+        };
+
+        if let Some(lines) = self
+            .custom
+            .get(&custom.kind)
+            .and_then(|handler| handler.render(custom, &options))
+        {
+            if lines.is_empty() {
+                writeln!(self.writer)?;
+            }
+            for (idx, line) in lines.iter().enumerate() {
+                let line_prefix = if idx == 0 {
+                    prefix
+                } else {
+                    continuation_prefix
+                };
+                writeln!(self.writer, "{}{}", line_prefix, line)?;
+            }
+            return Ok(());
+        }
+
+        // No handler (or it declined): fall back to inline content, else a marker.
+        if !custom.content.is_empty() {
+            return self.write_text_paragraph(&custom.content, prefix, continuation_prefix);
+        }
+        writeln!(self.writer, "{}[{}]", prefix, custom.kind)
     }
 
     fn write_table_paragraph(
