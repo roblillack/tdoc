@@ -1,6 +1,6 @@
 [package]
 name = "tdoc"
-version = "0.11.0"
+version = "0.11.1"
 edition = "2021"
 description = "Library and CLI for reading, rendering, and converting text documents across Markdown, HTML, Gemini, and FTML"
 authors = ["Rob Lillack <rob@lillack.net>"]
