@@ -174,11 +174,9 @@ fn doc_supports_tables_nested_in_other_blocks() {
         }
     };
 
-    let table = Paragraph::new_table().with_rows(vec![
-        TableRow::new().with_cells(vec![TableCell::new_data().with_content(vec![Span::new_text(
-            "cell",
-        )])]),
-    ]);
+    let table = Paragraph::new_table().with_rows(vec![TableRow::new().with_cells(vec![
+        TableCell::new_data().with_content(vec![Span::new_text("cell")]),
+    ])]);
     let expected = doc_(vec![ul_(vec![li_(vec![table])])]);
 
     assert_eq!(document, expected);

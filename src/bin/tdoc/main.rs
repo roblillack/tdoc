@@ -149,7 +149,9 @@ fn run() -> Result<(), String> {
 /// Most recent modification time of `path`, or `None` if it can't be read
 /// (e.g. the file is momentarily absent while an editor saves it).
 fn file_mtime(path: &Path) -> Option<std::time::SystemTime> {
-    std::fs::metadata(path).and_then(|meta| meta.modified()).ok()
+    std::fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .ok()
 }
 
 /// Re-read and parse the input from scratch, reusing the same detection logic
