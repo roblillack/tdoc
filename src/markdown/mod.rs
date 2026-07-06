@@ -1236,7 +1236,6 @@ fn write_code_block<W: Write>(
     }
 
     writeln!(writer, "{}```", continuation_prefix)?;
-    writeln!(writer)?;
     Ok(())
 }
 
@@ -1795,7 +1794,12 @@ fn write_code_span<W: Write>(
 
     let delimiter_len = longest_backtick_sequence(&content) + 1;
     let delimiter = "`".repeat(delimiter_len.max(1));
-    let needs_padding = content.starts_with(' ') || content.ends_with(' ');
+    // CommonMark strips a single leading/trailing space from a code span, which
+    // lets the content itself begin or end with a backtick without merging into
+    // the delimiter. Pad whenever the content starts or ends with a space (so
+    // that space is preserved) or a backtick (so `` `code` `` is not written as
+    // ```` ```code``` ````, which would re-parse to `code`).
+    let needs_padding = content.starts_with([' ', '`']) || content.ends_with([' ', '`']);
 
     state.ensure_prefix(writer)?;
     writer.write_all(delimiter.as_bytes())?;
@@ -2399,5 +2403,46 @@ mod tests {
         } else {
             panic!("Expected code block");
         }
+    }
+
+    #[test]
+    fn test_code_block_writes_single_trailing_newline() {
+        // A code block is a paragraph like any other and must end with exactly
+        // one newline; the inter-paragraph blank line is added by the caller.
+        let mut output = Vec::new();
+        write(&mut output, &doc(vec![code_block__("code")])).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), "```\ncode\n```\n");
+    }
+
+    #[test]
+    fn test_code_block_between_paragraphs_round_trips() {
+        let input = "before\n\n```\ncode\n```\n\nafter\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let mut output = Vec::new();
+        write(&mut output, &parsed).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), input);
+    }
+
+    #[test]
+    fn test_code_span_containing_backticks_round_trips() {
+        // A code span whose content begins or ends with a backtick must be
+        // space-padded so it does not merge with its delimiter: `` `code` ``
+        // (content "`code`") must not degrade to ```code``` (content "code").
+        let input = "Type `` `code` `` here\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let mut output = Vec::new();
+        write(&mut output, &parsed).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), input);
+    }
+
+    #[test]
+    fn test_code_span_with_backtick_content_is_preserved() {
+        // Guards against silent content corruption: the code-span content must
+        // survive a write/re-parse cycle unchanged.
+        let parsed = parse(Cursor::new("`` `code` ``")).unwrap();
+        let mut output = Vec::new();
+        write(&mut output, &parsed).unwrap();
+        let reparsed = parse(Cursor::new(String::from_utf8(output).unwrap())).unwrap();
+        assert_eq!(reparsed, parsed);
     }
 }
