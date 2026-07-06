@@ -1244,10 +1244,14 @@ fn write_spans<W: Write>(
     writer: &mut W,
     spans: &[Span],
     state: &mut LineState<'_>,
+    next_char: Option<char>,
 ) -> std::io::Result<()> {
     for (idx, span) in spans.iter().enumerate() {
         let has_more = idx + 1 < spans.len();
-        write_span(writer, span, state, has_more)?;
+        // The character that will follow this span is the first one emitted by
+        // any later sibling, falling back to the caller's `next_char`.
+        let following = first_emitted_char(&spans[idx + 1..]).or(next_char);
+        write_span(writer, span, state, has_more, following)?;
     }
     Ok(())
 }
@@ -1257,13 +1261,15 @@ fn write_span<W: Write>(
     span: &Span,
     state: &mut LineState<'_>,
     has_more_siblings: bool,
+    next_char: Option<char>,
 ) -> std::io::Result<()> {
     match span.style {
         InlineStyle::Link => {
             if let Some(target) = &span.link_target {
                 if span.has_content() {
                     state.write_chunk(writer, "[")?;
-                    write_span_content(writer, span, state, has_more_siblings)?;
+                    // The link content is immediately followed by `]`.
+                    write_span_content(writer, span, state, has_more_siblings, Some(']'))?;
                     let closing = format!("]({})", escape_link_destination(target));
                     state.write_chunk(writer, &closing)?;
                 } else {
@@ -1272,12 +1278,18 @@ fn write_span<W: Write>(
                 }
                 Ok(())
             } else {
-                write_span_content(writer, span, state, has_more_siblings)
+                write_span_content(writer, span, state, has_more_siblings, next_char)
             }
         }
         InlineStyle::Code => write_code_span(writer, span, state),
         style => {
-            let (begin_tag, end_tag) = inline_tags(style);
+            // Emphasis with `_` does not work intraword in CommonMark/GFM, so
+            // pick the delimiter based on the surrounding characters.
+            let (begin_tag, end_tag) = if style == InlineStyle::Italic {
+                italic_tags(state.last_char, next_char)
+            } else {
+                inline_tags(style)
+            };
             // Skip empty styled spans — emitting bare delimiters like `__`
             // produces literal underscores once Markdown is re-parsed.
             if !span.has_content() {
@@ -1286,7 +1298,9 @@ fn write_span<W: Write>(
             if !begin_tag.is_empty() {
                 state.write_chunk(writer, begin_tag)?;
             }
-            write_span_content(writer, span, state, has_more_siblings)?;
+            // Inside the span the content is immediately followed by the end tag.
+            let content_next = end_tag.chars().next().or(next_char);
+            write_span_content(writer, span, state, has_more_siblings, content_next)?;
             if !end_tag.is_empty() {
                 state.write_chunk(writer, end_tag)?;
             }
@@ -1300,6 +1314,7 @@ fn write_span_content<W: Write>(
     span: &Span,
     state: &mut LineState<'_>,
     has_more_siblings: bool,
+    next_char: Option<char>,
 ) -> std::io::Result<()> {
     if !span.text.is_empty() {
         write_plain_text(
@@ -1312,17 +1327,146 @@ fn write_span_content<W: Write>(
 
     for (idx, child) in span.children.iter().enumerate() {
         let child_has_more = idx + 1 < span.children.len() || has_more_siblings;
-        write_span(writer, child, state, child_has_more)?;
+        let following = first_emitted_char(&span.children[idx + 1..]).or(next_char);
+        write_span(writer, child, state, child_has_more, following)?;
     }
 
     Ok(())
 }
 
+/// Chooses the emphasis delimiter for an italic span.
+///
+/// CommonMark/GFM does not recognise `_` emphasis when a delimiter is adjacent
+/// to a "word" character (intraword emphasis), so `_durch_gestrichen` would lose
+/// its emphasis on re-parse. `*` has no such restriction. We therefore prefer
+/// `_` (which keeps directly-nested bold/italic such as `**_x_**` unambiguous)
+/// but fall back to `*` whenever either neighbouring character would make `_`
+/// intraword.
+fn italic_tags(prev: Option<char>, next: Option<char>) -> (&'static str, &'static str) {
+    fn boundary_safe(ch: Option<char>) -> bool {
+        // `_` only fails to open/close when it sits directly against a "word"
+        // character; whitespace, punctuation, quotes, and the string boundary
+        // are all fine. Treat any non-alphanumeric character as a safe boundary.
+        match ch {
+            None => true,
+            Some(ch) => !ch.is_alphanumeric(),
+        }
+    }
+
+    if boundary_safe(prev) && boundary_safe(next) {
+        ("_", "_")
+    } else {
+        ("*", "*")
+    }
+}
+
+/// Returns the first character that the given spans would emit, or `None` if
+/// they emit nothing. Used to look ahead when choosing emphasis delimiters.
+fn first_emitted_char(spans: &[Span]) -> Option<char> {
+    spans.iter().find_map(span_first_char)
+}
+
+fn span_first_char(span: &Span) -> Option<char> {
+    match span.style {
+        InlineStyle::Link => {
+            if span.link_target.is_some() {
+                // `[text](url)` or the `<url>` autolink form.
+                Some(if span.has_content() { '[' } else { '<' })
+            } else {
+                content_first_char(span)
+            }
+        }
+        // A code span always emits at least its opening backtick.
+        InlineStyle::Code => Some('`'),
+        InlineStyle::None => content_first_char(span),
+        style => {
+            if !span.has_content() {
+                return None;
+            }
+            inline_tags(style).0.chars().next()
+        }
+    }
+}
+
+fn content_first_char(span: &Span) -> Option<char> {
+    span.text
+        .chars()
+        .next()
+        .or_else(|| first_emitted_char(&span.children))
+}
+
 fn render_spans_to_string(spans: &[Span]) -> std::io::Result<String> {
+    let merged = merge_adjacent_spans(spans);
     let mut buffer = Vec::new();
     let mut state = LineState::new("");
-    write_spans(&mut buffer, spans, &mut state)?;
+    write_spans(&mut buffer, &merged, &mut state, None)?;
     Ok(String::from_utf8(buffer).expect("Rendered markdown should be valid UTF-8"))
+}
+
+/// Whether two adjacent sibling spans of this style can be folded into one
+/// without changing the document's meaning.
+///
+/// Emphasis styles are idempotent — `~~a~~~~b~~` means the same as `~~ab~~` —
+/// but Markdown cannot express two *adjacent* runs of the same delimiter: they
+/// merge into a single, longer delimiter run (`~~~~`, `****`) that is no longer
+/// a valid opener/closer, so the styling is lost on re-parse. Merging such
+/// spans before serializing keeps the output round-trippable. Code spans and
+/// links are excluded because concatenating them changes their meaning.
+fn is_mergeable_style(style: InlineStyle) -> bool {
+    matches!(
+        style,
+        InlineStyle::Bold
+            | InlineStyle::Italic
+            | InlineStyle::Strike
+            | InlineStyle::Underline
+            | InlineStyle::Highlight
+    )
+}
+
+/// Recursively merges adjacent sibling spans that share the same emphasis
+/// style so the serializer never emits colliding delimiters (see
+/// [`is_mergeable_style`]).
+fn merge_adjacent_spans(spans: &[Span]) -> Vec<Span> {
+    let mut result: Vec<Span> = Vec::with_capacity(spans.len());
+
+    for span in spans {
+        let mut span = span.clone();
+        if !span.children.is_empty() {
+            span.children = merge_adjacent_spans(&span.children);
+        }
+
+        if let Some(prev) = result.last_mut() {
+            if is_mergeable_style(span.style)
+                && prev.style == span.style
+                && prev.link_target == span.link_target
+            {
+                // Fold this span's content onto the previous one, then re-merge
+                // in case the join created a new adjacency at the seam.
+                move_content_into(prev, &mut span);
+                prev.children = merge_adjacent_spans(&prev.children);
+                continue;
+            }
+        }
+
+        result.push(span);
+    }
+
+    result
+}
+
+/// Moves the content (direct text and children) of `span` into `target`,
+/// normalizing `target` so all of its content lives in `children`.
+fn move_content_into(target: &mut Span, span: &mut Span) {
+    if !target.text.is_empty() {
+        let text = std::mem::take(&mut target.text);
+        target.children.insert(0, Span::new_text(text));
+    }
+    if !span.text.is_empty() {
+        target
+            .children
+            .push(Span::new_text(std::mem::take(&mut span.text)));
+    }
+    target.children.append(&mut span.children);
 }
 
 fn write_wrapped_lines<W: Write>(
@@ -1664,6 +1808,7 @@ fn write_code_span<W: Write>(
     }
     writer.write_all(delimiter.as_bytes())?;
     state.mark_written();
+    state.last_char = Some('`');
     Ok(())
 }
 
@@ -1695,6 +1840,9 @@ fn longest_backtick_sequence(text: &str) -> usize {
 struct LineState<'a> {
     continuation_prefix: &'a str,
     at_line_start: bool,
+    // Last character emitted to the output, used to choose context-sensitive
+    // emphasis delimiters (see `italic_tags`).
+    last_char: Option<char>,
 }
 
 impl<'a> LineState<'a> {
@@ -1705,6 +1853,7 @@ impl<'a> LineState<'a> {
             // whitespace is encoded the same way as whitespace after a hard
             // break.
             at_line_start: true,
+            last_char: None,
         }
     }
 
@@ -1715,6 +1864,7 @@ impl<'a> LineState<'a> {
         self.ensure_prefix(writer)?;
         writer.write_all(chunk.as_bytes())?;
         self.at_line_start = false;
+        self.last_char = chunk.chars().next_back();
         Ok(())
     }
 
@@ -1735,6 +1885,7 @@ impl<'a> LineState<'a> {
     fn handle_newline<W: Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
         writer.write_all(b"\n")?;
         self.at_line_start = true;
+        self.last_char = Some('\n');
         Ok(())
     }
 
@@ -1854,6 +2005,86 @@ mod tests {
         let result = String::from_utf8(output).unwrap();
 
         assert_eq!(result, "This is _italic_ text.\n");
+    }
+
+    fn write_to_string(document: &Document) -> String {
+        let mut output = Vec::new();
+        write(&mut output, document).unwrap();
+        String::from_utf8(output).unwrap()
+    }
+
+    /// `_` emphasis is not recognised intraword by CommonMark/GFM, so italic
+    /// text glued to surrounding word characters must be emitted with `*`.
+    #[test]
+    fn test_italic_intraword_uses_asterisk() {
+        // A word character before the italic run.
+        let before = doc(vec![p_(vec![
+            span("das "),
+            i__("durch"),
+            span("gestrichene"),
+        ])]);
+        assert_eq!(write_to_string(&before), "das *durch*gestrichene\n");
+
+        // A word character after the italic run.
+        let after = doc(vec![p_(vec![i__("durch"), span("gestrichen")])]);
+        assert_eq!(write_to_string(&after), "*durch*gestrichen\n");
+    }
+
+    /// Italic delimited by punctuation/quotes/whitespace keeps the `_` form,
+    /// which stays unambiguous when directly nested with bold.
+    #[test]
+    fn test_italic_uses_underscore_at_boundaries() {
+        // Between typographic quotes (Unicode punctuation).
+        let quoted = doc(vec![p_(vec![span("“"), i__("Duce"), span("”")])]);
+        assert_eq!(write_to_string(&quoted), "“_Duce_”\n");
+
+        // Bold wrapping italic must not collapse to `***…***` (which re-parses
+        // with the emphasis nesting flipped).
+        let nested = doc(vec![p_(vec![b_(vec![i__("foo")])])]);
+        assert_eq!(write_to_string(&nested), "**_foo_**\n");
+    }
+
+    /// Rich-text editors store per-character styles and may rebuild a document
+    /// as two adjacent same-style spans (e.g. `Strike{Bold{durch}}` next to
+    /// `Strike{gestrichen}`) rather than one span wrapping both. Serializing
+    /// those verbatim yields a colliding `~~…~~~~…~~` delimiter run that no
+    /// longer re-parses, so the writer must merge them first.
+    #[test]
+    fn test_adjacent_same_style_spans_merge() {
+        let document = doc(vec![p_(vec![
+            s_(vec![b__("durch")]),
+            s__("gestrichen"),
+            span("."),
+        ])]);
+        let rendered = write_to_string(&document);
+        assert_eq!(rendered, "~~**durch**gestrichen~~.\n");
+
+        // The rendered Markdown must re-parse to the same structure it renders.
+        let reparsed = parse(Cursor::new(&rendered)).unwrap();
+        assert_eq!(write_to_string(&reparsed), rendered);
+
+        // Two adjacent bold spans would otherwise emit `**a****b**`.
+        let bold = doc(vec![p_(vec![b__("a"), b__("b")])]);
+        assert_eq!(write_to_string(&bold), "**ab**\n");
+    }
+
+    /// The reported case: strikethrough wrapping bold/italic followed by text
+    /// must survive a Markdown round-trip.
+    #[test]
+    fn test_strikethrough_emphasis_roundtrips() {
+        for input in [
+            "~~**durch**gestrichen~~",
+            "~~*durch*gestrichen~~",
+            "das *durch*gestrichene Wort",
+        ] {
+            let parsed = parse(Cursor::new(input)).unwrap();
+            let rendered = write_to_string(&parsed);
+            let reparsed = parse(Cursor::new(&rendered)).unwrap();
+            assert_eq!(
+                parsed, reparsed,
+                "round-trip changed the document for {input:?} (rendered as {rendered:?})",
+            );
+        }
     }
 
     #[test]

@@ -78,6 +78,10 @@ pub fn u__(txt: &str) -> Span {
     Span::new_styled(InlineStyle::Underline).with_children(spans(txt))
 }
 
+pub fn s_(args: Vec<Span>) -> Span {
+    Span::new_styled(InlineStyle::Strike).with_children(args)
+}
+
 pub fn s__(txt: &str) -> Span {
     Span::new_styled(InlineStyle::Strike).with_children(spans(txt))
 }
