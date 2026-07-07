@@ -210,10 +210,9 @@ fn test_markdown_code_block_roundtrip() {
     let mut output = Vec::new();
     markdown::write(&mut output, &doc).unwrap();
     let markdown_out = String::from_utf8(output).unwrap();
-    assert_eq!(
-        markdown_out,
-        "```\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
-    );
+    // A code block ends with a single newline like any other paragraph; the
+    // input round-trips exactly.
+    assert_eq!(markdown_out, "```\nfn main() {}\nprintln!(\"hi\");\n```\n");
 }
 
 #[test]
@@ -225,11 +224,9 @@ fn test_markdown_code_block_trims_leading_newline() {
     markdown::write(&mut output, &doc).unwrap();
     let markdown_out = String::from_utf8(output).unwrap();
 
-    // Trailing newline is stripped, but writer adds one before closing fence
-    assert_eq!(
-        markdown_out,
-        "```\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
-    );
+    // Leading/trailing content newlines are stripped; the block ends with a
+    // single trailing newline (no extra blank line).
+    assert_eq!(markdown_out, "```\nfn main() {}\nprintln!(\"hi\");\n```\n");
 }
 
 #[test]
@@ -241,11 +238,9 @@ fn test_markdown_code_block_preserves_blank_first_line() {
     markdown::write(&mut output, &doc).unwrap();
     let markdown_out = String::from_utf8(output).unwrap();
 
-    // Trailing newline is stripped, but writer adds one before closing fence
-    assert_eq!(
-        markdown_out,
-        "```\n\nfn main() {}\nprintln!(\"hi\");\n```\n\n"
-    );
+    // A blank first line inside the block is preserved; the block still ends
+    // with a single trailing newline (no extra blank line).
+    assert_eq!(markdown_out, "```\n\nfn main() {}\nprintln!(\"hi\");\n```\n");
 }
 
 #[test]
