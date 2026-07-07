@@ -16,5 +16,4 @@ if width < 60 {
 }
 ```
 
-
 The end.

@@ -158,7 +158,6 @@ any of head, stable/15, or releng/15.0 branches after 2025-11-27 22:00 UTC.
 # cp -R /usr/src/share/keys/pkgbase-15 /usr/share/keys/pkgbase-15
 ```
 
-
 Users who do not have up to date sources installed may use a less secure, but
 simpler approach, validating the checksums after installation. As these are
 architecture-independent files, the checksums will match on all platforms.
@@ -172,7 +171,6 @@ ab261a3b84ffc11654ac0bafbb7d6b3f1b6afc30bfabab3bcff64259678eac26 /etc/pkg/FreeBS
 529c79e85a6ca152faa9d57ead85fe0111ffada8d0a0fa2f11fc510999fa50df /usr/share/keys/pkgbase-15/trusted/awskms-15
 c368ec8d05654bdaad34742c1d75b9b150bfc3892838cef32f6e5b036b0c0605 /usr/share/keys/pkgbase-15/trusted/backup-signing-15
 ```
-
 
 Upgrading FreeBSD should only be attempted after backing up _all_ data and
 configuration files.
