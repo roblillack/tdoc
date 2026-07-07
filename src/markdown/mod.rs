@@ -78,7 +78,6 @@ pub fn parse_without_metadata<R: Read>(mut reader: R) -> crate::Result<Document>
 /// pair. This mirrors [`write`], which serializes empty paragraphs as blank
 /// lines, so documents round-trip.
 fn build_document(content: &str, options: Options) -> Document {
-    let bytes = content.as_bytes();
     let mut builder = MarkdownBuilder::new();
 
     // End offset (into `content`) of the most recent event that maps to real
@@ -99,15 +98,28 @@ fn build_document(content: &str, options: Options) -> Document {
                     && range.start >= last_content_end
                     && builder.at_document_level()
                 {
-                    let blank_newlines = bytes[last_content_end..range.start]
+                    // Count only whitespace-only lines between the two blocks.
+                    // Splitting the gap yields the tail of the previous block's
+                    // line first and the head of the next block's line last;
+                    // neither is an inter-block line, so both are dropped. This
+                    // deliberately excludes non-blank source lines that
+                    // `pulldown-cmark` consumes without emitting an event —
+                    // most notably link reference definitions — which must not
+                    // be mistaken for blank-line separators and fabricate empty
+                    // paragraphs.
+                    let gap = &content[last_content_end..range.start];
+                    let segments: Vec<&str> = gap.split('\n').collect();
+                    let blank_lines = segments
+                        .get(1..segments.len().saturating_sub(1))
+                        .unwrap_or(&[])
                         .iter()
-                        .filter(|&&b| b == b'\n')
+                        .filter(|line| line.trim().is_empty())
                         .count();
-                    // Canonical spacing between two blocks is two newlines (one
-                    // blank line). Each additional pair of newlines is one empty
+                    // Canonical spacing between two blocks is a single blank
+                    // line. Every additional pair of blank lines is one empty
                     // paragraph the author left between the blocks. Odd counts
                     // are normalized down (they collapse on the next save).
-                    for _ in 0..(blank_newlines.saturating_sub(2) / 2) {
+                    for _ in 0..(blank_lines.saturating_sub(1) / 2) {
                         builder.push_empty_paragraph();
                     }
                 }
@@ -2071,6 +2083,27 @@ mod tests {
         let mut output = Vec::new();
         write(&mut output, &parsed).unwrap();
         assert_eq!(String::from_utf8(output).unwrap(), input);
+    }
+
+    #[test]
+    fn test_link_reference_definitions_are_not_empty_paragraphs() {
+        // Link reference definitions occupy source lines but pulldown-cmark
+        // consumes them without emitting any event, so their newlines must not
+        // be counted as blank-line separators — otherwise the ordinary spacing
+        // around them would fabricate empty paragraphs.
+        let input = "A\n\n[x]: http://example.com\n[y]: http://example.org\n\nB";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed, doc(vec![p__("A"), p__("B")]));
+    }
+
+    #[test]
+    fn test_link_defs_and_comment_between_paragraphs_are_not_empty_paragraphs() {
+        // Mirrors a real fixture (progit1-de): two link definitions and an HTML
+        // comment sit between two paragraphs, each separated by a single blank
+        // line. None of that is an authored empty paragraph.
+        let input = "A\n\n[gldpg]: http://example.com/a\n[gltoc]: http://example.com/b\n\n<!--comment-->\n\nB";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed, doc(vec![p__("A"), p__("B")]));
     }
 
     #[test]
