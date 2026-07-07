@@ -45,14 +45,7 @@ pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     options.insert(Options::ENABLE_WIKILINKS);
     options.insert(Options::ENABLE_TABLES);
 
-    let parser = Parser::new_ext(content, options);
-    let mut builder = MarkdownBuilder::new();
-
-    for event in parser {
-        builder.handle_event(event);
-    }
-
-    let mut doc = builder.finish();
+    let mut doc = build_document(content, options);
     doc.metadata = metadata;
     Ok(doc)
 }
@@ -71,14 +64,77 @@ pub fn parse_without_metadata<R: Read>(mut reader: R) -> crate::Result<Document>
     options.insert(Options::ENABLE_WIKILINKS);
     options.insert(Options::ENABLE_TABLES);
 
-    let parser = Parser::new_ext(&input, options);
+    Ok(build_document(&input, options))
+}
+
+/// Drives the [`MarkdownBuilder`] over `content`, reconstructing empty
+/// paragraphs from runs of blank lines between top-level blocks.
+///
+/// `pulldown-cmark` collapses any run of blank lines into a single paragraph
+/// separator and emits no event for the blank lines themselves, so an empty
+/// paragraph the author left between two blocks would otherwise be lost. We use
+/// the offset iterator to measure the source gap between consecutive top-level
+/// blocks and re-insert one empty [`Paragraph::Text`] per extra blank-line
+/// pair. This mirrors [`write`], which serializes empty paragraphs as blank
+/// lines, so documents round-trip.
+fn build_document(content: &str, options: Options) -> Document {
     let mut builder = MarkdownBuilder::new();
 
-    for event in parser {
+    // End offset (into `content`) of the most recent event that maps to real
+    // source characters — i.e. any leaf/content event as opposed to a block
+    // container's Start/End. This marks where the previous block's content
+    // stops so we can count the blank lines that follow it.
+    let mut last_content_end = 0usize;
+
+    for (event, range) in Parser::new_ext(content, options).into_offset_iter() {
+        match &event {
+            Event::Start(_) => {
+                // Only top-level boundaries matter: when a block starts while
+                // the Document context is on top of the stack, every enclosing
+                // block has been closed. `last_content_end > 0` skips leading
+                // blank lines (which have no preceding block to separate from
+                // and whose spacing the writer does not preserve).
+                if last_content_end > 0
+                    && range.start >= last_content_end
+                    && builder.at_document_level()
+                {
+                    // Count only whitespace-only lines between the two blocks.
+                    // Splitting the gap yields the tail of the previous block's
+                    // line first and the head of the next block's line last;
+                    // neither is an inter-block line, so both are dropped. This
+                    // deliberately excludes non-blank source lines that
+                    // `pulldown-cmark` consumes without emitting an event —
+                    // most notably link reference definitions — which must not
+                    // be mistaken for blank-line separators and fabricate empty
+                    // paragraphs.
+                    let gap = &content[last_content_end..range.start];
+                    let segments: Vec<&str> = gap.split('\n').collect();
+                    let blank_lines = segments
+                        .get(1..segments.len().saturating_sub(1))
+                        .unwrap_or(&[])
+                        .iter()
+                        .filter(|line| line.trim().is_empty())
+                        .count();
+                    // Canonical spacing between two blocks is a single blank
+                    // line. Every additional pair of blank lines is one empty
+                    // paragraph the author left between the blocks. Odd counts
+                    // are normalized down (they collapse on the next save).
+                    for _ in 0..(blank_lines.saturating_sub(1) / 2) {
+                        builder.push_empty_paragraph();
+                    }
+                }
+            }
+            Event::End(_) => {}
+            _ => {
+                if range.end > last_content_end {
+                    last_content_end = range.end;
+                }
+            }
+        }
         builder.handle_event(event);
     }
 
-    Ok(builder.finish())
+    builder.finish()
 }
 
 struct MarkdownBuilder {
@@ -668,6 +724,18 @@ impl MarkdownBuilder {
         while matches!(self.stack.last(), Some(BlockContext::Paragraph(_))) {
             self.finish_paragraph();
         }
+    }
+
+    /// Returns `true` when the Document context is on top of the stack, i.e.
+    /// no block (list, quote, table, paragraph, …) is currently open.
+    fn at_document_level(&self) -> bool {
+        matches!(self.stack.last(), Some(BlockContext::Document { .. }))
+    }
+
+    /// Appends an empty text paragraph to the current parent. Used to
+    /// reconstruct empty paragraphs that `pulldown-cmark` drops between blocks.
+    fn push_empty_paragraph(&mut self) {
+        self.add_paragraph_to_parent(Paragraph::new_text());
     }
 
     fn add_paragraph_to_parent(&mut self, paragraph: Paragraph) {
@@ -1957,6 +2025,89 @@ mod tests {
         let parsed = parse(Cursor::new(input)).unwrap();
         let expected = doc(vec![p_(vec![span("A "), s__("struck"), span(" word")])]);
         assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_empty_paragraph_between_blocks() {
+        // pulldown-cmark collapses runs of blank lines and emits no event for
+        // them, but an empty paragraph the author left between two blocks must
+        // survive so documents round-trip (see `write`, which serializes empty
+        // paragraphs as blank lines).
+        let input = "A\n\n\n\nB";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![p__("A"), p_(vec![]), p__("B")]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_multiple_empty_paragraphs() {
+        let input = "A\n\n\n\n\n\nB";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![p__("A"), p_(vec![]), p_(vec![]), p__("B")]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_single_blank_line_is_not_an_empty_paragraph() {
+        // Ordinary paragraph spacing (one blank line, two newlines) must never
+        // introduce an empty paragraph.
+        let input = "A\n\nB";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed, doc(vec![p__("A"), p__("B")]));
+    }
+
+    #[test]
+    fn test_empty_paragraph_after_list() {
+        // pulldown-cmark folds trailing blank lines into the preceding list's
+        // source range, so counting must be anchored to the last content event,
+        // not the block's end offset.
+        let input = "- a\n- b\n\n\n\nafter";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![
+            ul_(vec![li_(vec![p__("a")]), li_(vec![p__("b")])]),
+            p_(vec![]),
+            p__("after"),
+        ]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_leading_blank_lines_do_not_create_empty_paragraphs() {
+        // There is no preceding block to separate from, and `write` does not
+        // preserve leading spacing, so reconstructing here would be unstable.
+        let input = "\n\n\n\nA";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed, doc(vec![p__("A")]));
+    }
+
+    #[test]
+    fn test_empty_paragraph_round_trips() {
+        let input = "A\n\n\n\nB\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let mut output = Vec::new();
+        write(&mut output, &parsed).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), input);
+    }
+
+    #[test]
+    fn test_link_reference_definitions_are_not_empty_paragraphs() {
+        // Link reference definitions occupy source lines but pulldown-cmark
+        // consumes them without emitting any event, so their newlines must not
+        // be counted as blank-line separators — otherwise the ordinary spacing
+        // around them would fabricate empty paragraphs.
+        let input = "A\n\n[x]: http://example.com\n[y]: http://example.org\n\nB";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed, doc(vec![p__("A"), p__("B")]));
+    }
+
+    #[test]
+    fn test_link_defs_and_comment_between_paragraphs_are_not_empty_paragraphs() {
+        // Mirrors a real fixture (progit1-de): two link definitions and an HTML
+        // comment sit between two paragraphs, each separated by a single blank
+        // line. None of that is an authored empty paragraph.
+        let input = "A\n\n[gldpg]: http://example.com/a\n[gltoc]: http://example.com/b\n\n<!--comment-->\n\nB";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        assert_eq!(parsed, doc(vec![p__("A"), p__("B")]));
     }
 
     #[test]
