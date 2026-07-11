@@ -516,7 +516,43 @@ impl<W: Write> Formatter<W> {
             ParagraphType::Table => {
                 self.write_table_paragraph(paragraph.rows(), prefix, continuation_prefix)?;
             }
+            ParagraphType::HorizontalRule => {
+                self.write_horizontal_rule(prefix)?;
+            }
         }
+        Ok(())
+    }
+
+    /// Renders a horizontal rule: a dim, centered run of Unicode line
+    /// characters split by a spaced bullet (`───── • ─────`). The dim styling is
+    /// only applied when the style emits ANSI escapes; plain ASCII output leaves
+    /// the glyphs unstyled.
+    fn write_horizontal_rule(&mut self, prefix: &str) -> std::io::Result<()> {
+        // Ten line characters (five per side) around a spaced, centered bullet.
+        const HALF: &str = "─────";
+        let rule = format!("{HALF} • {HALF}");
+
+        let prefix_width = prefix.chars().count();
+        let available_width = self.style.wrap_width.saturating_sub(prefix_width);
+        let rule_width = self.visible_width(&rule);
+        let padding = available_width.saturating_sub(rule_width) / 2;
+
+        // The ANSI style carries a non-empty reset sequence; plain ASCII does
+        // not, which is how we know whether dim escapes are meaningful here.
+        let dim = !self.style.reset_styles.is_empty();
+
+        write!(self.writer, "{}", prefix)?;
+        for _ in 0..padding {
+            write!(self.writer, " ")?;
+        }
+        if dim {
+            write!(self.writer, "\x1b[2m")?;
+        }
+        write!(self.writer, "{}", rule)?;
+        if dim {
+            write!(self.writer, "\x1b[22m")?;
+        }
+        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -1017,6 +1053,7 @@ impl<W: Write> Formatter<W> {
             ParagraphType::Header1 => 3,
             ParagraphType::Header2 => 3,
             ParagraphType::Header3 => 2,
+            ParagraphType::HorizontalRule => 2,
             _ => match previous_type {
                 Some(_) => 1,
                 None => 0,
@@ -1029,6 +1066,7 @@ impl<W: Write> Formatter<W> {
             ParagraphType::Header1 => 3,
             ParagraphType::Header2 => 2,
             ParagraphType::Header3 => 1,
+            ParagraphType::HorizontalRule => 2,
             _ => 0,
         }
     }
@@ -2369,6 +2407,33 @@ mod tests {
             .unwrap();
         let ansi_result = String::from_utf8(ansi_output).unwrap();
         assert_eq!(ansi_result, "A   B\n\x1b[0m");
+    }
+
+    #[test]
+    fn test_horizontal_rule_ascii_centered_with_spacing() {
+        let document = doc(vec![p__("A"), Paragraph::new_horizontal_rule(), p__("B")]);
+        let result = render_doc(document, FormattingStyle::ascii());
+
+        // Plain ASCII output must not carry any escape sequences.
+        assert!(!result.contains('\x1b'));
+
+        // Ten Unicode line characters around a spaced, centered bullet,
+        // centered within the default 72-column width (padding = (72-13)/2).
+        let rule_line = format!("{}───── • ─────", " ".repeat(29));
+        // Two blank lines above and below the rule.
+        assert_eq!(result, format!("A\n\n\n{rule_line}\n\n\nB\n"));
+    }
+
+    #[test]
+    fn test_horizontal_rule_ansi_is_dim() {
+        let document = doc(vec![p__("A"), Paragraph::new_horizontal_rule(), p__("B")]);
+        let result = render_doc(document, FormattingStyle::ansi());
+
+        // The rule glyphs are wrapped in the dim on/off SGR pair.
+        assert!(
+            result.contains("\x1b[2m───── • ─────\x1b[22m"),
+            "expected a dim rule, got: {result:?}"
+        );
     }
 
     #[test]

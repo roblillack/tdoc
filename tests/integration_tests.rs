@@ -240,7 +240,10 @@ fn test_markdown_code_block_preserves_blank_first_line() {
 
     // A blank first line inside the block is preserved; the block still ends
     // with a single trailing newline (no extra blank line).
-    assert_eq!(markdown_out, "```\n\nfn main() {}\nprintln!(\"hi\");\n```\n");
+    assert_eq!(
+        markdown_out,
+        "```\n\nfn main() {}\nprintln!(\"hi\");\n```\n"
+    );
 }
 
 #[test]

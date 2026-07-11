@@ -100,6 +100,9 @@ impl Writer {
     pub fn write<W: Write>(&self, writer: &mut W, document: &Document) -> io::Result<()> {
         let mut first = true;
         for paragraph in &document.paragraphs {
+            if self.should_skip(paragraph) {
+                continue;
+            }
             if first {
                 first = false;
             } else {
@@ -108,6 +111,15 @@ impl Writer {
             self.write_paragraph(writer, paragraph, 0)?;
         }
         Ok(())
+    }
+
+    /// Whether a paragraph is dropped entirely by this writer. Strict FTML has
+    /// no thematic-break element, so [`Paragraph::HorizontalRule`] nodes (which
+    /// can only arrive via conversion from Markdown or HTML) are skipped; the
+    /// HTML writer keeps them as `<hr />`. Skipping them before the separator
+    /// logic runs avoids emitting a stray blank line in their place.
+    fn should_skip(&self, paragraph: &Paragraph) -> bool {
+        !self.emit_tables && paragraph.paragraph_type() == ParagraphType::HorizontalRule
     }
 
     fn write_paragraph<W: Write>(
@@ -121,6 +133,18 @@ impl Writer {
 
         if paragraph_type == ParagraphType::Table {
             return self.write_table_paragraph(writer, paragraph.rows(), level);
+        }
+
+        if paragraph_type == ParagraphType::HorizontalRule {
+            // Only the HTML writer represents a thematic break; strict FTML has
+            // no such element, so the rule is dropped there. (Top-level and
+            // block-quote iteration already filter these out via `should_skip`;
+            // this also covers any remaining position, such as a list item.)
+            if self.emit_tables {
+                self.write_indent(writer, level)?;
+                return writeln!(writer, "<hr />");
+            }
+            return Ok(());
         }
 
         if paragraph_type.is_leaf() {
@@ -160,6 +184,9 @@ impl Writer {
             } else {
                 let mut first = true;
                 for child in paragraph.children() {
+                    if self.should_skip(child) {
+                        continue;
+                    }
                     if first {
                         first = false;
                     } else {
@@ -792,6 +819,24 @@ mod tests {
             result.contains("href=\"https://example.com/?foo=1&amp;bar=2\""),
             "unexpected writer output: {result}"
         );
+    }
+
+    #[test]
+    fn test_horizontal_rule_dropped_by_ftml_writer() {
+        // Strict FTML has no thematic-break element, so a horizontal rule that
+        // arrived via conversion is dropped without leaving a stray blank line.
+        let doc = Document::new().with_paragraphs(vec![
+            Paragraph::new_text().with_content(vec![Span::new_text("A")]),
+            Paragraph::new_horizontal_rule(),
+            Paragraph::new_text().with_content(vec![Span::new_text("B")]),
+        ]);
+
+        let ftml = Writer::new().write_to_string(&doc).unwrap();
+        assert_eq!(ftml, "<p>A</p>\n\n<p>B</p>\n");
+
+        // The HTML writer, by contrast, keeps it as a `<hr />` void element.
+        let html = Writer::new_html().write_to_string(&doc).unwrap();
+        assert_eq!(html, "<p>A</p>\n\n<hr />\n\n<p>B</p>\n");
     }
 
     #[test]

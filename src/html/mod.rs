@@ -127,6 +127,13 @@ impl<'a> Parser<'a> {
                     return self.read_table(&start);
                 }
 
+                if tag == "hr" {
+                    // `<hr>` is a void element; emit the rule and ignore any
+                    // stray `</hr>` that follows.
+                    self.down(ParagraphType::HorizontalRule)?;
+                    return Ok(());
+                }
+
                 if tag == "li" {
                     let parent = match self.parent() {
                         Some(parent) => parent,
@@ -190,6 +197,9 @@ impl<'a> Parser<'a> {
                 }
 
                 return self.read_paragraph(ParagraphType::Text, None, Some(raw));
+            }
+            Token::EmptyElement(empty) if lowercase_name(empty.name()) == "hr" => {
+                self.down(ParagraphType::HorizontalRule)?;
             }
             _ => {}
         }
@@ -1089,6 +1099,7 @@ impl ParagraphBuilder {
                 ParagraphType::Table => {
                     Paragraph::new_table().with_rows(borrowed.table_rows.clone())
                 }
+                ParagraphType::HorizontalRule => Paragraph::new_horizontal_rule(),
             }
         }
     }
@@ -1162,6 +1173,8 @@ fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {
         Paragraph::Table { rows } => rows
             .iter()
             .any(|row| row.cells.iter().any(|cell| !cell.content.is_empty())),
+        // A horizontal rule is itself the content; it is always meaningful.
+        Paragraph::HorizontalRule => true,
     }
 }
 
@@ -1938,6 +1951,43 @@ mod tests {
         let document = parse(Cursor::new(input)).unwrap();
 
         assert!(document.paragraphs.is_empty());
+    }
+
+    #[test]
+    fn parses_horizontal_rule_between_paragraphs() {
+        for input in [
+            "<p>A</p><hr><p>B</p>",
+            "<p>A</p><hr /><p>B</p>",
+            "<p>A</p><hr></hr><p>B</p>",
+        ] {
+            let document = parse(Cursor::new(input)).unwrap();
+            assert_eq!(
+                document
+                    .paragraphs
+                    .iter()
+                    .map(|p| p.paragraph_type())
+                    .collect::<Vec<_>>(),
+                vec![
+                    ParagraphType::Text,
+                    ParagraphType::HorizontalRule,
+                    ParagraphType::Text,
+                ],
+                "input: {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn writes_horizontal_rule_as_void_element() {
+        let doc = Document::new().with_paragraphs(vec![
+            Paragraph::new_text().with_content(vec![Span::new_text("A")]),
+            Paragraph::new_horizontal_rule(),
+            Paragraph::new_text().with_content(vec![Span::new_text("B")]),
+        ]);
+        let mut output = Vec::new();
+        write(&mut output, &doc).unwrap();
+        let html = String::from_utf8(output).unwrap();
+        assert_eq!(html, "<p>A</p>\n\n<hr />\n\n<p>B</p>\n");
     }
 
     #[test]

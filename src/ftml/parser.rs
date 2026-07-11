@@ -1390,7 +1390,9 @@ fn normalize_entity_whitespace(document: &mut Document) {
 }
 
 fn normalize_paragraph_spaces(paragraph: &mut Paragraph) {
-    if paragraph.is_leaf() {
+    // `HorizontalRule` is a leaf but carries no inline content, so it has no
+    // spans to normalize.
+    if paragraph.is_leaf() && !matches!(paragraph, Paragraph::HorizontalRule) {
         normalize_spans_spaces(paragraph.content_mut());
     }
 
@@ -1419,7 +1421,8 @@ fn normalize_paragraph_spaces(paragraph: &mut Paragraph) {
         | Paragraph::Header1 { .. }
         | Paragraph::Header2 { .. }
         | Paragraph::Header3 { .. }
-        | Paragraph::CodeBlock { .. } => {}
+        | Paragraph::CodeBlock { .. }
+        | Paragraph::HorizontalRule => {}
     }
 }
 
@@ -1659,6 +1662,27 @@ mod tests {
             doc("<p><a href=\"yadayada\">Hier kommt ein Test! </a></p>\n"),
             ftml! { p { link { "yadayada" "Hier kommt ein Test! " } } },
         );
+    }
+
+    #[test]
+    fn test_horizontal_rule_is_not_part_of_ftml() {
+        // FTML has no thematic-break construct, so `<hr>` (in either its bare or
+        // self-closing form) is ignored, leaving only the surrounding blocks.
+        for input in [
+            "<p>A</p><hr /><p>B</p>",
+            "<p>A</p><hr><p>B</p>",
+            "<p>A</p>\n\n<hr />\n\n<p>B</p>\n",
+        ] {
+            let doc = parse(Cursor::new(input)).unwrap();
+            assert_eq!(
+                doc.paragraphs
+                    .iter()
+                    .map(|p| p.paragraph_type())
+                    .collect::<Vec<_>>(),
+                vec![ParagraphType::Text, ParagraphType::Text],
+                "input: {input:?}"
+            );
+        }
     }
 
     #[test]

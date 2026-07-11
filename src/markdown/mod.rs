@@ -668,9 +668,7 @@ impl MarkdownBuilder {
 
     fn push_thematic_break(&mut self) {
         self.close_open_paragraphs();
-        let mut paragraph = Paragraph::new_text();
-        paragraph.content_mut().push(Span::new_text("---"));
-        self.add_paragraph_to_parent(paragraph);
+        self.add_paragraph_to_parent(Paragraph::new_horizontal_rule());
     }
 
     fn start_paragraph(&mut self, paragraph_type: ParagraphType) -> &mut ParagraphContext {
@@ -1161,6 +1159,12 @@ fn write_paragraph<W: Write>(
         }
         Paragraph::Table { rows } => {
             write_table(writer, rows, prefix, continuation_prefix)?;
+        }
+        Paragraph::HorizontalRule => {
+            // A thematic break. The caller separates paragraphs with a blank
+            // line, so `---` never fuses with a preceding paragraph to form a
+            // setext heading underline.
+            writeln!(writer, "{}---", prefix)?;
         }
     }
     Ok(())
@@ -2240,6 +2244,38 @@ mod tests {
                 "round-trip changed the document for {input:?} (rendered as {rendered:?})",
             );
         }
+    }
+
+    #[test]
+    fn test_parse_thematic_break_is_horizontal_rule() {
+        for input in ["A\n\n---\n\nB", "A\n\n***\n\nB", "A\n\n___\n\nB"] {
+            let parsed = parse(Cursor::new(input)).unwrap();
+            let expected = doc(vec![p__("A"), Paragraph::new_horizontal_rule(), p__("B")]);
+            assert_eq!(parsed, expected, "input: {input:?}");
+        }
+    }
+
+    #[test]
+    fn test_write_horizontal_rule() {
+        let document = doc(vec![p__("A"), Paragraph::new_horizontal_rule(), p__("B")]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), "A\n\n---\n\nB\n");
+    }
+
+    #[test]
+    fn test_horizontal_rule_round_trips() {
+        let document = doc(vec![
+            h1_("Title"),
+            p__("A"),
+            Paragraph::new_horizontal_rule(),
+            p__("B"),
+        ]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        let reparsed = parse(Cursor::new(&rendered)).unwrap();
+        assert_eq!(reparsed, document, "rendered as {rendered:?}");
     }
 
     #[test]
