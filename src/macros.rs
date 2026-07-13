@@ -87,6 +87,14 @@ macro_rules! __tdoc_build_block {
             "`table` is not part of strict FTML; use the `doc!` macro for tables and other extensions"
         );
     }};
+    (doc, hr { }) => {{
+        $crate::Paragraph::new_horizontal_rule()
+    }};
+    (ftml, hr { }) => {{
+        compile_error!(
+            "`hr` is not part of strict FTML; use the `doc!` macro for horizontal rules and other extensions"
+        );
+    }};
     // --- Anything else is genuinely unknown ---
     ($mode:ident, $other:ident { $($inner:tt)* }) => {{
         compile_error!(concat!("Unknown document element: ", stringify!($other)));

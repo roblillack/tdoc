@@ -2198,6 +2198,8 @@ by The FreeBSD Foundation)
 
 ## General Notes Regarding Future FreeBSD Releases
 
+---
+
 **Last modified on**: December 1, 2025 by [Alexander
 Ziaee](https://cgit.freebsd.org/doc/commit/?id=4105335197)
 

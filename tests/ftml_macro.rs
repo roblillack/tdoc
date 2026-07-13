@@ -117,6 +117,24 @@ fn supports_code_blocks() {
 }
 
 #[test]
+fn doc_supports_horizontal_rules() {
+    // Horizontal rules are a `doc!` extension (not strict FTML), like tables.
+    let document = doc! {
+        p { "Above" }
+        hr {}
+        p { "Below" }
+    };
+
+    let expected = doc_(vec![
+        p__("Above"),
+        Paragraph::new_horizontal_rule(),
+        p__("Below"),
+    ]);
+
+    assert_eq!(document, expected);
+}
+
+#[test]
 fn doc_accepts_the_same_syntax_as_ftml() {
     // `doc!` is a superset of `ftml!`, so any strict-FTML document builds
     // identically with either macro.

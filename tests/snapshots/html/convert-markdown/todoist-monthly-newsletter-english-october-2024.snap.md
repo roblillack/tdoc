@@ -16,6 +16,8 @@ The Todoist Monthly
 
 All that’s new in the Todoist-verse – October 2024
 
+---
+
 Manage your time-blocked Todoist to-dos like _Review client proposals at 2pm for
 2h_ or _Pick up Garfield from the vet at 10am for 30m_ more efficiently by
 **syncing those tasks directly to your Google Calendar** – available on all

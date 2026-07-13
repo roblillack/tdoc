@@ -325,6 +325,11 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
                 }
             }
         }
+        Paragraph::HorizontalRule => {
+            // Gemtext has no thematic-break construct. Degrade to a plain-text
+            // divider line so a human reader still sees the separation.
+            writeln!(writer, "---")?;
+        }
     }
     Ok(())
 }

@@ -104,6 +104,22 @@ Whatever format you read, tdoc parses it into the same document tree, a hierarch
 - **Checklists** (`<ul>` whose items begin with checkboxes, or Markdown `- [ ]` task lists)
 - **Blockquotes** (`<blockquote>`)
 - **Tables** (`<table>`)
+- **Horizontal rules** (HTML `<hr>`, Markdown `---`)
+
+### Horizontal Rules
+
+A horizontal rule is a thematic break between sections. It is parsed from `<hr>`
+in HTML and from `---`/`***`/`___` in Markdown, and is written back out as
+`<hr />` (HTML) or `---` (Markdown). Like tables, it is a tdoc extension rather
+than part of strict FTML: build one with the `hr {}` block in the
+[`doc!`](https://docs.rs/tdoc/latest/tdoc/macro.doc.html) macro (the strict
+[`ftml!`](https://docs.rs/tdoc/latest/tdoc/macro.ftml.html) macro rejects it),
+and note that **FTML has no thematic-break element**, so rules are dropped when a
+document is exported to FTML. In the terminal a rule renders as a dim, centered
+run of Unicode line characters around a spaced bullet (`───── • ─────`) with a
+blank line of breathing room above and below. Gemtext likewise has no
+thematic-break construct, so on Gemini export a rule degrades to a plain-text
+`---` divider.
 
 ### Checklists
 

@@ -1,8 +1,12 @@
 ## [_Open_**BSD**](index.html) Innovations
 
+---
+
 This is a list of software and ideas developed or maintained by the OpenBSD
 project, sorted in order of approximate introduction. Some of them are explained
 in detail in our [research papers](events.html).
+
+---
 
 ### Concepts
 

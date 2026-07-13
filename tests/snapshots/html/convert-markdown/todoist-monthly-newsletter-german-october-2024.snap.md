@@ -16,6 +16,8 @@ Die Todoist-Monatsübersicht
 
 Das Neueste aus dem Todoist-Versum – Oktober 2024
 
+---
+
 Verwalte deine als Zeitblöcke geplanten Todoist-Aufgaben, z. B. _Kundenangebote
 durchgehen 14:00 für 2h_ oder _Kitty von Tierärztin abholen 10:00 für 30m_,
 indem du **diese Aufgaben direkt mit deinem Google Kalender synchronisierst** –

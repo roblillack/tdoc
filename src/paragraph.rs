@@ -26,6 +26,8 @@ pub enum ParagraphType {
     Quote,
     /// A tabular data block (`<table>`).
     Table,
+    /// A horizontal rule / thematic break (`<hr>`).
+    HorizontalRule,
 }
 
 impl fmt::Display for ParagraphType {
@@ -41,6 +43,7 @@ impl fmt::Display for ParagraphType {
             ParagraphType::Checklist => "Checklist",
             ParagraphType::Quote => "Quote",
             ParagraphType::Table => "Table",
+            ParagraphType::HorizontalRule => "Horizontal Rule",
         };
         write!(f, "{}", s)
     }
@@ -56,6 +59,7 @@ impl ParagraphType {
                 | ParagraphType::Header2
                 | ParagraphType::Header3
                 | ParagraphType::CodeBlock
+                | ParagraphType::HorizontalRule
         )
     }
 
@@ -72,6 +76,7 @@ impl ParagraphType {
             ParagraphType::Checklist => "ul",
             ParagraphType::Quote => "blockquote",
             ParagraphType::Table => "table",
+            ParagraphType::HorizontalRule => "hr",
         }
     }
 
@@ -87,6 +92,7 @@ impl ParagraphType {
             "ul" => Some(ParagraphType::UnorderedList),
             "blockquote" => Some(ParagraphType::Quote),
             "table" => Some(ParagraphType::Table),
+            "hr" => Some(ParagraphType::HorizontalRule),
             _ => None,
         }
     }
@@ -149,6 +155,8 @@ pub enum Paragraph {
     Quote { children: Vec<Paragraph> },
     /// A table paragraph composed of rows of cells.
     Table { rows: Vec<TableRow> },
+    /// A horizontal rule / thematic break. Carries no content.
+    HorizontalRule,
 }
 
 impl Paragraph {
@@ -165,6 +173,7 @@ impl Paragraph {
             ParagraphType::Checklist => Self::new_checklist(),
             ParagraphType::Quote => Self::new_quote(),
             ParagraphType::Table => Self::new_table(),
+            ParagraphType::HorizontalRule => Self::new_horizontal_rule(),
         }
     }
 
@@ -234,6 +243,11 @@ impl Paragraph {
         Self::Table { rows: Vec::new() }
     }
 
+    /// Convenience constructor for [`ParagraphType::HorizontalRule`].
+    pub fn new_horizontal_rule() -> Self {
+        Self::HorizontalRule
+    }
+
     /// Returns the [`ParagraphType`] of the current paragraph.
     pub fn paragraph_type(&self) -> ParagraphType {
         match self {
@@ -247,6 +261,7 @@ impl Paragraph {
             Paragraph::Checklist { .. } => ParagraphType::Checklist,
             Paragraph::Quote { .. } => ParagraphType::Quote,
             Paragraph::Table { .. } => ParagraphType::Table,
+            Paragraph::HorizontalRule => ParagraphType::HorizontalRule,
         }
     }
 

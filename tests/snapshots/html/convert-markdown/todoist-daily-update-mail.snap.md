@@ -12,6 +12,8 @@ My Todo
 
 My Todo &emsp14;
 
+---
+
 171 überfällige Aufgaben
 
 [Todoist öffnen](https://app.todoist.com/app/today)
@@ -36,9 +38,15 @@ Deine Nutzung
 
 **34** aktive Projekte
 
+---
+
 **3** geteilte Projekte
 
+---
+
 **13** Filteransichten
+
+---
 
 **2** Erinnerungen
 
