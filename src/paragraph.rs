@@ -28,6 +28,8 @@ pub enum ParagraphType {
     Table,
     /// A horizontal rule / thematic break (`<hr>`).
     HorizontalRule,
+    /// A definition list (`<dl>`) pairing terms with their descriptions.
+    DefinitionList,
 }
 
 impl fmt::Display for ParagraphType {
@@ -44,6 +46,7 @@ impl fmt::Display for ParagraphType {
             ParagraphType::Quote => "Quote",
             ParagraphType::Table => "Table",
             ParagraphType::HorizontalRule => "Horizontal Rule",
+            ParagraphType::DefinitionList => "Definition List",
         };
         write!(f, "{}", s)
     }
@@ -77,6 +80,7 @@ impl ParagraphType {
             ParagraphType::Quote => "blockquote",
             ParagraphType::Table => "table",
             ParagraphType::HorizontalRule => "hr",
+            ParagraphType::DefinitionList => "dl",
         }
     }
 
@@ -93,6 +97,7 @@ impl ParagraphType {
             "blockquote" => Some(ParagraphType::Quote),
             "table" => Some(ParagraphType::Table),
             "hr" => Some(ParagraphType::HorizontalRule),
+            "dl" => Some(ParagraphType::DefinitionList),
             _ => None,
         }
     }
@@ -157,6 +162,8 @@ pub enum Paragraph {
     Table { rows: Vec<TableRow> },
     /// A horizontal rule / thematic break. Carries no content.
     HorizontalRule,
+    /// A definition list pairing one or more terms with their descriptions.
+    DefinitionList { items: Vec<DefinitionItem> },
 }
 
 impl Paragraph {
@@ -174,6 +181,7 @@ impl Paragraph {
             ParagraphType::Quote => Self::new_quote(),
             ParagraphType::Table => Self::new_table(),
             ParagraphType::HorizontalRule => Self::new_horizontal_rule(),
+            ParagraphType::DefinitionList => Self::new_definition_list(),
         }
     }
 
@@ -248,6 +256,11 @@ impl Paragraph {
         Self::HorizontalRule
     }
 
+    /// Convenience constructor for [`ParagraphType::DefinitionList`].
+    pub fn new_definition_list() -> Self {
+        Self::DefinitionList { items: Vec::new() }
+    }
+
     /// Returns the [`ParagraphType`] of the current paragraph.
     pub fn paragraph_type(&self) -> ParagraphType {
         match self {
@@ -262,6 +275,7 @@ impl Paragraph {
             Paragraph::Quote { .. } => ParagraphType::Quote,
             Paragraph::Table { .. } => ParagraphType::Table,
             Paragraph::HorizontalRule => ParagraphType::HorizontalRule,
+            Paragraph::DefinitionList { .. } => ParagraphType::DefinitionList,
         }
     }
 
@@ -422,6 +436,35 @@ impl Paragraph {
     pub fn add_row(&mut self, row: TableRow) {
         self.rows_mut().push(row);
     }
+
+    /// Returns the items of a definition-list paragraph (or an empty slice).
+    pub fn definition_items(&self) -> &[DefinitionItem] {
+        match self {
+            Paragraph::DefinitionList { items } => items,
+            _ => &[],
+        }
+    }
+
+    /// Returns mutable access to the items of a definition-list paragraph.
+    pub fn definition_items_mut(&mut self) -> &mut Vec<DefinitionItem> {
+        match self {
+            Paragraph::DefinitionList { items } => items,
+            _ => panic!("only definition-list paragraphs can hold definition items"),
+        }
+    }
+
+    /// Replaces the paragraph's definition-list items.
+    pub fn with_definition_items(self, items: Vec<DefinitionItem>) -> Self {
+        match self {
+            Paragraph::DefinitionList { .. } => Paragraph::DefinitionList { items },
+            _ => panic!("only definition-list paragraphs can hold definition items"),
+        }
+    }
+
+    /// Appends a single item to a definition-list paragraph.
+    pub fn add_definition_item(&mut self, item: DefinitionItem) {
+        self.definition_items_mut().push(item);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -525,6 +568,53 @@ impl ChecklistItem {
     /// Appends a nested checklist item.
     pub fn add_child(&mut self, child: ChecklistItem) {
         self.children.push(child);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+/// A single group within a [`Paragraph::DefinitionList`].
+///
+/// Each item pairs one or more terms (`<dt>`, inline content) with a single
+/// definition (`<dd>`) made of block [`Paragraph`]s. When a source document
+/// lists several definitions for the same term(s), they are folded into this
+/// one definition as separate paragraphs — HTML `<dd>`s and Markdown `:` lines
+/// alike. Grouping several terms together mirrors how definition lists are
+/// authored in both HTML and Markdown, where consecutive terms share the
+/// definition that follows them.
+pub struct DefinitionItem {
+    /// The terms being defined. Each term holds inline [`Span`] content.
+    pub terms: Vec<Vec<Span>>,
+    /// The definition for the terms, as a list of block [`Paragraph`]s. Multiple
+    /// source definitions are represented as consecutive paragraphs here.
+    pub definition: Vec<Paragraph>,
+}
+
+impl DefinitionItem {
+    /// Creates an empty definition item with no terms or definition.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Replaces the item's terms.
+    pub fn with_terms(mut self, terms: Vec<Vec<Span>>) -> Self {
+        self.terms = terms;
+        self
+    }
+
+    /// Replaces the item's definition (its block paragraphs).
+    pub fn with_definition(mut self, definition: Vec<Paragraph>) -> Self {
+        self.definition = definition;
+        self
+    }
+
+    /// Appends a single term (inline content).
+    pub fn add_term(&mut self, term: Vec<Span>) {
+        self.terms.push(term);
+    }
+
+    /// Appends a single paragraph to the item's definition.
+    pub fn add_definition_paragraph(&mut self, paragraph: Paragraph) {
+        self.definition.push(paragraph);
     }
 }
 

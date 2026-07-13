@@ -3,7 +3,8 @@
 //! For HTML output that preserves table structure, see [`crate::html::write`].
 
 use crate::{
-    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+    ChecklistItem, DefinitionItem, Document, InlineStyle, Paragraph, ParagraphType, Span,
+    TableCell, TableRow,
 };
 use regex::Regex;
 use std::collections::HashMap;
@@ -133,6 +134,14 @@ impl Writer {
 
         if paragraph_type == ParagraphType::Table {
             return self.write_table_paragraph(writer, paragraph.rows(), level);
+        }
+
+        if paragraph_type == ParagraphType::DefinitionList {
+            return self.write_definition_list_paragraph(
+                writer,
+                paragraph.definition_items(),
+                level,
+            );
         }
 
         if paragraph_type == ParagraphType::HorizontalRule {
@@ -351,6 +360,126 @@ impl Writer {
 
         self.write_indent(writer, level)?;
         writeln!(writer, "</{}>", tag)
+    }
+
+    fn write_definition_list_paragraph<W: Write>(
+        &self,
+        writer: &mut W,
+        items: &[DefinitionItem],
+        level: usize,
+    ) -> io::Result<()> {
+        if self.emit_tables {
+            self.write_html_definition_list(writer, items, level)
+        } else {
+            self.write_flattened_definition_list(writer, items, level)
+        }
+    }
+
+    fn write_html_definition_list<W: Write>(
+        &self,
+        writer: &mut W,
+        items: &[DefinitionItem],
+        level: usize,
+    ) -> io::Result<()> {
+        self.write_indent(writer, level)?;
+        writeln!(writer, "<dl>")?;
+
+        for item in items {
+            for term in &item.terms {
+                self.write_leaf_paragraph(writer, term, "dt", level + 1)?;
+            }
+            // Each paragraph of the single definition becomes its own `<dd>`, so
+            // a term with several definitions round-trips through HTML.
+            for paragraph in &item.definition {
+                self.write_definition_description(
+                    writer,
+                    std::slice::from_ref(paragraph),
+                    level + 1,
+                )?;
+            }
+        }
+
+        self.write_indent(writer, level)?;
+        writeln!(writer, "</dl>")
+    }
+
+    fn write_definition_description<W: Write>(
+        &self,
+        writer: &mut W,
+        paragraphs: &[Paragraph],
+        level: usize,
+    ) -> io::Result<()> {
+        match paragraphs {
+            // An empty description still needs an element to attach to.
+            [] => {
+                self.write_indent(writer, level)?;
+                writeln!(writer, "<dd></dd>")
+            }
+            // A lone text paragraph collapses to a compact `<dd>text</dd>` line,
+            // mirroring how simple list items and cells are rendered inline.
+            [single] if single.paragraph_type() == ParagraphType::Text => {
+                self.write_leaf_paragraph(writer, single.content(), "dd", level)
+            }
+            // Anything richer (multiple paragraphs, lists, quotes) keeps the
+            // `<dd>` wrapper on its own lines with the block content nested.
+            _ => {
+                self.write_indent(writer, level)?;
+                writeln!(writer, "<dd>")?;
+                let mut first = true;
+                for child in paragraphs {
+                    if self.should_skip(child) {
+                        continue;
+                    }
+                    if first {
+                        first = false;
+                    } else {
+                        writeln!(writer)?;
+                    }
+                    self.write_paragraph(writer, child, level + 1)?;
+                }
+                self.write_indent(writer, level)?;
+                writeln!(writer, "</dd>")
+            }
+        }
+    }
+
+    /// Strict FTML has no definition-list syntax, so a `<dl>` that arrived via
+    /// conversion is flattened: each term and each definition paragraph becomes
+    /// its own `<p>`, preserving the text the way tables are flattened to
+    /// paragraphs.
+    fn write_flattened_definition_list<W: Write>(
+        &self,
+        writer: &mut W,
+        items: &[DefinitionItem],
+        level: usize,
+    ) -> io::Result<()> {
+        let mut first = true;
+        let mut separate = |writer: &mut W| -> io::Result<()> {
+            if first {
+                first = false;
+            } else {
+                writeln!(writer)?;
+            }
+            Ok(())
+        };
+
+        for item in items {
+            for term in &item.terms {
+                if term.iter().all(|span| span.is_content_empty()) {
+                    continue;
+                }
+                separate(writer)?;
+                self.write_leaf_paragraph(writer, term, "p", level)?;
+            }
+            for paragraph in &item.definition {
+                if self.should_skip(paragraph) || is_empty_leaf(paragraph) {
+                    continue;
+                }
+                separate(writer)?;
+                self.write_paragraph(writer, paragraph, level)?;
+            }
+        }
+        Ok(())
     }
 
     fn write_checklist_item<W: Write>(
@@ -748,6 +877,17 @@ impl Writer {
     }
 }
 
+/// Whether a paragraph is a leaf that carries no visible content and can be
+/// dropped when flattening (e.g. an empty description paragraph).
+fn is_empty_leaf(paragraph: &Paragraph) -> bool {
+    paragraph.is_leaf()
+        && paragraph.paragraph_type() != ParagraphType::HorizontalRule
+        && paragraph
+            .content()
+            .iter()
+            .all(|span| span.is_content_empty())
+}
+
 /// Convenience helper that writes using a fresh [`Writer`] with default settings.
 pub fn write<W: Write>(writer: &mut W, document: &Document) -> io::Result<()> {
     let w = Writer::new();
@@ -837,6 +977,35 @@ mod tests {
         // The HTML writer, by contrast, keeps it as a `<hr />` void element.
         let html = Writer::new_html().write_to_string(&doc).unwrap();
         assert_eq!(html, "<p>A</p>\n\n<hr />\n\n<p>B</p>\n");
+    }
+
+    #[test]
+    fn test_definition_list_flattened_by_ftml_writer() {
+        use crate::DefinitionItem;
+
+        let dl =
+            Paragraph::new_definition_list().with_definition_items(vec![DefinitionItem::new()
+                .with_terms(vec![vec![Span::new_text("Apple")]])
+                .with_definition(vec![
+                    Paragraph::new_text().with_content(vec![Span::new_text("Pomaceous fruit")]),
+                    Paragraph::new_text().with_content(vec![Span::new_text("A company")]),
+                ])]);
+        let doc = Document::new().with_paragraphs(vec![dl]);
+
+        // Strict FTML has no `<dl>`; terms and definitions flatten to `<p>`s,
+        // just as tables flatten to paragraphs.
+        let ftml = Writer::new().write_to_string(&doc).unwrap();
+        assert_eq!(
+            ftml,
+            "<p>Apple</p>\n\n<p>Pomaceous fruit</p>\n\n<p>A company</p>\n"
+        );
+
+        // The HTML writer keeps the real `<dl>` structure.
+        let html = Writer::new_html().write_to_string(&doc).unwrap();
+        assert_eq!(
+            html,
+            "<dl>\n  <dt>Apple</dt>\n  <dd>Pomaceous fruit</dd>\n  <dd>A company</dd>\n</dl>\n"
+        );
     }
 
     #[test]

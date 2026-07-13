@@ -1,6 +1,8 @@
 //! Render documents to formatted plain text suitable for terminals or logs.
 
-use crate::{ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow};
+use crate::{
+    ChecklistItem, DefinitionItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableRow,
+};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -519,6 +521,57 @@ impl<W: Write> Formatter<W> {
             ParagraphType::HorizontalRule => {
                 self.write_horizontal_rule(prefix)?;
             }
+            ParagraphType::DefinitionList => {
+                self.write_definition_list(
+                    paragraph.definition_items(),
+                    prefix,
+                    continuation_prefix,
+                    blank_line_prefix,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Renders a definition list: each term sits at the left margin (emphasized
+    /// in bold when the style emits ANSI) with its definition indented beneath
+    /// it, and a blank line separates groups.
+    fn write_definition_list(
+        &mut self,
+        items: &[DefinitionItem],
+        prefix: &str,
+        continuation_prefix: &str,
+        blank_line_prefix: &str,
+    ) -> std::io::Result<()> {
+        let definition_indent = format!("{}    ", continuation_prefix);
+
+        for (item_idx, item) in items.iter().enumerate() {
+            if item_idx > 0 {
+                self.write_blank_lines_with_prefix(blank_line_prefix, 1)?;
+            }
+
+            for (term_idx, term) in item.terms.iter().enumerate() {
+                let term_prefix = if item_idx == 0 && term_idx == 0 {
+                    prefix
+                } else {
+                    continuation_prefix
+                };
+                // Emphasize the term in bold. In ASCII the bold style carries no
+                // escapes, so the term renders as plain text.
+                let bold_term =
+                    vec![Span::new_styled(InlineStyle::Bold).with_children(term.clone())];
+                self.write_text_paragraph(&bold_term, term_prefix, continuation_prefix)?;
+            }
+
+            // Render the whole definition as one block so its paragraphs are
+            // separated by the usual blank line (the first sits directly under
+            // the term, with no blank line between term and definition).
+            self.write_paragraphs(
+                &item.definition,
+                &definition_indent,
+                &definition_indent,
+                &definition_indent,
+            )?;
         }
         Ok(())
     }
@@ -2433,6 +2486,47 @@ mod tests {
         assert!(
             result.contains("\x1b[2m───── • ─────\x1b[22m"),
             "expected a dim rule, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_definition_list_ascii_indents_descriptions() {
+        let document = doc(vec![dl_(vec![
+            di_(
+                vec![spans("Apple")],
+                vec![p__("Pomaceous fruit"), p__("An American company")],
+            ),
+            di_(vec![spans("Orange")], vec![p__("Citrus fruit")]),
+        ])]);
+        let result = render_doc(document, FormattingStyle::ascii());
+
+        // Terms sit at the margin (bold carries no ASCII escapes, so they render
+        // plain); the definition is indented beneath, with the usual blank line
+        // between its paragraphs (carrying the indent, as list items do), and a
+        // blank line separates the two groups.
+        assert_eq!(
+            result,
+            "Apple\n    Pomaceous fruit\n    \n    An American company\n\n\
+             Orange\n    Citrus fruit\n"
+        );
+    }
+
+    #[test]
+    fn test_definition_list_ansi_term_is_bold() {
+        let document = doc(vec![dl_(vec![di_(
+            vec![spans("Apple")],
+            vec![p__("Pomaceous fruit")],
+        )])]);
+        let result = render_doc(document, FormattingStyle::ansi());
+
+        // The term is wrapped in the bold on/off SGR pair; the definition is not.
+        assert!(
+            result.contains("\x1b[1mApple\x1b[22m"),
+            "expected a bold term, got: {result:?}"
+        );
+        assert!(
+            !result.contains("\x1b[1mPomaceous"),
+            "definition text must not be bold, got: {result:?}"
         );
     }
 
