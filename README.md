@@ -105,6 +105,7 @@ Whatever format you read, tdoc parses it into the same document tree, a hierarch
 - **Blockquotes** (`<blockquote>`)
 - **Tables** (`<table>`)
 - **Horizontal rules** (HTML `<hr>`, Markdown `---`)
+- **Definition lists** (HTML `<dl>`, Markdown `Term`/`: definition`)
 
 ### Horizontal Rules
 
@@ -120,6 +121,37 @@ run of Unicode line characters around a spaced bullet (`───── • ─�
 blank line of breathing room above and below. Gemtext likewise has no
 thematic-break construct, so on Gemini export a rule degrades to a plain-text
 `---` divider.
+
+### Definition Lists
+
+A definition list pairs one or more terms with a definition. It is parsed
+from `<dl>`/`<dt>`/`<dd>` in HTML and from the PHP Markdown Extra syntax in
+Markdown, where a term sits on its own line and each description that follows is
+introduced by a `: ` marker:
+
+```markdown
+Coffee
+: A hot black beverage
+
+Milk
+: A cold white beverage
+: Best served chilled
+```
+
+Each item carries a single definition, held as a list of block paragraphs;
+consecutive terms share the definition that follows them. When a source lists
+several definitions for the same term (multiple `<dd>`s, or multiple `: ` lines),
+they are folded into that one definition as separate paragraphs. Like tables and
+horizontal rules, definition lists are a tdoc extension rather than part of
+strict FTML: build one with the `dl { item { term { … } def { … } } }` block in
+the [`doc!`](https://docs.rs/tdoc/latest/tdoc/macro.doc.html) macro (the strict
+[`ftml!`](https://docs.rs/tdoc/latest/tdoc/macro.ftml.html) macro rejects it).
+Because **FTML has no definition-list element**, exporting to FTML flattens each
+term and definition paragraph into its own `<p>` (the same way tables are
+flattened), preserving the text. **Gemtext** likewise has no such construct, so
+on Gemini export the list degrades to plain text with each term on its own line
+and its definition indented beneath it. In the terminal, terms are shown in bold
+at the left margin with their definition indented below.
 
 ### Checklists
 
@@ -238,6 +270,12 @@ fn main() -> tdoc::Result<()> {
         table {
             row { th { "Feature" } th { "Status" } }
             row { td { "Tables" } td { "Supported" } }
+        }
+        dl {
+            item {
+                term { "tdoc" }
+                def { p { "A text document toolkit" } }
+            }
         }
     };
 

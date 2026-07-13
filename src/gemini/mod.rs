@@ -330,6 +330,22 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
             // divider line so a human reader still sees the separation.
             writeln!(writer, "---")?;
         }
+        Paragraph::DefinitionList { items } => {
+            // Gemtext has no definition-list syntax. Degrade to plain text: each
+            // term on its own line, with its descriptions indented below so a
+            // human reader can still tell them apart.
+            for item in items {
+                for term in &item.terms {
+                    write_spans_plain(writer, term)?;
+                    writeln!(writer)?;
+                }
+                for paragraph in &item.definition {
+                    write!(writer, "  ")?;
+                    write_paragraph_inline(writer, paragraph)?;
+                    writeln!(writer)?;
+                }
+            }
+        }
     }
     Ok(())
 }

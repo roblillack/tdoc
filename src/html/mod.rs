@@ -9,7 +9,8 @@ pub mod gockl;
 
 use crate::ftml::Writer;
 use crate::{
-    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+    ChecklistItem, DefinitionItem, Document, InlineStyle, Paragraph, ParagraphType, Span,
+    TableCell, TableRow,
 };
 use gockl::{StartElementToken, Token, Tokenizer, TokenizerError};
 use html_escape::decode_html_entities;
@@ -134,6 +135,19 @@ impl<'a> Parser<'a> {
                     return Ok(());
                 }
 
+                if tag == "dl" {
+                    self.down(ParagraphType::DefinitionList)?;
+                    return Ok(());
+                }
+
+                if tag == "dt" {
+                    return self.read_definition_term();
+                }
+
+                // `<dd>` needs no handler of its own: its block content flows
+                // into the current definition item via `down`, and consecutive
+                // `<dd>`s simply append more paragraphs to the one definition.
+
                 if tag == "li" {
                     let parent = match self.parent() {
                         Some(parent) => parent,
@@ -172,6 +186,17 @@ impl<'a> Parser<'a> {
                     if self.list_item_level > 0 {
                         self.list_item_level -= 1;
                     }
+                    return Ok(());
+                }
+
+                if tag == "dl" {
+                    return self.up(ParagraphType::DefinitionList);
+                }
+
+                // `</dt>` and `</dd>` are consumed while their content is read;
+                // any that reach here (e.g. after a nested block closed the
+                // description) are structurally benign.
+                if tag == "dt" || tag == "dd" {
                     return Ok(());
                 }
 
@@ -845,6 +870,13 @@ impl<'a> Parser<'a> {
                         .expect("list entry present")
                         .push(Rc::clone(&node));
                 }
+                ParagraphType::DefinitionList => {
+                    // Block content inside a `<dd>` attaches to the current
+                    // description slot of the current definition item.
+                    parent
+                        .borrow_mut()
+                        .push_to_current_definition(Rc::clone(&node));
+                }
                 _ => parent.borrow_mut().children.push(Rc::clone(&node)),
             }
         } else {
@@ -896,6 +928,16 @@ impl<'a> Parser<'a> {
                         }
                     }
                 }
+                ParagraphType::DefinitionList => {
+                    let mut parent_mut = parent.borrow_mut();
+                    if let Some(item) = parent_mut.definition_items.last_mut() {
+                        if let Some(last) = item.definition.last() {
+                            if Rc::ptr_eq(last, node) {
+                                item.definition.pop();
+                            }
+                        }
+                    }
+                }
                 _ => {
                     let mut parent_mut = parent.borrow_mut();
                     if let Some(last) = parent_mut.children.last() {
@@ -931,6 +973,34 @@ impl<'a> Parser<'a> {
                 .borrow_mut()
                 .mark_current_list_item_checkbox(checked);
         }
+    }
+
+    /// Reads a `<dt>` term (inline content only) and records it on the nearest
+    /// open definition list. A term that arrives after a description starts a
+    /// new definition group.
+    fn read_definition_term(&mut self) -> Result<(), HtmlError> {
+        let (mut content, extra_token, _closed) = self.read_content(Some("dt"), None)?;
+        trim_trailing_line_breaks(&mut content);
+        trim_trailing_inline_whitespace(&mut content);
+
+        if let Some(dl) = self.nearest_definition_list() {
+            dl.borrow_mut().add_definition_term(content);
+        }
+
+        if let Some(token) = extra_token {
+            self.process_token(token)?;
+        }
+
+        Ok(())
+    }
+
+    /// Finds the innermost open `<dl>` on the breadcrumb stack.
+    fn nearest_definition_list(&self) -> Option<ParagraphNode> {
+        self.breadcrumbs
+            .iter()
+            .rev()
+            .find(|node| node.borrow().paragraph_type == ParagraphType::DefinitionList)
+            .cloned()
     }
 
     fn process_skipped_tags(&mut self, token: &Token) -> bool {
@@ -990,6 +1060,14 @@ enum HtmlError {
     },
 }
 
+/// A partially built definition-list item, mirroring [`DefinitionItem`] but
+/// holding still-mutable [`ParagraphNode`]s for its definition.
+#[derive(Debug, Default)]
+struct DefinitionItemBuilder {
+    terms: Vec<Vec<Span>>,
+    definition: Vec<ParagraphNode>,
+}
+
 #[derive(Debug)]
 struct ParagraphBuilder {
     paragraph_type: ParagraphType,
@@ -998,6 +1076,7 @@ struct ParagraphBuilder {
     entries: Vec<Vec<ParagraphNode>>,
     checklist_states: Vec<Option<bool>>,
     table_rows: Vec<TableRow>,
+    definition_items: Vec<DefinitionItemBuilder>,
 }
 
 impl ParagraphBuilder {
@@ -1009,7 +1088,41 @@ impl ParagraphBuilder {
             entries: Vec::new(),
             checklist_states: Vec::new(),
             table_rows: Vec::new(),
+            definition_items: Vec::new(),
         }
+    }
+
+    /// Records a `<dt>` term. Because consecutive terms share the definition
+    /// that follows them, a term appends to the current item unless that item
+    /// already has definition content, in which case it starts a new one.
+    fn add_definition_term(&mut self, term: Vec<Span>) {
+        let start_new = self
+            .definition_items
+            .last()
+            .map(|item| !item.definition.is_empty())
+            .unwrap_or(true);
+        if start_new {
+            self.definition_items.push(DefinitionItemBuilder::default());
+        }
+        self.definition_items
+            .last_mut()
+            .expect("definition item present")
+            .terms
+            .push(term);
+    }
+
+    /// Attaches a block node to the current definition, materializing an item
+    /// if a `<dd>` appears before any `<dt>`. Each `<dd>` contributes its block
+    /// content as consecutive paragraphs of the single definition.
+    fn push_to_current_definition(&mut self, node: ParagraphNode) {
+        if self.definition_items.is_empty() {
+            self.definition_items.push(DefinitionItemBuilder::default());
+        }
+        self.definition_items
+            .last_mut()
+            .expect("definition item present")
+            .definition
+            .push(node);
     }
 
     fn start_new_list_item(&mut self) {
@@ -1100,8 +1213,41 @@ impl ParagraphBuilder {
                     Paragraph::new_table().with_rows(borrowed.table_rows.clone())
                 }
                 ParagraphType::HorizontalRule => Paragraph::new_horizontal_rule(),
+                ParagraphType::DefinitionList => {
+                    let items = borrowed
+                        .definition_items
+                        .iter()
+                        .filter_map(ParagraphBuilder::to_definition_item)
+                        .collect::<Vec<_>>();
+                    Paragraph::new_definition_list().with_definition_items(items)
+                }
             }
         }
+    }
+
+    /// Converts a [`DefinitionItemBuilder`] into a finished [`DefinitionItem`],
+    /// dropping empty terms and definition paragraphs. Returns `None` when
+    /// nothing meaningful remains.
+    fn to_definition_item(builder: &DefinitionItemBuilder) -> Option<DefinitionItem> {
+        let terms = builder
+            .terms
+            .iter()
+            .filter(|term| term.iter().any(|span| !span.is_content_empty()))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let definition = builder
+            .definition
+            .iter()
+            .map(ParagraphBuilder::to_paragraph)
+            .filter(|child| !is_empty_list(child) && paragraph_has_meaningful_content(child))
+            .collect::<Vec<Paragraph>>();
+
+        if terms.is_empty() && definition.is_empty() {
+            return None;
+        }
+
+        Some(DefinitionItem { terms, definition })
     }
 
     fn entry_to_checklist_item(entry: Vec<Paragraph>, checked: bool) -> Option<ChecklistItem> {
@@ -1154,6 +1300,7 @@ fn is_empty_list(paragraph: &Paragraph) -> bool {
             entries.iter().all(|entry| entry.is_empty())
         }
         Paragraph::Checklist { items } => items.is_empty(),
+        Paragraph::DefinitionList { items } => items.is_empty(),
         _ => false,
     }
 }
@@ -1175,6 +1322,12 @@ fn paragraph_has_meaningful_content(paragraph: &Paragraph) -> bool {
             .any(|row| row.cells.iter().any(|cell| !cell.content.is_empty())),
         // A horizontal rule is itself the content; it is always meaningful.
         Paragraph::HorizontalRule => true,
+        Paragraph::DefinitionList { items } => items.iter().any(|item| {
+            item.terms
+                .iter()
+                .any(|term| term.iter().any(|span| !span.is_content_empty()))
+                || item.definition.iter().any(paragraph_has_meaningful_content)
+        }),
     }
 }
 
@@ -1405,6 +1558,9 @@ fn is_block_level(tag: &str) -> bool {
             | "ol"
             | "li"
             | "hr"
+            | "dl"
+            | "dt"
+            | "dd"
             | "tr"
             | "table"
             | "thead"
@@ -1988,6 +2144,77 @@ mod tests {
         write(&mut output, &doc).unwrap();
         let html = String::from_utf8(output).unwrap();
         assert_eq!(html, "<p>A</p>\n\n<hr />\n\n<p>B</p>\n");
+    }
+
+    #[test]
+    fn parses_definition_list_grouping_terms_and_descriptions() {
+        let input = "<dl><dt>Apple</dt><dd>Pomaceous fruit</dd><dd>A company</dd>\
+                     <dt>Beta</dt><dt>β</dt><dd>Second letter</dd></dl>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        assert_eq!(document.paragraphs.len(), 1);
+        let items = document.paragraphs[0].definition_items();
+        assert_eq!(items.len(), 2);
+
+        // Apple: one term, two definitions folded into separate paragraphs.
+        assert_eq!(items[0].terms.len(), 1);
+        assert_eq!(items[0].terms[0][0].text, "Apple");
+        assert_eq!(items[0].definition.len(), 2);
+        assert_eq!(items[0].definition[0].content()[0].text, "Pomaceous fruit");
+        assert_eq!(items[0].definition[1].content()[0].text, "A company");
+
+        // A term after a definition opens a new item; two terms share one
+        // definition.
+        assert_eq!(items[1].terms.len(), 2);
+        assert_eq!(items[1].terms[0][0].text, "Beta");
+        assert_eq!(items[1].terms[1][0].text, "β");
+        assert_eq!(items[1].definition.len(), 1);
+        assert_eq!(items[1].definition[0].content()[0].text, "Second letter");
+    }
+
+    #[test]
+    fn parses_definition_description_with_block_content() {
+        let input = "<dl><dt>Term</dt><dd><p>Intro</p><ul><li>one</li><li>two</li></ul></dd></dl>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let items = document.paragraphs[0].definition_items();
+        assert_eq!(items.len(), 1);
+        let definition = &items[0].definition;
+        assert_eq!(definition.len(), 2);
+        assert_eq!(definition[0].paragraph_type(), ParagraphType::Text);
+        assert_eq!(definition[1].paragraph_type(), ParagraphType::UnorderedList);
+        assert_eq!(definition[1].entries().len(), 2);
+    }
+
+    #[test]
+    fn writes_definition_list_as_dl_markup() {
+        let doc = Document::new().with_paragraphs(vec![Paragraph::new_definition_list()
+            .with_definition_items(vec![crate::DefinitionItem::new()
+                .with_terms(vec![vec![Span::new_text("Apple")]])
+                .with_definition(vec![
+                    Paragraph::new_text().with_content(vec![Span::new_text("Pomaceous fruit")])
+                ])])]);
+        let mut output = Vec::new();
+        write(&mut output, &doc).unwrap();
+        let html = String::from_utf8(output).unwrap();
+        assert_eq!(
+            html,
+            "<dl>\n  <dt>Apple</dt>\n  <dd>Pomaceous fruit</dd>\n</dl>\n"
+        );
+    }
+
+    #[test]
+    fn writes_multiple_definitions_as_separate_dd_elements() {
+        // A single item with several definition paragraphs emits one `<dd>` per
+        // paragraph, so the list round-trips through HTML.
+        let input = "<dl><dt>Apple</dt><dd>Pomaceous fruit</dd><dd>A company</dd></dl>";
+        let document = parse(Cursor::new(input)).unwrap();
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "<dl>\n  <dt>Apple</dt>\n  <dd>Pomaceous fruit</dd>\n  <dd>A company</dd>\n</dl>\n"
+        );
     }
 
     #[test]

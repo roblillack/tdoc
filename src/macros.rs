@@ -95,6 +95,15 @@ macro_rules! __tdoc_build_block {
             "`hr` is not part of strict FTML; use the `doc!` macro for horizontal rules and other extensions"
         );
     }};
+    (doc, dl { $($inner:tt)* }) => {{
+        $crate::Paragraph::new_definition_list()
+            .with_definition_items(__tdoc_definition_items!($($inner)*))
+    }};
+    (ftml, dl { $($inner:tt)* }) => {{
+        compile_error!(
+            "`dl` is not part of strict FTML; use the `doc!` macro for definition lists and other extensions"
+        );
+    }};
     // --- Anything else is genuinely unknown ---
     ($mode:ident, $other:ident { $($inner:tt)* }) => {{
         compile_error!(concat!("Unknown document element: ", stringify!($other)));
@@ -409,6 +418,79 @@ macro_rules! __tdoc_table_cells_inner {
     ($vec:ident, $unexpected:tt $($rest:tt)*) => {{
         compile_error!(concat!(
             "Unexpected token inside table row: ",
+            stringify!($unexpected)
+        ));
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __tdoc_definition_items {
+    () => {
+        ::std::vec::Vec::<$crate::DefinitionItem>::new()
+    };
+    ($($tt:tt)*) => {{
+        let mut __items: ::std::vec::Vec<$crate::DefinitionItem> = ::std::vec::Vec::new();
+        __tdoc_definition_items_inner!(__items, $($tt)*);
+        __items
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __tdoc_definition_items_inner {
+    ($vec:ident,) => {};
+    ($vec:ident) => {};
+    ($vec:ident, , $($rest:tt)*) => {
+        __tdoc_definition_items_inner!($vec, $($rest)*);
+    };
+    ($vec:ident, item { $($inner:tt)* } $($rest:tt)*) => {{
+        let mut __item = $crate::DefinitionItem::new();
+        __tdoc_definition_item_inner!(__item, $($inner)*);
+        $vec.push(__item);
+        __tdoc_definition_items_inner!($vec, $($rest)*);
+    }};
+    ($vec:ident, $other:ident { $($inner:tt)* } $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Expected `item` inside definition list, found `",
+            stringify!($other),
+            "`"
+        ));
+    }};
+    ($vec:ident, $unexpected:tt $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Unexpected token inside definition list: ",
+            stringify!($unexpected)
+        ));
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __tdoc_definition_item_inner {
+    ($item:ident,) => {};
+    ($item:ident) => {};
+    ($item:ident, , $($rest:tt)*) => {
+        __tdoc_definition_item_inner!($item, $($rest)*);
+    };
+    ($item:ident, term { $($inner:tt)* } $($rest:tt)*) => {{
+        $item.terms.push(__tdoc_inline_nodes!($($inner)*));
+        __tdoc_definition_item_inner!($item, $($rest)*);
+    }};
+    ($item:ident, def { $($inner:tt)* } $($rest:tt)*) => {{
+        $item.definition = __tdoc_collect_blocks!(doc; $($inner)*);
+        __tdoc_definition_item_inner!($item, $($rest)*);
+    }};
+    ($item:ident, $other:ident { $($inner:tt)* } $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Expected `term` or `def` inside definition item, found `",
+            stringify!($other),
+            "`"
+        ));
+    }};
+    ($item:ident, $unexpected:tt $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Unexpected token inside definition item: ",
             stringify!($unexpected)
         ));
     }};
