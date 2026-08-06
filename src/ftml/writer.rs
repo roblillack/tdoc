@@ -388,15 +388,9 @@ impl Writer {
             for term in &item.terms {
                 self.write_leaf_paragraph(writer, term, "dt", level + 1)?;
             }
-            // Each paragraph of the single definition becomes its own `<dd>`, so
-            // a term with several definitions round-trips through HTML.
-            for paragraph in &item.definition {
-                self.write_definition_description(
-                    writer,
-                    std::slice::from_ref(paragraph),
-                    level + 1,
-                )?;
-            }
+            // The item carries one definition, so it emits one `<dd>` however
+            // many blocks that definition holds.
+            self.write_definition_description(writer, &item.definition, level + 1)?;
         }
 
         self.write_indent(writer, level)?;
@@ -1000,11 +994,13 @@ mod tests {
             "<p>Apple</p>\n\n<p>Pomaceous fruit</p>\n\n<p>A company</p>\n"
         );
 
-        // The HTML writer keeps the real `<dl>` structure.
+        // The HTML writer keeps the real `<dl>` structure, with the item's one
+        // definition emitted as a single `<dd>` holding both blocks.
         let html = Writer::new_html().write_to_string(&doc).unwrap();
         assert_eq!(
             html,
-            "<dl>\n  <dt>Apple</dt>\n  <dd>Pomaceous fruit</dd>\n  <dd>A company</dd>\n</dl>\n"
+            "<dl>\n  <dt>Apple</dt>\n  <dd>\n    <p>Pomaceous fruit</p>\n\n    \
+             <p>A company</p>\n  </dd>\n</dl>\n"
         );
     }
 

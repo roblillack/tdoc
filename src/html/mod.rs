@@ -975,19 +975,51 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Reads a `<dt>` term (inline content only) and records it on the nearest
-    /// open definition list. A term that arrives after a description starts a
-    /// new definition group.
+    /// Reads a `<dt>` term and records it on the nearest open definition list. A
+    /// term that arrives after a description starts a new definition group.
+    ///
+    /// A term holds inline content, but HTML5 permits flow content inside
+    /// `<dt>`, so block wrappers such as `<dt><p>Apple</p></dt>` do occur. There
+    /// is no structure a term can keep them in, so they are flattened: the
+    /// wrapper is dropped and its text joins the term, with a line break between
+    /// what were separate blocks. Only a tag that begins the next part of the
+    /// list — or ends it — closes the term.
     fn read_definition_term(&mut self) -> Result<(), HtmlError> {
-        let (mut content, extra_token, _closed) = self.read_content(Some("dt"), None)?;
-        trim_trailing_line_breaks(&mut content);
-        trim_trailing_inline_whitespace(&mut content);
+        let mut chunks: Vec<Vec<Span>> = Vec::new();
+        let mut pending = None;
+
+        loop {
+            let (chunk, extra_token, _closed) = self.read_content(Some("dt"), None)?;
+            chunks.push(chunk);
+
+            // No token means `</dt>` was consumed or the input ran out.
+            let Some(token) = extra_token else { break };
+
+            if closes_definition_term(&token) {
+                pending = Some(token);
+                break;
+            }
+            // Otherwise the tag is a wrapper to see through; keep reading.
+        }
+
+        let mut content: Vec<Span> = Vec::new();
+        for mut chunk in chunks {
+            trim_trailing_line_breaks(&mut chunk);
+            trim_trailing_inline_whitespace(&mut chunk);
+            if chunk.iter().all(|span| span.is_content_empty()) {
+                continue;
+            }
+            if !content.is_empty() {
+                content.push(Span::new_text("\n"));
+            }
+            content.append(&mut chunk);
+        }
 
         if let Some(dl) = self.nearest_definition_list() {
             dl.borrow_mut().add_definition_term(content);
         }
 
-        if let Some(token) = extra_token {
+        if let Some(token) = pending {
             self.process_token(token)?;
         }
 
@@ -1513,6 +1545,20 @@ fn should_skip_link_span(span: &Span, had_visible_text: bool) -> bool {
 /// italic).
 fn should_skip_empty_styled_span(span: &Span) -> bool {
     span.style != InlineStyle::None && span.style != InlineStyle::Link && !span.has_content()
+}
+
+/// Whether a token met while reading a `<dt>` ends the term rather than being
+/// flattened into it: the start of the next term or description, or the end of
+/// the list itself.
+fn closes_definition_term(token: &Token) -> bool {
+    let Some(element) = token.as_element() else {
+        return false;
+    };
+    let name = lowercase_name(element.name());
+    match token {
+        Token::EndElement(_) => matches!(name.as_str(), "dl" | "dd"),
+        _ => matches!(name.as_str(), "dl" | "dt" | "dd"),
+    }
 }
 
 fn lowercase_name(name: &str) -> String {
@@ -2173,6 +2219,61 @@ mod tests {
     }
 
     #[test]
+    fn parses_definition_term_with_block_content() {
+        // HTML5 allows flow content in `<dt>`. There is nowhere for a block to
+        // live inside a term, so wrappers are seen through and their text joins
+        // the term instead of leaking into the description.
+        let input = "<dl><dt><p>Apple</p></dt><dd>fruit</dd></dl>";
+        let document = parse(Cursor::new(input)).unwrap();
+
+        let items = document.paragraphs[0].definition_items();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].terms.len(), 1);
+        assert_eq!(items[0].terms[0][0].text, "Apple");
+        assert_eq!(items[0].definition.len(), 1);
+        assert_eq!(items[0].definition[0].content()[0].text, "fruit");
+    }
+
+    #[test]
+    fn parses_definition_term_with_several_blocks_and_markup() {
+        // Separate blocks in one term are joined by a line break, and inline
+        // markup inside a wrapper is kept.
+        let document = parse(Cursor::new(
+            "<dl><dt><p>Apple</p><p>Malus</p></dt><dd>fruit</dd>\
+             <dt><div><b>Pear</b> tree</div></dt><dd>also fruit</dd></dl>",
+        ))
+        .unwrap();
+
+        let items = document.paragraphs[0].definition_items();
+        assert_eq!(items.len(), 2);
+
+        let joined: String = items[0].terms[0].iter().map(|s| s.text.clone()).collect();
+        assert_eq!(joined, "Apple\nMalus");
+
+        assert_eq!(items[1].terms.len(), 1);
+        assert_eq!(items[1].terms[0][0].style, InlineStyle::Bold);
+        assert_eq!(items[1].terms[0][0].children[0].text, "Pear");
+        assert_eq!(items[1].terms[0][1].text, " tree");
+
+        // A wrapped term still round-trips through the HTML writer.
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let html = String::from_utf8(output).unwrap();
+        assert_eq!(parse(Cursor::new(&html)).unwrap(), document);
+    }
+
+    #[test]
+    fn parses_definition_term_wrapping_an_empty_block() {
+        // Nothing meaningful in the term, so the item keeps only its
+        // description rather than gaining an empty term.
+        let document = parse(Cursor::new("<dl><dt><p></p></dt><dd>fruit</dd></dl>")).unwrap();
+        let items = document.paragraphs[0].definition_items();
+        assert_eq!(items.len(), 1);
+        assert!(items[0].terms.is_empty());
+        assert_eq!(items[0].definition.len(), 1);
+    }
+
+    #[test]
     fn parses_definition_description_with_block_content() {
         let input = "<dl><dt>Term</dt><dd><p>Intro</p><ul><li>one</li><li>two</li></ul></dd></dl>";
         let document = parse(Cursor::new(input)).unwrap();
@@ -2204,17 +2305,34 @@ mod tests {
     }
 
     #[test]
-    fn writes_multiple_definitions_as_separate_dd_elements() {
-        // A single item with several definition paragraphs emits one `<dd>` per
-        // paragraph, so the list round-trips through HTML.
+    fn writes_one_dd_per_definition_however_many_blocks_it_holds() {
+        // An item carries a single definition, so several `<dd>`s in the source
+        // fold into one on the way out, with each block kept as its own
+        // paragraph inside it.
         let input = "<dl><dt>Apple</dt><dd>Pomaceous fruit</dd><dd>A company</dd></dl>";
         let document = parse(Cursor::new(input)).unwrap();
         let mut output = Vec::new();
         write(&mut output, &document).unwrap();
+        let html = String::from_utf8(output).unwrap();
         assert_eq!(
-            String::from_utf8(output).unwrap(),
-            "<dl>\n  <dt>Apple</dt>\n  <dd>Pomaceous fruit</dd>\n  <dd>A company</dd>\n</dl>\n"
+            html,
+            "<dl>\n  <dt>Apple</dt>\n  <dd>\n    <p>Pomaceous fruit</p>\n\n    \
+             <p>A company</p>\n  </dd>\n</dl>\n"
         );
+
+        // Folding is idempotent: re-reading the output yields the same document.
+        assert_eq!(parse(Cursor::new(&html)).unwrap(), document);
+    }
+
+    #[test]
+    fn writes_a_term_without_a_definition_as_an_empty_dd() {
+        let input = "<dl><dt>Lonely</dt></dl>";
+        let document = parse(Cursor::new(input)).unwrap();
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let html = String::from_utf8(output).unwrap();
+        assert_eq!(html, "<dl>\n  <dt>Lonely</dt>\n  <dd></dd>\n</dl>\n");
+        assert_eq!(parse(Cursor::new(&html)).unwrap(), document);
     }
 
     #[test]

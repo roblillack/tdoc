@@ -1,0 +1,531 @@
+---
+source: tests/definition_lists.rs
+expression: report
+---
+=== case 1 ===
+--- input ---
+apple
+:   red fruit
+
+orange
+:   orange fruit
+--- tdoc markdown ---
+apple
+: red fruit
+
+orange
+: orange fruit
+
+=== case 2 ===
+--- input ---
+apple
+
+:   red fruit
+
+orange
+
+:   orange fruit
+--- tdoc markdown ---
+apple
+: red fruit
+
+orange
+: orange fruit
+
+=== case 3 ===
+--- input ---
+apple
+
+:   red fruit
+--- tdoc markdown ---
+apple
+: red fruit
+
+=== case 4 ===
+--- input ---
+apple
+  : red fruit
+
+orange
+  : orange fruit
+--- tdoc markdown ---
+apple
+: red fruit
+
+orange
+: orange fruit
+
+=== case 5 ===
+--- input ---
+apple
+
+ : red fruit
+
+orange
+
+ : orange fruit
+--- tdoc markdown ---
+apple
+: red fruit
+
+orange
+: orange fruit
+
+=== case 6 ===
+--- input ---
+*apple*
+
+:   red fruit
+
+    contains seeds,
+    crisp, pleasant to taste
+
+*orange*
+
+:   orange fruit
+
+        { orange code block }
+
+    > orange block quote
+--- tdoc markdown ---
+_apple_
+: red fruit
+  
+  contains seeds, crisp, pleasant to taste
+
+_orange_
+: orange fruit
+  
+  ```
+  { orange code block }
+  ```
+  
+  > orange block quote
+
+=== case 7 ===
+--- input ---
+term
+
+:   1. Para one
+
+       Para two
+--- tdoc markdown ---
+term
+: 
+  1. Para one
+     
+     Para two
+
+=== case 8 ===
+--- input ---
+apple
+:   red fruit
+:   computer company
+
+orange
+:   orange fruit
+:   telecom company
+--- tdoc markdown ---
+apple
+: red fruit
+  
+  computer company
+
+orange
+: orange fruit
+  
+  telecom company
+
+=== case 9 ===
+--- input ---
+apple
+
+:   red fruit
+
+:   computer company
+
+orange
+
+:   orange fruit
+:   telecom company
+--- tdoc markdown ---
+apple
+: red fruit
+  
+  computer company
+
+orange
+: orange fruit
+  
+  telecom company
+
+=== case 10 ===
+--- input ---
+apple
+
+:   red fruit
+
+:   computer
+company
+
+orange
+
+:   orange
+fruit
+:   telecom company
+--- tdoc markdown ---
+apple
+: red fruit
+  
+  computer company
+
+orange
+: orange fruit
+  
+  telecom company
+
+=== case 11 ===
+--- input ---
+apple
+   : > computer company
+     : red fruit
+
+orange
+   : > telecom company
+   : orange fruit
+
+chili's
+   : > restaurant company
+ : spicy fruit
+--- tdoc markdown ---
+apple
+: > computer company : red fruit
+
+orange
+: > telecom company
+  
+  orange fruit
+
+chili's
+: > restaurant company
+  
+  spicy fruit
+
+=== case 12 ===
+--- input ---
+> cherry
+> : keyboard company
+> pomegranate
+: tart fruit
+--- tdoc markdown ---
+> cherry
+> : keyboard company pomegranate : tart fruit
+
+=== case 13 ===
+--- input ---
+a
+b\
+c
+
+:   foo
+--- tdoc markdown ---
+a b\
+c
+: foo
+
+=== case 14 ===
+--- input ---
+Foo
+
+bar
+:   baz
+
+bim
+:   bor
+--- tdoc markdown ---
+Foo
+
+bar
+: baz
+
+bim
+: bor
+
+=== case 15 ===
+--- input ---
+bar
+:   baz
+
+bim
+:   bor
+
+Bloze
+--- tdoc markdown ---
+bar
+: baz
+
+bim
+: bor
+
+Bloze
+
+=== case 16 ===
+--- input ---
+bar
+    :baz
+
+Bloze
+--- tdoc markdown ---
+bar :baz
+
+Bloze
+
+=== case 17 ===
+--- input ---
+bar
+:    baz
+
+Bloze
+--- tdoc markdown ---
+bar
+: baz
+
+Bloze
+
+=== case 18 ===
+--- input ---
+bar
+:       baz
+
+bar
+ :      baz
+
+bar
+  :     baz
+
+bar
+   :    baz
+
+bar
+    :   baz
+--- tdoc markdown ---
+bar
+: ```
+    baz
+  ```
+
+bar
+: ```
+   baz
+  ```
+
+bar
+: ```
+  baz
+  ```
+
+bar
+: baz
+
+bar :&emsp14;&emsp14;&emsp14;baz
+
+=== case 19 ===
+--- input ---
+*orange*
+
+:   orange fruit
+
+        { orange code block }
+
+  > orange block quote
+
+*orange*
+
+:     orange fruit
+
+        { orange code block }
+
+  > orange block quote
+--- tdoc markdown ---
+_orange_
+: orange fruit
+  
+  ```
+  { orange code block }
+  ```
+
+> orange block quote
+
+_orange_
+: ```
+  orange fruit
+  
+    { orange code block }
+  ```
+  
+  > orange block quote
+
+=== case 20 ===
+--- input ---
+Test|Table
+----|-----
+: first
+--- tdoc markdown ---
+| Test    | Table |
+|---------|-------|
+| : first |       |
+
+=== case 21 ===
+--- input ---
+first
+: second
+
+Test|Table
+----|-----
+: fourth
+--- tdoc markdown ---
+first
+: second
+
+| Test     | Table |
+|----------|-------|
+| : fourth |       |
+
+=== case 22 ===
+--- input ---
+My section
+==========
+: first
+--- tdoc markdown ---
+# My section
+
+\: first
+
+=== case 23 ===
+--- input ---
+first
+: second
+
+My section
+==========
+: fourth
+--- tdoc markdown ---
+first
+: second
+
+# My section
+
+\: fourth
+
+=== case 24 ===
+--- input ---
+## My subsection
+: first
+--- tdoc markdown ---
+## My subsection
+
+\: first
+
+=== case 25 ===
+--- input ---
+first
+: second
+
+## My subsection
+: fourth
+--- tdoc markdown ---
+first
+: second
+
+## My subsection
+
+\: fourth
+
+=== case 26 ===
+--- input ---
+> first
+: second
+--- tdoc markdown ---
+> first : second
+
+=== case 27 ===
+--- input ---
+first\
+: second
+
+third  
+: fourth
+--- tdoc markdown ---
+first\\
+: second
+
+third
+: fourth
+
+=== case 28 ===
+--- input ---
+<div>first</div>
+: second
+
+first
+: second
+<div>third</div>
+: fourth
+--- tdoc markdown ---
+&lt;div>first&lt;/div>\
+\: second\
+
+
+first
+: second
+
+&lt;div>third&lt;/div>\
+\: fourth\
+
+
+=== case 29 ===
+--- input ---
+<span>first</span>
+: second
+
+third
+: fourth
+
+<span>fifth</span>
+: sixth
+--- tdoc markdown ---
+&lt;span>first&lt;/span>
+: second
+
+third
+: fourth
+
+&lt;span>fifth&lt;/span>
+: sixth
+
+=== case 30 ===
+--- input ---
+level one
+: l1
+    level two
+    : l2
+        level three
+        : l3
+
+level one
+: l1
+--- tdoc markdown ---
+level one
+: l1 level two
+  : l2 level three
+    : l3
+
+level one
+: l1
+
+=== case 31 ===
+--- input ---
+[a]: /url
+    
+:
+--- tdoc markdown ---

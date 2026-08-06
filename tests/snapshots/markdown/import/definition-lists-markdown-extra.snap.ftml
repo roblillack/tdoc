@@ -1,0 +1,130 @@
+<h1>Definition Lists</h1>
+
+<p>
+  Markdown Extra implements definition lists. Definition lists are made of
+  terms and definitions of these terms, much like in a dictionary.
+</p>
+
+<p>
+  A simple definition list in Markdown Extra is made of a single-line term
+  followed by a colon and the definition for that term.
+</p>
+
+<p>Apple</p>
+
+<p>Pomaceous fruit of plants of the genus Malus in the family Rosaceae.</p>
+
+<p>Orange</p>
+
+<p>The fruit of an evergreen tree of the genus Citrus.</p>
+
+<h2>Lazy continuation</h2>
+
+<p>
+  Terms must be separated from the previous definition by a blank line.
+  Definitions can span on multiple lines, in which case they should be
+  indented. But you don't really have to: if you want to be lazy, you could
+  forget to indent a definition that span on multiple lines and it will still
+  work:
+</p>
+
+<p>Apple</p>
+
+<p>Pomaceous fruit of plants of the genus Malus in the family Rosaceae.</p>
+
+<p>Orange</p>
+
+<p>The fruit of an evergreen tree of the genus Citrus.</p>
+
+<h2>Several definitions for one term</h2>
+
+<p>
+  Colons as definition markers typically start at the left margin, but may be
+  indented by up to three spaces. Definition markers must be followed by one or
+  more spaces or a tab.
+</p>
+
+<p>
+  Definition lists can have more than one definition associated with one term:
+</p>
+
+<p>Apple</p>
+
+<p>Pomaceous fruit of plants of the genus Malus in the family Rosaceae.</p>
+
+<p>An American computer company.</p>
+
+<p>Orange</p>
+
+<p>The fruit of an evergreen tree of the genus Citrus.</p>
+
+<h2>Several terms for one definition</h2>
+
+<p>You can also associate more than one term to a definition:</p>
+
+<p>Term 1 Term 2</p>
+
+<p>Definition a</p>
+
+<p>Term 3</p>
+
+<p>Definition b</p>
+
+<h2>Loose definitions</h2>
+
+<p>
+  If a definition is preceded by a blank line, Markdown Extra will wrap the
+  definition in <code>&lt;p></code> tags in the HTML output. For example, this:
+</p>
+
+<p>Apple</p>
+
+<p>Pomaceous fruit of plants of the genus Malus in the family Rosaceae.</p>
+
+<p>Orange</p>
+
+<p>The fruit of an evergreen tree of the genus Citrus.</p>
+
+<h2>Block-level content in definitions</h2>
+
+<p>
+  And just like regular list items, definitions can contain multiple
+  paragraphs, and include other block-level elements such as blockquotes, code
+  blocks, lists, and even other definition lists.
+</p>
+
+<p>Term 1</p>
+
+<p>
+  This is a definition with two paragraphs. Lorem ipsum dolor sit amet,
+  consectetuer adipiscing elit. Aliquam hendrerit mi posuere lectus.
+</p>
+
+<p>Vestibulum enim wisi, viverra nec, fringilla in, laoreet vitae, risus.</p>
+
+<p>
+  Second definition for term 1, also wrapped in a paragraph because of the
+  blank line preceding it.
+</p>
+
+<p>Term 2</p>
+
+<p>This definition has a code block, a blockquote and a list.</p>
+
+<pre>
+code block.
+</pre>
+
+<blockquote>
+  <p>block quote on two lines.</p>
+</blockquote>
+
+<ol>
+  <li>
+    <p>first list item</p>
+  </li>
+
+  <li>
+    <p>second list item</p>
+  </li>
+</ol>

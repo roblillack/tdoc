@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>&lt;dl&gt;: The Description List element</title>
+  </head>
+  <body>
+    <h1>&lt;dl&gt;: The Description List element</h1>
+
+    <p>
+      The <code>&lt;dl&gt;</code> HTML element represents a description list. The
+      element encloses a list of groups of terms (specified using the
+      <code>&lt;dt&gt;</code> element) and descriptions (provided by
+      <code>&lt;dd&gt;</code> elements). Common uses for this element are to
+      implement a glossary or to display metadata (a list of key-value pairs).
+    </p>
+
+    <h2>Glossary</h2>
+
+    <p>Cryptids of Cornwall:</p>
+
+    <dl>
+      <dt>Beast of Bodmin</dt>
+      <dd>A large feline inhabiting Bodmin Moor.</dd>
+
+      <dt>Morgawr</dt>
+      <dd>A sea serpent.</dd>
+
+      <dt>Owlman</dt>
+      <dd>A giant owl-like creature.</dd>
+    </dl>
+
+    <h2>Single term and description</h2>
+
+    <dl>
+      <dt>Firefox</dt>
+      <dd>
+        A free, open source, cross-platform, graphical web browser developed by
+        the Mozilla Corporation and hundreds of volunteers.
+      </dd>
+
+      <!-- Other terms and descriptions -->
+    </dl>
+
+    <h2>Multiple terms, single description</h2>
+
+    <dl>
+      <dt>Firefox</dt>
+      <dt>Mozilla Firefox</dt>
+      <dt>Fx</dt>
+      <dd>
+        A free, open source, cross-platform, graphical web browser developed by
+        the Mozilla Corporation and hundreds of volunteers.
+      </dd>
+
+      <!-- Other terms and descriptions -->
+    </dl>
+
+    <h2>Single term, multiple descriptions</h2>
+
+    <dl>
+      <dt>Firefox</dt>
+      <dd>
+        A free, open source, cross-platform, graphical web browser developed by
+        the Mozilla Corporation and hundreds of volunteers.
+      </dd>
+      <dd>
+        The Red Panda also known as the Lesser Panda, Wah, Bear Cat or Firefox,
+        is a mostly herbivorous mammal, slightly larger than a domestic cat
+        (60 cm long).
+      </dd>
+
+      <!-- Other terms and descriptions -->
+    </dl>
+
+    <h2>Metadata</h2>
+
+    <p>
+      Description lists are useful for displaying metadata as a list of
+      key-value pairs.
+    </p>
+
+    <dl>
+      <dt>Name</dt>
+      <dd>Godzilla</dd>
+      <dt>Born</dt>
+      <dd>1952</dd>
+      <dt>Birthplace</dt>
+      <dd>Japan</dd>
+      <dt>Color</dt>
+      <dd>Green</dd>
+    </dl>
+
+    <h2>Wrapping name-value groups in div elements</h2>
+
+    <p>
+      HTML allows wrapping each name-value group in a <code>&lt;dl&gt;</code>
+      element in a <code>&lt;div&gt;</code> element. This can be useful when
+      using microdata, or when global attributes apply to a whole group, or for
+      styling purposes.
+    </p>
+
+    <dl>
+      <div>
+        <dt>Name</dt>
+        <dd>Godzilla</dd>
+      </div>
+      <div>
+        <dt>Born</dt>
+        <dd>1952</dd>
+      </div>
+      <div>
+        <dt>Birthplace</dt>
+        <dd>Japan</dd>
+      </div>
+      <div>
+        <dt>Color</dt>
+        <dd>Green</dd>
+      </div>
+    </dl>
+  </body>
+</html>

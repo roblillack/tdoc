@@ -141,17 +141,41 @@ Milk
 Each item carries a single definition, held as a list of block paragraphs;
 consecutive terms share the definition that follows them. When a source lists
 several definitions for the same term (multiple `<dd>`s, or multiple `: ` lines),
-they are folded into that one definition as separate paragraphs. Like tables and
-horizontal rules, definition lists are a tdoc extension rather than part of
-strict FTML: build one with the `dl { item { term { … } def { … } } }` block in
-the [`doc!`](https://docs.rs/tdoc/latest/tdoc/macro.doc.html) macro (the strict
+they are folded into that one definition as separate paragraphs. Writing the
+document back out therefore emits one description per item, however many blocks
+it holds: a single `<dd>` in HTML, and in Markdown a single `: ` marker on the
+first block with the rest indented beneath it. So the example above round-trips
+as:
+
+```markdown
+Milk
+: A cold white beverage
+  
+  Best served chilled
+```
+
+Three caveats on Markdown specifically. The `~` marker some dialects accept is
+**not** supported, because pulldown-cmark (tdoc's Markdown engine) uses `~` for
+strikethrough. The Markdown syntax has no way to give several terms one shared
+definition, so an item with multiple terms — readily expressed in HTML as
+consecutive `<dt>`s — comes back as a single term after a Markdown round-trip.
+And a description with no term at all, which HTML can express as a stray `<dd>`,
+has no Markdown spelling either: because a `:` line binds to the block above it,
+tdoc writes an HTML comment ahead of such a list to stop it swallowing the
+preceding paragraph, and the list degrades to a paragraph when re-imported.
+
+Like tables and horizontal rules, definition lists are a tdoc extension rather
+than part of strict FTML: build one with the
+`dl { item { term { … } def { … } } }` block in the
+[`doc!`](https://docs.rs/tdoc/latest/tdoc/macro.doc.html) macro (the strict
 [`ftml!`](https://docs.rs/tdoc/latest/tdoc/macro.ftml.html) macro rejects it).
 Because **FTML has no definition-list element**, exporting to FTML flattens each
 term and definition paragraph into its own `<p>` (the same way tables are
 flattened), preserving the text. **Gemtext** likewise has no such construct, so
 on Gemini export the list degrades to plain text with each term on its own line
-and its definition indented beneath it. In the terminal, terms are shown in bold
-at the left margin with their definition indented below.
+and its definition indented beneath it; block content inside a definition is
+flattened into indented lines rather than dropped. In the terminal, terms are
+shown in bold at the left margin with their definition indented below.
 
 ### Checklists
 

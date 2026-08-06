@@ -332,7 +332,7 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
         }
         Paragraph::DefinitionList { items } => {
             // Gemtext has no definition-list syntax. Degrade to plain text: each
-            // term on its own line, with its descriptions indented below so a
+            // term on its own line, with its definition indented below so a
             // human reader can still tell them apart.
             for item in items {
                 for term in &item.terms {
@@ -340,9 +340,7 @@ fn write_paragraph<W: Write>(writer: &mut W, paragraph: &Paragraph) -> std::io::
                     writeln!(writer)?;
                 }
                 for paragraph in &item.definition {
-                    write!(writer, "  ")?;
-                    write_paragraph_inline(writer, paragraph)?;
-                    writeln!(writer)?;
+                    write_indented_plain(writer, paragraph, "  ")?;
                 }
             }
         }
@@ -410,6 +408,113 @@ fn write_paragraph_inline<W: Write>(writer: &mut W, paragraph: &Paragraph) -> st
         _ => {}
     }
     Ok(())
+}
+
+/// Flattens a block paragraph into indented plain-text lines.
+///
+/// Gemtext cannot nest blocks, so a definition holding a list, quote, table or
+/// nested definition list has nowhere structural to go. Rather than dropping
+/// that content, every block type is reduced to the lines a human reader still
+/// needs, carrying `indent` so the nesting remains legible.
+fn write_indented_plain<W: Write>(
+    writer: &mut W,
+    paragraph: &Paragraph,
+    indent: &str,
+) -> std::io::Result<()> {
+    match paragraph {
+        Paragraph::Text { content }
+        | Paragraph::Header1 { content }
+        | Paragraph::Header2 { content }
+        | Paragraph::Header3 { content }
+        | Paragraph::CodeBlock { content } => {
+            write_indented_lines(writer, indent, &spans_to_plain(content))?;
+        }
+        Paragraph::Quote { children } => {
+            for child in children {
+                write_indented_plain(writer, child, indent)?;
+            }
+        }
+        Paragraph::UnorderedList { entries } | Paragraph::OrderedList { entries } => {
+            let marker = format!("{}* ", indent);
+            let nested = format!("{}  ", indent);
+            for entry in entries {
+                for (idx, child) in entry.iter().enumerate() {
+                    let child_indent = if idx == 0 { &marker } else { &nested };
+                    write_indented_plain(writer, child, child_indent)?;
+                }
+            }
+        }
+        Paragraph::Checklist { items } => {
+            for item in items {
+                let marker = if item.checked { "[x]" } else { "[ ]" };
+                writeln!(
+                    writer,
+                    "{}* {} {}",
+                    indent,
+                    marker,
+                    spans_to_plain(&item.content)
+                )?;
+                for child in &item.children {
+                    let marker = if child.checked { "[x]" } else { "[ ]" };
+                    writeln!(
+                        writer,
+                        "{}  * {} {}",
+                        indent,
+                        marker,
+                        spans_to_plain(&child.content)
+                    )?;
+                }
+            }
+        }
+        Paragraph::Table { rows } => {
+            for row in rows {
+                for cell in &row.cells {
+                    if cell.content.iter().all(|span| span.is_content_empty()) {
+                        continue;
+                    }
+                    write_indented_lines(writer, indent, &spans_to_plain(&cell.content))?;
+                }
+            }
+        }
+        Paragraph::HorizontalRule => {
+            writeln!(writer, "{}---", indent)?;
+        }
+        Paragraph::DefinitionList { items } => {
+            let nested = format!("{}  ", indent);
+            for item in items {
+                for term in &item.terms {
+                    write_indented_lines(writer, indent, &spans_to_plain(term))?;
+                }
+                for paragraph in &item.definition {
+                    write_indented_plain(writer, paragraph, &nested)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Writes `text` line by line with `indent` in front of every non-empty line.
+fn write_indented_lines<W: Write>(writer: &mut W, indent: &str, text: &str) -> std::io::Result<()> {
+    if text.is_empty() {
+        return Ok(());
+    }
+    for line in text.split('\n') {
+        if line.is_empty() {
+            writeln!(writer)?;
+        } else {
+            writeln!(writer, "{}{}", indent, line)?;
+        }
+    }
+    Ok(())
+}
+
+/// Renders inline spans to a plain string, dropping all styling.
+fn spans_to_plain(spans: &[Span]) -> String {
+    let mut buffer = Vec::new();
+    // Writing into a `Vec` cannot fail, so the error case is unreachable.
+    let _ = write_spans_plain(&mut buffer, spans);
+    String::from_utf8_lossy(&buffer).into_owned()
 }
 
 fn write_spans_plain<W: Write>(writer: &mut W, spans: &[Span]) -> std::io::Result<()> {
@@ -635,5 +740,45 @@ mod tests {
             result,
             "```\nfn main() {\n    println!(\"Hello\");\n}\n```\n"
         );
+    }
+
+    #[test]
+    fn test_write_definition_list() {
+        let mut output = Vec::new();
+        let doc = doc(vec![dl_(vec![
+            di_(
+                vec![spans("Apple")],
+                vec![p__("Pomaceous fruit"), p__("An American company")],
+            ),
+            di_(
+                vec![spans("Beta"), spans("Gamma")],
+                vec![p__("Two greek letters")],
+            ),
+        ])]);
+        write(&mut output, &doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+        assert_eq!(
+            result,
+            "Apple\n  Pomaceous fruit\n  An American company\n\
+             Beta\nGamma\n  Two greek letters\n"
+        );
+    }
+
+    #[test]
+    fn test_write_definition_list_keeps_block_content() {
+        // Gemtext cannot nest blocks, but a definition holding a list, quote or
+        // table must still be flattened into readable lines rather than dropped.
+        let mut output = Vec::new();
+        let doc = doc(vec![dl_(vec![di_(
+            vec![spans("Term")],
+            vec![
+                p__("intro"),
+                ul_(vec![li_(vec![p__("one")]), li_(vec![p__("two")])]),
+                quote_(vec![p__("quoted")]),
+            ],
+        )])]);
+        write(&mut output, &doc).unwrap();
+        let result = String::from_utf8(output).unwrap();
+        assert_eq!(result, "Term\n  intro\n  * one\n  * two\n  quoted\n");
     }
 }
