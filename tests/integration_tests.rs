@@ -358,6 +358,35 @@ fn test_markdown_checklist_roundtrip() {
 }
 
 #[test]
+fn test_markdown_mixed_checklist_roundtrip() {
+    // A list mixing plain and task items becomes one paragraph per run — bullet
+    // list, checklist, bullet list — so every item keeps the kind it was
+    // written as. Regression: the items ahead of the first task marker used to
+    // vanish, so opening such a file and saving it destroyed them.
+    let input = "- plain before\n- [x] done\n- plain after\n";
+    let expected_doc = ftml! {
+        ul { li { p { "plain before" } } }
+        checklist { done { "done" } }
+        ul { li { p { "plain after" } } }
+    };
+
+    let parsed = markdown::parse(Cursor::new(input)).unwrap();
+    assert_eq!(parsed, expected_doc);
+
+    // Written back, the runs are separate paragraphs. Markdown has no way to
+    // end one list and start another of the same kind, so re-reading finds the
+    // mixed list again — and splits it the same way, leaving the document (and
+    // from here on the file) unchanged.
+    let mut buf = Vec::new();
+    markdown::write(&mut buf, &parsed).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+    assert_eq!(output, "- plain before\n\n- [x] done\n\n- plain after\n");
+
+    let reparsed = markdown::parse(Cursor::new(&output)).unwrap();
+    assert_eq!(reparsed, expected_doc);
+}
+
+#[test]
 fn test_html_nested_checklist_roundtrip() {
     let input = r#"<ul>
   <li>
