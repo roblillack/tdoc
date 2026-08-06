@@ -165,50 +165,17 @@ impl MarkdownBuilder {
                         let paragraph = ctx.finish();
                         self.add_paragraph_to_parent(paragraph);
                     }
-                    Some(BlockContext::List {
-                        ordered,
-                        entries,
-                        checklist_items,
-                        is_checklist,
-                    }) => {
-                        let paragraph = if is_checklist {
-                            debug_assert!(entries.is_empty());
-                            Paragraph::new_checklist().with_checklist_items(checklist_items)
-                        } else if ordered {
-                            Paragraph::new_ordered_list().with_entries(entries)
-                        } else {
-                            Paragraph::new_unordered_list().with_entries(entries)
-                        };
-                        self.add_paragraph_to_parent(paragraph);
+                    Some(BlockContext::List { ordered, runs }) => {
+                        for paragraph in Self::finish_list(ordered, runs) {
+                            self.add_paragraph_to_parent(paragraph);
+                        }
                     }
                     Some(BlockContext::ListItem {
                         paragraphs,
                         checklist_state,
                     }) => {
-                        if let Some(BlockContext::List {
-                            entries,
-                            checklist_items,
-                            is_checklist,
-                            ..
-                        }) = self.stack.last_mut()
-                        {
-                            if let Some(checked) = checklist_state {
-                                let item = Self::build_checklist_item(paragraphs, checked);
-                                if !*is_checklist && !entries.is_empty() {
-                                    let converted = entries
-                                        .drain(..)
-                                        .map(|entry| Self::build_checklist_item(entry, false))
-                                        .collect::<Vec<_>>();
-                                    checklist_items.extend(converted);
-                                }
-                                *is_checklist = true;
-                                checklist_items.push(item);
-                            } else if *is_checklist {
-                                let item = Self::build_checklist_item(paragraphs, false);
-                                checklist_items.push(item);
-                            } else {
-                                entries.push(paragraphs);
-                            }
+                        if let Some(BlockContext::List { runs, .. }) = self.stack.last_mut() {
+                            Self::add_item_to_list(runs, paragraphs, checklist_state);
                         }
                     }
                     Some(BlockContext::Quote { children }) => {
@@ -326,9 +293,7 @@ impl MarkdownBuilder {
                 let ordered = start.is_some();
                 self.stack.push(BlockContext::List {
                     ordered,
-                    entries: Vec::new(),
-                    checklist_items: Vec::new(),
-                    is_checklist: false,
+                    runs: Vec::new(),
                 });
             }
             Tag::Item => {
@@ -426,22 +391,10 @@ impl MarkdownBuilder {
             }
             TagEnd::List(_) => {
                 self.close_open_paragraphs();
-                if let Some(BlockContext::List {
-                    ordered,
-                    entries,
-                    checklist_items,
-                    is_checklist,
-                }) = self.stack.pop()
-                {
-                    let paragraph = if is_checklist {
-                        debug_assert!(entries.is_empty());
-                        Paragraph::new_checklist().with_checklist_items(checklist_items)
-                    } else if ordered {
-                        Paragraph::new_ordered_list().with_entries(entries)
-                    } else {
-                        Paragraph::new_unordered_list().with_entries(entries)
-                    };
-                    self.add_paragraph_to_parent(paragraph);
+                if let Some(BlockContext::List { ordered, runs }) = self.stack.pop() {
+                    for paragraph in Self::finish_list(ordered, runs) {
+                        self.add_paragraph_to_parent(paragraph);
+                    }
                 }
             }
             TagEnd::Item => {
@@ -451,30 +404,8 @@ impl MarkdownBuilder {
                     checklist_state,
                 }) = self.stack.pop()
                 {
-                    if let Some(BlockContext::List {
-                        entries,
-                        checklist_items,
-                        is_checklist,
-                        ..
-                    }) = self.stack.last_mut()
-                    {
-                        if let Some(checked) = checklist_state {
-                            let item = Self::build_checklist_item(paragraphs, checked);
-                            if !*is_checklist && !entries.is_empty() {
-                                let converted = entries
-                                    .drain(..)
-                                    .map(|entry| Self::build_checklist_item(entry, false))
-                                    .collect::<Vec<_>>();
-                                checklist_items.extend(converted);
-                            }
-                            *is_checklist = true;
-                            checklist_items.push(item);
-                        } else if *is_checklist {
-                            let item = Self::build_checklist_item(paragraphs, false);
-                            checklist_items.push(item);
-                        } else {
-                            entries.push(paragraphs);
-                        }
+                    if let Some(BlockContext::List { runs, .. }) = self.stack.last_mut() {
+                        Self::add_item_to_list(runs, paragraphs, checklist_state);
                     }
                 }
             }
@@ -710,6 +641,9 @@ impl MarkdownBuilder {
         paragraph.push_hard_break();
     }
 
+    /// Record a `[ ]` / `[x]` marker on the item being read. The kind of the
+    /// *list* is not decided here: it follows from the items themselves when
+    /// each one closes (see [`Self::add_item_to_list`]).
     fn push_task_marker(&mut self, checked: bool) {
         if let Some(BlockContext::ListItem {
             checklist_state, ..
@@ -720,15 +654,6 @@ impl MarkdownBuilder {
             .find(|ctx| matches!(ctx, BlockContext::ListItem { .. }))
         {
             *checklist_state = Some(checked);
-        }
-
-        if let Some(BlockContext::List { is_checklist, .. }) = self
-            .stack
-            .iter_mut()
-            .rev()
-            .find(|ctx| matches!(ctx, BlockContext::List { .. }))
-        {
-            *is_checklist = true;
         }
     }
 
@@ -820,18 +745,10 @@ impl MarkdownBuilder {
                 BlockContext::ListItem {
                     paragraphs: items, ..
                 } => items.push(paragraph),
-                BlockContext::List {
-                    entries,
-                    checklist_items,
-                    is_checklist,
-                    ..
-                } => {
-                    if *is_checklist {
-                        let item = Self::build_checklist_item(vec![paragraph], false);
-                        checklist_items.push(item);
-                    } else {
-                        entries.push(vec![paragraph]);
-                    }
+                // A paragraph that reached a list without an item of its own
+                // (malformed input) counts as a plain item.
+                BlockContext::List { runs, .. } => {
+                    Self::add_item_to_list(runs, vec![paragraph], None)
                 }
                 BlockContext::Paragraph(context) => {
                     context.push_nested_paragraph(paragraph);
@@ -851,6 +768,52 @@ impl MarkdownBuilder {
         }
     }
 
+    /// The paragraphs a finished list contributes: one per run of same-kind
+    /// items (see [`ListRun`]), in document order. Usually exactly one — a list
+    /// only splits where the author mixed plain and task items.
+    fn finish_list(ordered: bool, runs: Vec<ListRun>) -> Vec<Paragraph> {
+        let plain = |entries| {
+            if ordered {
+                Paragraph::new_ordered_list().with_entries(entries)
+            } else {
+                Paragraph::new_unordered_list().with_entries(entries)
+            }
+        };
+        if runs.is_empty() {
+            // A list with no items at all still stands for something the author
+            // wrote, so keep the (empty) list paragraph.
+            return vec![plain(Vec::new())];
+        }
+        runs.into_iter()
+            .map(|run| match run {
+                ListRun::Plain(entries) => plain(entries),
+                ListRun::Tasks(items) => Paragraph::new_checklist().with_checklist_items(items),
+            })
+            .collect()
+    }
+
+    /// Fold a finished list item into its enclosing list, appending it to the
+    /// open run of its kind or starting a new one (see [`ListRun`]).
+    fn add_item_to_list(
+        runs: &mut Vec<ListRun>,
+        paragraphs: Vec<Paragraph>,
+        checklist_state: Option<bool>,
+    ) {
+        match checklist_state {
+            Some(checked) => {
+                let item = Self::build_checklist_item(paragraphs, checked);
+                match runs.last_mut() {
+                    Some(ListRun::Tasks(items)) => items.push(item),
+                    _ => runs.push(ListRun::Tasks(vec![item])),
+                }
+            }
+            None => match runs.last_mut() {
+                Some(ListRun::Plain(entries)) => entries.push(paragraphs),
+                _ => runs.push(ListRun::Plain(vec![paragraphs])),
+            },
+        }
+    }
+
     fn build_checklist_item(paragraphs: Vec<Paragraph>, checked: bool) -> ChecklistItem {
         let mut item = ChecklistItem::new(checked);
         let mut content = Vec::new();
@@ -858,6 +821,17 @@ impl MarkdownBuilder {
         for paragraph in paragraphs {
             match paragraph {
                 Paragraph::Checklist { mut items } => item.children.append(&mut items),
+                // A task item's children are checklist items, full stop — so a
+                // plain list nested under one (including the plain runs a mixed
+                // nested list splits into) joins as unchecked items rather than
+                // being dropped.
+                Paragraph::UnorderedList { entries } | Paragraph::OrderedList { entries } => {
+                    item.children.extend(
+                        entries
+                            .into_iter()
+                            .map(|entry| Self::build_checklist_item(entry, false)),
+                    );
+                }
                 Paragraph::Text { content: mut spans }
                 | Paragraph::Header1 { content: mut spans }
                 | Paragraph::Header2 { content: mut spans }
@@ -880,6 +854,21 @@ impl MarkdownBuilder {
     }
 }
 
+/// A stretch of consecutive list items of one kind, collected while a Markdown
+/// list is open.
+///
+/// Markdown lets one list mix items with and without a task marker; a document
+/// has no such paragraph — `Paragraph::Checklist` cannot say "this item had no
+/// checkbox", and a plain list cannot carry one. Rather than forcing every item
+/// into whichever kind appeared first (which used to drop the others), the list
+/// is cut at each change of kind and each run becomes a paragraph of its own.
+enum ListRun {
+    /// Items without a checkbox; each is one entry's paragraphs.
+    Plain(Vec<Vec<Paragraph>>),
+    /// Items with a `[ ]` / `[x]` marker.
+    Tasks(Vec<ChecklistItem>),
+}
+
 enum BlockContext {
     Document {
         paragraphs: Vec<Paragraph>,
@@ -889,9 +878,10 @@ enum BlockContext {
     },
     List {
         ordered: bool,
-        entries: Vec<Vec<Paragraph>>,
-        checklist_items: Vec<ChecklistItem>,
-        is_checklist: bool,
+        /// The list's items, in order, grouped into runs of the same kind. A
+        /// document has no list that mixes plain and task items, so a Markdown
+        /// list that does becomes one paragraph per run.
+        runs: Vec<ListRun>,
     },
     ListItem {
         paragraphs: Vec<Paragraph>,
@@ -2167,6 +2157,74 @@ mod tests {
         let expected = doc(vec![ul_(vec![
             li_(vec![p__("First")]),
             li_(vec![p__("Second")]),
+        ])]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_list_mixing_plain_and_task_items_splits_it() {
+        // A document has no list that mixes plain and task items, so a Markdown
+        // list that does is cut into one paragraph per run of same-kind items,
+        // keeping every item as the kind the author wrote it. (The plain items
+        // ahead of the first marker used to be dropped entirely.)
+        let input = "- plain before\n- [x] done\n- [ ] open\n- plain after\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = ftml! {
+            ul { li { p { "plain before" } } }
+            checklist {
+                done { "done" }
+                todo { "open" }
+            }
+            ul { li { p { "plain after" } } }
+        };
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_ordered_list_mixing_plain_and_task_items_splits_it() {
+        // The plain runs of an ordered list stay ordered across the split.
+        let input = "1. one\n2. [ ] two\n3. three\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = ftml! {
+            ol { li { p { "one" } } }
+            checklist { todo { "two" } }
+            ol { li { p { "three" } } }
+        };
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_task_marker_only_claims_its_own_list() {
+        // A marker says what its *item* is; it does not reach the list around
+        // it, whose other items stay plain.
+        let input = "- outer\n  - [ ] inner\n- outer two\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![ul_(vec![
+            li_(vec![
+                p__("outer"),
+                Paragraph::new_checklist().with_checklist_items(vec![
+                    ChecklistItem::new(false).with_content(vec![Span::new_text("inner")])
+                ]),
+            ]),
+            li_(vec![p__("outer two")]),
+        ])]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_parse_plain_list_nested_under_task_item() {
+        // Below a task item the split has nowhere to go: a checklist item's
+        // children are checklist items, so a nested plain list joins as
+        // unchecked children instead of being dropped.
+        let input = "- [x] Parent\n  - plain child\n  - [ ] task child\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![Paragraph::new_checklist().with_checklist_items(vec![
+            ChecklistItem::new(true)
+                .with_content(vec![Span::new_text("Parent")])
+                .with_children(vec![
+                    ChecklistItem::new(false).with_content(vec![Span::new_text("plain child")]),
+                    ChecklistItem::new(false).with_content(vec![Span::new_text("task child")]),
+                ]),
         ])]);
         assert_eq!(parsed, expected);
     }
