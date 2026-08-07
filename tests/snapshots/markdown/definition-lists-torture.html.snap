@@ -59,7 +59,7 @@ expression: html
 
     <pre>
    fn main() {}
-    </pre>
+</pre>
   </dd>
 </dl>
 
@@ -76,7 +76,7 @@ expression: html
 
     <pre>
 println!("hello");
-    </pre>
+</pre>
 
     <p>That is the whole interface.</p>
   </dd>
