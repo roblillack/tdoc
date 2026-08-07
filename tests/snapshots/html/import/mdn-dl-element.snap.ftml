@@ -1,0 +1,105 @@
+<h1>&lt;dl>: The Description List element</h1>
+
+<p>
+  The <code>&lt;dl></code> HTML element represents a description list. The element encloses a list of
+  groups of terms (specified using the <code>&lt;dt></code> element) and descriptions (provided by <code>&lt;dd></code> elements). Common uses for this element are to implement a glossary or to
+  display metadata (a list of key-value pairs).
+</p>
+
+<h2>Glossary</h2>
+
+<p>Cryptids of Cornwall:</p>
+
+<p>Beast of Bodmin</p>
+
+<p>A large feline inhabiting Bodmin Moor.</p>
+
+<p>Morgawr</p>
+
+<p>A sea serpent.</p>
+
+<p>Owlman</p>
+
+<p>A giant owl-like creature.</p>
+
+<h2>Single term and description</h2>
+
+<p>Firefox</p>
+
+<p>
+  A free, open source, cross-platform, graphical web browser developed by the
+  Mozilla Corporation and hundreds of volunteers.
+</p>
+
+<h2>Multiple terms, single description</h2>
+
+<p>Firefox</p>
+
+<p>Mozilla Firefox</p>
+
+<p>Fx</p>
+
+<p>
+  A free, open source, cross-platform, graphical web browser developed by the
+  Mozilla Corporation and hundreds of volunteers.
+</p>
+
+<h2>Single term, multiple descriptions</h2>
+
+<p>Firefox</p>
+
+<p>
+  A free, open source, cross-platform, graphical web browser developed by the
+  Mozilla Corporation and hundreds of volunteers.
+</p>
+
+<p>
+  The Red Panda also known as the Lesser Panda, Wah, Bear Cat or Firefox, is a
+  mostly herbivorous mammal, slightly larger than a domestic cat (60 cm long).
+</p>
+
+<h2>Metadata</h2>
+
+<p>
+  Description lists are useful for displaying metadata as a list of key-value
+  pairs.
+</p>
+
+<p>Name</p>
+
+<p>Godzilla</p>
+
+<p>Born</p>
+
+<p>1952</p>
+
+<p>Birthplace</p>
+
+<p>Japan</p>
+
+<p>Color</p>
+
+<p>Green</p>
+
+<h2>Wrapping name-value groups in div elements</h2>
+
+<p>
+  HTML allows wrapping each name-value group in a <code>&lt;dl></code> element in a <code>&lt;div></code> element. This can be useful when using microdata, or when global attributes
+  apply to a whole group, or for styling purposes.
+</p>
+
+<p>Name</p>
+
+<p>Godzilla</p>
+
+<p>Born</p>
+
+<p>1952</p>
+
+<p>Birthplace</p>
+
+<p>Japan</p>
+
+<p>Color</p>
+
+<p>Green</p>

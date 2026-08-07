@@ -2,7 +2,7 @@ use tdoc::test_helpers::{
     b__, code__, code_block__, doc as doc_, h1_, i__, li_, link_, link__, link_text__, mark__, ol_,
     p_, p__, quote_, s__, span, u__, ul_,
 };
-use tdoc::{doc, ftml, Paragraph, Span, TableCell, TableRow};
+use tdoc::{doc, ftml, DefinitionItem, Paragraph, Span, TableCell, TableRow};
 
 #[test]
 fn builds_document_trees() {
@@ -130,6 +130,39 @@ fn doc_supports_horizontal_rules() {
         Paragraph::new_horizontal_rule(),
         p__("Below"),
     ]);
+
+    assert_eq!(document, expected);
+}
+
+#[test]
+fn doc_supports_definition_lists() {
+    // Definition lists are a `doc!` extension (not strict FTML), like tables.
+    let document = doc! {
+        dl {
+            item {
+                term { "HTTP" }
+                def { p { "HyperText Transfer Protocol" } }
+            }
+            item {
+                term { "TCP" }
+                term { "UDP" }
+                def { p { "Transport protocols" } }
+            }
+        }
+    };
+
+    let expected = doc_(vec![Paragraph::new_definition_list()
+        .with_definition_items(vec![
+            DefinitionItem::new()
+                .with_terms(vec![vec![Span::new_text("HTTP")]])
+                .with_definition(vec![p__("HyperText Transfer Protocol")]),
+            DefinitionItem::new()
+                .with_terms(vec![
+                    vec![Span::new_text("TCP")],
+                    vec![Span::new_text("UDP")],
+                ])
+                .with_definition(vec![p__("Transport protocols")]),
+        ])]);
 
     assert_eq!(document, expected);
 }

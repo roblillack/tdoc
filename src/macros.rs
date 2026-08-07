@@ -95,6 +95,15 @@ macro_rules! __tdoc_build_block {
             "`hr` is not part of strict FTML; use the `doc!` macro for horizontal rules and other extensions"
         );
     }};
+    (doc, dl { $($inner:tt)* }) => {{
+        $crate::Paragraph::new_definition_list()
+            .with_definition_items(__tdoc_definition_items!($($inner)*))
+    }};
+    (ftml, dl { $($inner:tt)* }) => {{
+        compile_error!(
+            "`dl` is not part of strict FTML; use the `doc!` macro for definition lists and other extensions"
+        );
+    }};
     // --- Anything else is genuinely unknown ---
     ($mode:ident, $other:ident { $($inner:tt)* }) => {{
         compile_error!(concat!("Unknown document element: ", stringify!($other)));
@@ -414,6 +423,79 @@ macro_rules! __tdoc_table_cells_inner {
     }};
 }
 
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __tdoc_definition_items {
+    () => {
+        ::std::vec::Vec::<$crate::DefinitionItem>::new()
+    };
+    ($($tt:tt)*) => {{
+        let mut __items: ::std::vec::Vec<$crate::DefinitionItem> = ::std::vec::Vec::new();
+        __tdoc_definition_items_inner!(__items, $($tt)*);
+        __items
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __tdoc_definition_items_inner {
+    ($vec:ident,) => {};
+    ($vec:ident) => {};
+    ($vec:ident, , $($rest:tt)*) => {
+        __tdoc_definition_items_inner!($vec, $($rest)*);
+    };
+    ($vec:ident, item { $($inner:tt)* } $($rest:tt)*) => {{
+        let mut __item = $crate::DefinitionItem::new();
+        __tdoc_definition_item_inner!(__item, $($inner)*);
+        $vec.push(__item);
+        __tdoc_definition_items_inner!($vec, $($rest)*);
+    }};
+    ($vec:ident, $other:ident { $($inner:tt)* } $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Expected `item` inside definition list, found `",
+            stringify!($other),
+            "`"
+        ));
+    }};
+    ($vec:ident, $unexpected:tt $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Unexpected token inside definition list: ",
+            stringify!($unexpected)
+        ));
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export(local_inner_macros)]
+macro_rules! __tdoc_definition_item_inner {
+    ($item:ident,) => {};
+    ($item:ident) => {};
+    ($item:ident, , $($rest:tt)*) => {
+        __tdoc_definition_item_inner!($item, $($rest)*);
+    };
+    ($item:ident, term { $($inner:tt)* } $($rest:tt)*) => {{
+        $item.terms.push(__tdoc_inline_nodes!($($inner)*));
+        __tdoc_definition_item_inner!($item, $($rest)*);
+    }};
+    ($item:ident, def { $($inner:tt)* } $($rest:tt)*) => {{
+        $item.definition = __tdoc_collect_blocks!(doc; $($inner)*);
+        __tdoc_definition_item_inner!($item, $($rest)*);
+    }};
+    ($item:ident, $other:ident { $($inner:tt)* } $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Expected `term` or `def` inside definition item, found `",
+            stringify!($other),
+            "`"
+        ));
+    }};
+    ($item:ident, $unexpected:tt $($rest:tt)*) => {{
+        compile_error!(concat!(
+            "Unexpected token inside definition item: ",
+            stringify!($unexpected)
+        ));
+    }};
+}
+
 #[macro_export(local_inner_macros)]
 /// Builds a [`Document`](crate::Document) using an inline DSL limited to
 /// **strict FTML**.
@@ -422,8 +504,9 @@ macro_rules! __tdoc_table_cells_inner {
 /// `checklist`, and fenced `code` blocks. Inline runs can contain string
 /// literals or inline tags like `b`, `i`, `mark`, `code`, and `link`.
 ///
-/// For tdoc's non-FTML extensions (such as `table`), use [`doc!`](macro@crate::doc),
-/// which understands the same syntax plus the extra elements.
+/// For tdoc's non-FTML extensions (`table`, `hr`, and `dl`), use
+/// [`doc!`](macro@crate::doc), which understands the same syntax plus the extra
+/// elements.
 ///
 /// # Examples
 ///
@@ -449,6 +532,16 @@ macro_rules! __tdoc_table_cells_inner {
 ///     table { row { td { "nope" } } }
 /// };
 /// ```
+///
+/// The same goes for `hr` and for definition lists:
+///
+/// ```compile_fail
+/// use tdoc::ftml;
+///
+/// let document = ftml! {
+///     dl { item { term { "nope" } def { p { "not strict FTML" } } } }
+/// };
+/// ```
 macro_rules! ftml {
     ($($tt:tt)*) => {{
         let __paragraphs = __tdoc_collect_blocks!(ftml; $($tt)*);
@@ -461,11 +554,13 @@ macro_rules! ftml {
 ///
 /// `doc!` is a superset of [`ftml!`](macro@crate::ftml): it accepts every element the
 /// strict macro does, plus tdoc's extensions that go beyond strict FTML. Today
-/// that means tables; it is also the place where future extensions are added.
+/// those are tables (`table`), horizontal rules (`hr`), and definition lists
+/// (`dl`); it is also the place where future extensions are added.
 ///
 /// Tables follow the same HTML-flavored syntax as the rest of the DSL: a
 /// `table` contains `row`s, and each `row` contains header cells (`th`) and data
-/// cells (`td`), each holding inline content.
+/// cells (`td`), each holding inline content. A horizontal rule is the empty
+/// `hr { }`.
 ///
 /// # Examples
 ///
@@ -478,11 +573,58 @@ macro_rules! ftml {
 ///         row { th { "Name" } th { "Score" } }
 ///         row { td { "Alice" } td { "42" } }
 ///     }
+///     hr { }
 /// };
 ///
 /// assert_eq!(document.paragraphs[0].paragraph_type(), ParagraphType::Header1);
 /// assert_eq!(document.paragraphs[1].paragraph_type(), ParagraphType::Table);
+/// assert_eq!(document.paragraphs[2].paragraph_type(), ParagraphType::HorizontalRule);
 /// ```
+///
+/// # Definition lists
+///
+/// A `dl` holds `item`s, and each item pairs one or more `term`s with a single
+/// `def`. A `term` takes inline content; a `def` takes block content, so a
+/// definition can hold several paragraphs, a list, a quote, or a code block:
+///
+/// ```
+/// use tdoc::{doc, ParagraphType};
+///
+/// let document = doc! {
+///     dl {
+///         item {
+///             term { "HTTP" }
+///             def { p { "HyperText Transfer Protocol" } }
+///         }
+///         item {
+///             term { "TCP" }
+///             term { "UDP" }
+///             def {
+///                 p { "Transport protocols." }
+///                 p { "Both carry ", b { "HTTP" }, "." }
+///             }
+///         }
+///     }
+/// };
+///
+/// let items = document.paragraphs[0].definition_items();
+/// assert_eq!(document.paragraphs[0].paragraph_type(), ParagraphType::DefinitionList);
+/// assert_eq!(items.len(), 2);
+/// assert_eq!(items[1].terms.len(), 2);
+/// assert_eq!(items[1].definition.len(), 2);
+/// ```
+///
+/// Repeating `term` adds terms that share the definition, mirroring consecutive
+/// `<dt>`s in HTML. Repeating `def`, by contrast, *replaces* the definition:
+/// an item carries exactly one, so several descriptions for the same term go in
+/// as several blocks of a single `def`. Both `term` and `def` may be omitted —
+/// a term with nothing to say, or a description with no term, are shapes HTML
+/// can express and the tree therefore keeps.
+///
+/// Note that not every format can represent all of this. Markdown has no
+/// spelling for several terms sharing one definition, and FTML and Gemtext have
+/// no definition lists at all, so writers degrade the structure as documented
+/// in the [README](https://github.com/roblillack/tdoc#definition-lists).
 macro_rules! doc {
     ($($tt:tt)*) => {{
         let __paragraphs = __tdoc_collect_blocks!(doc; $($tt)*);

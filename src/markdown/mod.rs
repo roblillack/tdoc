@@ -2,7 +2,8 @@
 
 use crate::metadata;
 use crate::{
-    ChecklistItem, Document, InlineStyle, Paragraph, ParagraphType, Span, TableCell, TableRow,
+    ChecklistItem, DefinitionItem, Document, InlineStyle, Paragraph, ParagraphType, Span,
+    TableCell, TableRow,
 };
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::borrow::Cow;
@@ -44,6 +45,7 @@ pub fn parse<R: Read>(mut reader: R) -> crate::Result<Document> {
     options.insert(Options::ENABLE_TASKLISTS);
     options.insert(Options::ENABLE_WIKILINKS);
     options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_DEFINITION_LIST);
 
     let mut doc = build_document(content, options);
     doc.metadata = metadata;
@@ -63,6 +65,7 @@ pub fn parse_without_metadata<R: Read>(mut reader: R) -> crate::Result<Document>
     options.insert(Options::ENABLE_TASKLISTS);
     options.insert(Options::ENABLE_WIKILINKS);
     options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_DEFINITION_LIST);
 
     Ok(build_document(&input, options))
 }
@@ -201,6 +204,28 @@ impl MarkdownBuilder {
                             cells.push(cell);
                         }
                     }
+                    Some(BlockContext::DefinitionTitle { context }) => {
+                        let paragraph = context.finish();
+                        let term = match paragraph {
+                            Paragraph::Text { content } => content,
+                            _ => Vec::new(),
+                        };
+                        if let Some(BlockContext::DefinitionList { items }) = self.stack.last_mut()
+                        {
+                            add_definition_term(items, term);
+                        }
+                    }
+                    Some(BlockContext::DefinitionDefinition { paragraphs }) => {
+                        if let Some(BlockContext::DefinitionList { items }) = self.stack.last_mut()
+                        {
+                            add_definition_description(items, paragraphs);
+                        }
+                    }
+                    Some(BlockContext::DefinitionList { items }) => {
+                        let paragraph =
+                            Paragraph::new_definition_list().with_definition_items(items);
+                        self.add_paragraph_to_parent(paragraph);
+                    }
                     Some(BlockContext::Document { paragraphs }) => {
                         return Document {
                             metadata: None,
@@ -331,13 +356,22 @@ impl MarkdownBuilder {
                     context: ParagraphContext::new(ParagraphType::Text),
                 });
             }
-            Tag::HtmlBlock
-            | Tag::DefinitionList
-            | Tag::DefinitionListTitle
-            | Tag::DefinitionListDefinition
-            | Tag::Superscript
-            | Tag::Subscript
-            | Tag::MetadataBlock(_) => {
+            Tag::DefinitionList => {
+                self.close_open_paragraphs();
+                self.stack
+                    .push(BlockContext::DefinitionList { items: Vec::new() });
+            }
+            Tag::DefinitionListTitle => {
+                self.stack.push(BlockContext::DefinitionTitle {
+                    context: ParagraphContext::new(ParagraphType::Text),
+                });
+            }
+            Tag::DefinitionListDefinition => {
+                self.stack.push(BlockContext::DefinitionDefinition {
+                    paragraphs: Vec::new(),
+                });
+            }
+            Tag::HtmlBlock | Tag::Superscript | Tag::Subscript | Tag::MetadataBlock(_) => {
                 // Currently unsupported tags.
             }
         }
@@ -424,10 +458,34 @@ impl MarkdownBuilder {
                     self.add_paragraph_to_parent(paragraph);
                 }
             }
+            TagEnd::DefinitionListTitle => {
+                if let Some(BlockContext::DefinitionTitle { context }) = self.stack.pop() {
+                    let paragraph = context.finish();
+                    let term = match paragraph {
+                        Paragraph::Text { content } => content,
+                        _ => Vec::new(),
+                    };
+                    if let Some(BlockContext::DefinitionList { items }) = self.stack.last_mut() {
+                        add_definition_term(items, term);
+                    }
+                }
+            }
+            TagEnd::DefinitionListDefinition => {
+                self.close_open_paragraphs();
+                if let Some(BlockContext::DefinitionDefinition { paragraphs }) = self.stack.pop() {
+                    if let Some(BlockContext::DefinitionList { items }) = self.stack.last_mut() {
+                        add_definition_description(items, paragraphs);
+                    }
+                }
+            }
+            TagEnd::DefinitionList => {
+                self.close_open_paragraphs();
+                if let Some(BlockContext::DefinitionList { items }) = self.stack.pop() {
+                    let paragraph = Paragraph::new_definition_list().with_definition_items(items);
+                    self.add_paragraph_to_parent(paragraph);
+                }
+            }
             TagEnd::HtmlBlock
-            | TagEnd::DefinitionList
-            | TagEnd::DefinitionListTitle
-            | TagEnd::DefinitionListDefinition
             | TagEnd::MetadataBlock(_)
             | TagEnd::Superscript
             | TagEnd::Subscript => {
@@ -547,8 +605,16 @@ impl MarkdownBuilder {
     }
 
     fn current_paragraph_inline_end(&mut self, style: InlineStyle) {
-        if let Some(BlockContext::Paragraph(context)) = self.stack.last_mut() {
-            context.end_inline(style);
+        // Inline content accumulates in whichever context `ensure_paragraph`
+        // targets, so a closing style must be routed to the same one — a table
+        // cell or definition term as well as an ordinary paragraph. Otherwise a
+        // style closed mid-content (e.g. `*a* b`) would never be popped and the
+        // following text would leak inside it.
+        match self.stack.last_mut() {
+            Some(BlockContext::Paragraph(context))
+            | Some(BlockContext::TableCell { context, .. })
+            | Some(BlockContext::DefinitionTitle { context }) => context.end_inline(style),
+            _ => {}
         }
     }
 
@@ -608,12 +674,22 @@ impl MarkdownBuilder {
     }
 
     fn ensure_paragraph(&mut self) -> &mut ParagraphContext {
-        let in_cell = matches!(self.stack.last(), Some(BlockContext::TableCell { .. }));
-        if in_cell {
-            return match self.stack.last_mut() {
-                Some(BlockContext::TableCell { context, .. }) => context,
-                _ => unreachable!("TableCell context should exist"),
-            };
+        // Table cells and definition-list terms both accumulate inline content
+        // directly in their own context rather than in a nested paragraph.
+        match self.stack.last() {
+            Some(BlockContext::TableCell { .. }) => {
+                return match self.stack.last_mut() {
+                    Some(BlockContext::TableCell { context, .. }) => context,
+                    _ => unreachable!("TableCell context should exist"),
+                };
+            }
+            Some(BlockContext::DefinitionTitle { .. }) => {
+                return match self.stack.last_mut() {
+                    Some(BlockContext::DefinitionTitle { context }) => context,
+                    _ => unreachable!("DefinitionTitle context should exist"),
+                };
+            }
+            _ => {}
         }
 
         let needs_new = !matches!(self.stack.last(), Some(BlockContext::Paragraph(_)));
@@ -680,8 +756,13 @@ impl MarkdownBuilder {
                 BlockContext::TableCell { context, .. } => {
                     context.push_nested_paragraph(paragraph);
                 }
-                BlockContext::Table { .. } | BlockContext::TableRow { .. } => {
-                    // Tables only hold rows/cells; stray paragraphs are dropped.
+                BlockContext::DefinitionDefinition { paragraphs } => paragraphs.push(paragraph),
+                BlockContext::Table { .. }
+                | BlockContext::TableRow { .. }
+                | BlockContext::DefinitionList { .. }
+                | BlockContext::DefinitionTitle { .. } => {
+                    // These only hold their own structured children; a stray
+                    // block paragraph here has nowhere meaningful to go.
                 }
             }
         }
@@ -818,6 +899,15 @@ enum BlockContext {
         is_header: bool,
         context: ParagraphContext,
     },
+    DefinitionList {
+        items: Vec<DefinitionItem>,
+    },
+    DefinitionTitle {
+        context: ParagraphContext,
+    },
+    DefinitionDefinition {
+        paragraphs: Vec<Paragraph>,
+    },
 }
 
 fn is_open_tag(tag: &str, name: &str) -> bool {
@@ -828,6 +918,37 @@ fn is_open_tag(tag: &str, name: &str) -> bool {
 fn is_close_tag(tag: &str, name: &str) -> bool {
     let prefix = format!("</{}", name);
     tag.starts_with(&prefix) && tag.contains('>')
+}
+
+/// Records a definition-list term, starting a new item when the previous one
+/// already carries a definition so that consecutive terms are grouped together.
+fn add_definition_term(items: &mut Vec<DefinitionItem>, term: Vec<Span>) {
+    let start_new = items
+        .last()
+        .map(|item| !item.definition.is_empty())
+        .unwrap_or(true);
+    if start_new {
+        items.push(DefinitionItem::new());
+    }
+    items
+        .last_mut()
+        .expect("definition item present")
+        .terms
+        .push(term);
+}
+
+/// Folds a `<dd>`/`:` description into the current item's single definition as
+/// consecutive paragraphs, creating an item first if a description appears
+/// before any term.
+fn add_definition_description(items: &mut Vec<DefinitionItem>, paragraphs: Vec<Paragraph>) {
+    if items.is_empty() {
+        items.push(DefinitionItem::new());
+    }
+    items
+        .last_mut()
+        .expect("definition item present")
+        .definition
+        .extend(paragraphs);
 }
 
 struct ParagraphContext {
@@ -1059,6 +1180,10 @@ fn write_paragraphs<W: Write>(
                 write!(writer, "{}", continuation_prefix)?;
             }
             writeln!(writer)?;
+
+            if needs_block_separator(&paragraphs[i - 1], paragraph) {
+                write_block_separator(writer, continuation_prefix)?;
+            }
         }
         let mut current_prefix = if i == 0 { prefix } else { continuation_prefix };
 
@@ -1074,6 +1199,52 @@ fn write_paragraphs<W: Write>(
         write_paragraph(writer, paragraph, current_prefix, continuation_prefix)?;
     }
     Ok(())
+}
+
+/// Writes the separator that keeps two adjacent blocks from being read as one:
+/// an HTML comment on its own line, then a blank line. The comment carries no
+/// visible content and is dropped again on import.
+fn write_block_separator<W: Write>(
+    writer: &mut W,
+    continuation_prefix: &str,
+) -> std::io::Result<()> {
+    writeln!(writer, "{}<!-- -->", continuation_prefix)?;
+    if !continuation_prefix.is_empty() {
+        write!(writer, "{}", continuation_prefix)?;
+    }
+    writeln!(writer)
+}
+
+/// Whether an HTML comment has to be written between `previous` and `current`
+/// to stop Markdown from reading the two as one block.
+///
+/// Both cases involve a definition list, because a blank line means something
+/// *inside* one: it is how items of the same list are separated. So two lists in
+/// a row would fuse into one, and a list whose first item has no term would take
+/// the block above it as that term — a `:` line binds to whatever precedes it. A
+/// comment breaks the adjacency in both cases without adding visible content.
+///
+/// Markdown has no spelling for a term-less description, so such a list still
+/// degrades to a paragraph on re-import; what the separator saves is the
+/// neighbour above it.
+fn needs_block_separator(previous: &Paragraph, current: &Paragraph) -> bool {
+    if !matches!(current, Paragraph::DefinitionList { .. }) {
+        return false;
+    }
+    matches!(previous, Paragraph::DefinitionList { .. }) || starts_without_a_term(current)
+}
+
+/// Whether a definition list opens with an item that has no term, which makes
+/// its leading `: ` line liable to attach to whatever precedes the list.
+fn starts_without_a_term(paragraph: &Paragraph) -> bool {
+    match paragraph {
+        Paragraph::DefinitionList { items } => items.first().is_some_and(|item| {
+            item.terms
+                .iter()
+                .all(|term| term.iter().all(|span| span.is_content_empty()))
+        }),
+        _ => false,
+    }
 }
 
 fn needs_block_prefix_line(paragraph: &Paragraph) -> bool {
@@ -1122,6 +1293,10 @@ fn write_paragraph<W: Write>(
                 if idx > 0 {
                     write!(writer, "{}", quote_continuation)?;
                     writeln!(writer)?;
+
+                    if needs_block_separator(&children[idx - 1], child) {
+                        write_block_separator(writer, &quote_continuation)?;
+                    }
                 }
                 write_paragraph(writer, child, &quote_prefix, &quote_continuation)?;
             }
@@ -1156,6 +1331,55 @@ fn write_paragraph<W: Write>(
             // setext heading underline.
             writeln!(writer, "{}---", prefix)?;
         }
+        Paragraph::DefinitionList { items } => {
+            write_definition_list(writer, items, prefix, continuation_prefix)?;
+        }
+    }
+    Ok(())
+}
+
+/// Serializes a definition list using the PHP Markdown Extra / kramdown syntax
+/// understood by pulldown-cmark: each term on its own line, followed by its
+/// definition introduced by a single `: ` marker. Groups are separated by a
+/// blank line.
+fn write_definition_list<W: Write>(
+    writer: &mut W,
+    items: &[DefinitionItem],
+    prefix: &str,
+    continuation_prefix: &str,
+) -> std::io::Result<()> {
+    for (item_idx, item) in items.iter().enumerate() {
+        if item_idx > 0 {
+            if !continuation_prefix.is_empty() {
+                write!(writer, "{}", continuation_prefix)?;
+            }
+            writeln!(writer)?;
+        }
+
+        for (term_idx, term) in item.terms.iter().enumerate() {
+            let term_prefix = if item_idx == 0 && term_idx == 0 {
+                prefix
+            } else {
+                continuation_prefix
+            };
+            let content = render_spans_to_string(term)?;
+            // A term starts a line in block context, so a leading `-`, `#`, `>`
+            // or `1.` has to be escaped — otherwise it reparses as a list,
+            // heading or quote and the definition list falls apart.
+            write_wrapped_lines(writer, term_prefix, continuation_prefix, &content, true)?;
+        }
+
+        // The definition is a single description however many blocks it holds:
+        // only the first one carries the `: ` marker, the rest are indented
+        // beneath it as continuation content.
+        let definition_prefix = format!("{}: ", continuation_prefix);
+        let definition_continuation = format!("{}  ", continuation_prefix);
+        write_paragraphs(
+            writer,
+            &item.definition,
+            &definition_prefix,
+            &definition_continuation,
+        )?;
     }
     Ok(())
 }
@@ -1765,6 +1989,11 @@ fn escape_block_start_token(token: &str) -> Cow<'_, str> {
         b'#' if token.len() <= 6 && bytes.iter().all(|&b| b == b'#') => prepend_backslash(token),
         // Blockquote: the space after '>' is optional, so any leading '>' qualifies.
         b'>' => prepend_backslash(token),
+        // Definition description: with definition lists enabled, a line opening
+        // with a colon is a description marker and binds to the paragraph above
+        // it. Neither the space after ':' nor any text before it is required —
+        // `:`, `: x` and `:x` all qualify — so any leading colon is escaped.
+        b':' => prepend_backslash(token),
         // Bullet list ('-'/'+'), thematic break ('---'), or setext underline: a run made
         // up only of dashes is ambiguous at line start, and escaping the leading dash
         // neutralizes every interpretation while preserving the exact dash count.
@@ -2334,6 +2563,253 @@ mod tests {
         let rendered = String::from_utf8(output).unwrap();
         let reparsed = parse(Cursor::new(&rendered)).unwrap();
         assert_eq!(reparsed, document, "rendered as {rendered:?}");
+    }
+
+    #[test]
+    fn test_parse_definition_list() {
+        let input = "Apple\n: Pomaceous fruit\n: An American company\n\nOrange\n: Citrus fruit\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let expected = doc(vec![dl_(vec![
+            di_(
+                vec![spans("Apple")],
+                vec![p__("Pomaceous fruit"), p__("An American company")],
+            ),
+            di_(vec![spans("Orange")], vec![p__("Citrus fruit")]),
+        ])]);
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn test_write_definition_list() {
+        let document = doc(vec![dl_(vec![
+            di_(
+                vec![spans("Apple")],
+                vec![p__("Pomaceous fruit"), p__("An American company")],
+            ),
+            di_(vec![spans("Orange")], vec![p__("Citrus fruit")]),
+        ])]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        // An item's definition is one description, so only its first block
+        // carries the `: ` marker; later blocks are indented beneath it.
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Apple\n: Pomaceous fruit\n  \n  An American company\n\nOrange\n: Citrus fruit\n"
+        );
+    }
+
+    #[test]
+    fn test_definition_list_round_trips() {
+        // These are the canonical shapes the writer emits, so they must survive
+        // a round-trip byte for byte.
+        for input in [
+            "Term\n: Definition\n",
+            "Coffee\n: Black hot drink\n\nMilk\n: White cold drink\n",
+            "Apple\n: Pomaceous fruit\n  \n  An American company\n",
+            "Term\n: intro\n  \n  - one\n  - two\n",
+        ] {
+            let parsed = parse(Cursor::new(input)).unwrap();
+            let mut output = Vec::new();
+            write(&mut output, &parsed).unwrap();
+            let rendered = String::from_utf8(output).unwrap();
+            assert_eq!(rendered, input, "round-trip changed the document");
+            let reparsed = parse(Cursor::new(&rendered)).unwrap();
+            assert_eq!(reparsed, parsed, "reparse differed for {input:?}");
+        }
+    }
+
+    #[test]
+    fn test_definition_list_multiple_markers_normalize_to_one_description() {
+        // Several `: ` markers under one term parse into a single definition of
+        // several blocks, so they are rewritten into the canonical indented
+        // form. The document is unchanged, only its spelling.
+        let input = "Apple\n: Pomaceous fruit\n: An American company\n";
+        let parsed = parse(Cursor::new(input)).unwrap();
+        let mut output = Vec::new();
+        write(&mut output, &parsed).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(
+            rendered,
+            "Apple\n: Pomaceous fruit\n  \n  An American company\n"
+        );
+        assert_eq!(parse(Cursor::new(&rendered)).unwrap(), parsed);
+    }
+
+    #[test]
+    fn test_paragraph_starting_with_a_colon_is_not_read_as_a_definition() {
+        // With definition lists enabled a line opening with a colon is a
+        // description marker that binds to the paragraph above it, so an
+        // ordinary paragraph beginning with one has to be escaped or the pair
+        // comes back as a definition list.
+        for text in [": x", ":x", "::x", ":", ":smile: hi"] {
+            let document = doc(vec![p__("hello"), p__(text)]);
+            let mut output = Vec::new();
+            write(&mut output, &document).unwrap();
+            let rendered = String::from_utf8(output).unwrap();
+            assert_eq!(
+                parse(Cursor::new(&rendered)).unwrap(),
+                document,
+                "paragraph {text:?} rendered as {rendered:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_term_less_definition_does_not_capture_the_paragraph_above() {
+        // A description with no term of its own — reachable from HTML as a
+        // stray `<dd>` — has no Markdown spelling, so the list itself degrades
+        // to a paragraph. What must not happen is the paragraph above being
+        // swallowed as the missing term.
+        let document = doc(vec![p__("hello"), dl_(vec![di_(vec![], vec![p__("x")])])]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "hello\n\n<!-- -->\n\n: x\n");
+
+        let reparsed = parse(Cursor::new(&rendered)).unwrap();
+        assert_eq!(
+            reparsed,
+            doc(vec![p__("hello"), p__(": x")]),
+            "the preceding paragraph must survive"
+        );
+
+        // The degradation converges: re-rendering keeps both paragraphs.
+        let mut output = Vec::new();
+        write(&mut output, &reparsed).unwrap();
+        let rerendered = String::from_utf8(output).unwrap();
+        assert_eq!(parse(Cursor::new(&rerendered)).unwrap(), reparsed);
+    }
+
+    #[test]
+    fn test_adjacent_definition_lists_stay_separate() {
+        // A blank line separates items *within* a list, so two lists written
+        // back to back would fuse into one on re-import.
+        let document = doc(vec![
+            dl_(vec![di_(vec![spans("A")], vec![p__("1")])]),
+            dl_(vec![di_(vec![spans("B")], vec![p__("2")])]),
+        ]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "A\n: 1\n\n<!-- -->\n\nB\n: 2\n");
+
+        let reparsed = parse(Cursor::new(&rendered)).unwrap();
+        assert_eq!(reparsed, document, "the two lists merged");
+
+        // And the separated form is a fixed point.
+        let mut output = Vec::new();
+        write(&mut output, &reparsed).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), rendered);
+    }
+
+    #[test]
+    fn test_three_adjacent_definition_lists_stay_separate() {
+        let document = doc(vec![
+            dl_(vec![di_(vec![spans("A")], vec![p__("1")])]),
+            dl_(vec![di_(vec![spans("B")], vec![p__("2")])]),
+            dl_(vec![di_(vec![spans("C")], vec![p__("3")])]),
+        ]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(parse(Cursor::new(&rendered)).unwrap(), document);
+    }
+
+    #[test]
+    fn test_adjacent_definition_lists_stay_separate_when_nested() {
+        // Blockquotes and list items write their children through their own
+        // loops, so the separator has to reach those too.
+        let lists = vec![
+            dl_(vec![di_(vec![spans("A")], vec![p__("1")])]),
+            dl_(vec![di_(vec![spans("B")], vec![p__("2")])]),
+        ];
+
+        let quoted = doc(vec![quote_(lists.clone())]);
+        let mut output = Vec::new();
+        write(&mut output, &quoted).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "> A\n> : 1\n> \n> <!-- -->\n> \n> B\n> : 2\n");
+        assert_eq!(parse(Cursor::new(&rendered)).unwrap(), quoted);
+
+        let in_item = doc(vec![ul_(vec![lists])]);
+        let mut output = Vec::new();
+        write(&mut output, &in_item).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "- A\n  : 1\n  \n  <!-- -->\n  \n  B\n  : 2\n");
+        assert_eq!(parse(Cursor::new(&rendered)).unwrap(), in_item);
+    }
+
+    #[test]
+    fn test_definition_lists_split_by_a_paragraph_need_no_separator() {
+        // Anything between the two lists already breaks the adjacency.
+        let document = doc(vec![
+            dl_(vec![di_(vec![spans("A")], vec![p__("1")])]),
+            p__("between"),
+            dl_(vec![di_(vec![spans("B")], vec![p__("2")])]),
+        ]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "A\n: 1\n\nbetween\n\nB\n: 2\n");
+        assert_eq!(parse(Cursor::new(&rendered)).unwrap(), document);
+    }
+
+    #[test]
+    fn test_definition_list_with_a_term_needs_no_separator() {
+        // The separator is only for the term-less case; an ordinary list must
+        // not be cluttered with it.
+        let document = doc(vec![
+            p__("hello"),
+            dl_(vec![di_(vec![spans("Apple")], vec![p__("fruit")])]),
+        ]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "hello\n\nApple\n: fruit\n");
+        assert_eq!(parse(Cursor::new(&rendered)).unwrap(), document);
+    }
+
+    #[test]
+    fn test_definition_list_terms_merge_on_a_markdown_round_trip() {
+        // Known dialect limitation, not a tdoc one: pulldown-cmark has no syntax
+        // for several terms sharing one definition (no case in its definition
+        // list spec emits consecutive `<dt>`s), so terms written on their own
+        // lines come back as a single term. HTML keeps them apart.
+        let document = doc(vec![dl_(vec![di_(
+            vec![spans("Beta"), spans("Gamma")],
+            vec![p__("Two greek letters")],
+        )])]);
+        let mut output = Vec::new();
+        write(&mut output, &document).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "Beta\nGamma\n: Two greek letters\n");
+
+        let reparsed = parse(Cursor::new(&rendered)).unwrap();
+        assert_eq!(
+            reparsed,
+            doc(vec![dl_(vec![di_(
+                vec![spans("Beta Gamma")],
+                vec![p__("Two greek letters")],
+            )])]),
+        );
+    }
+
+    #[test]
+    fn test_definition_list_escapes_block_markers_in_terms() {
+        // A term begins a line in block context, so a leading list, heading,
+        // quote or thematic-break marker has to be escaped — otherwise the term
+        // reparses as that block and the definition list falls apart.
+        for term in ["- Apple", "# Apple", "1. Apple", "> Apple", "---"] {
+            let document = doc(vec![dl_(vec![di_(vec![spans(term)], vec![p__("def")])])]);
+            let mut output = Vec::new();
+            write(&mut output, &document).unwrap();
+            let rendered = String::from_utf8(output).unwrap();
+            assert_eq!(
+                parse(Cursor::new(&rendered)).unwrap(),
+                document,
+                "term {term:?} rendered as {rendered:?}"
+            );
+        }
     }
 
     #[test]

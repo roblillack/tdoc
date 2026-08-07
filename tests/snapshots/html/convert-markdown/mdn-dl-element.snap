@@ -1,0 +1,6 @@
+---
+source: tests/html_import.rs
+expression: rendered
+extension: md
+snapshot_kind: binary
+---

@@ -1,6 +1,6 @@
 //! Convenience constructors for assembling documents in tests.
 
-use crate::{Document, InlineStyle, Paragraph, Span};
+use crate::{DefinitionItem, Document, InlineStyle, Paragraph, Span};
 
 pub fn p__(s: &str) -> Paragraph {
     Paragraph::new_text().with_content(vec![span(s)])
@@ -44,6 +44,18 @@ pub fn quote_(children: Vec<Paragraph>) -> Paragraph {
 
 pub fn doc(children: Vec<Paragraph>) -> Document {
     Document::new().with_paragraphs(children)
+}
+
+pub fn dl_(items: Vec<DefinitionItem>) -> Paragraph {
+    Paragraph::new_definition_list().with_definition_items(items)
+}
+
+/// Builds a definition item from its terms (each a run of spans) and its
+/// definition (a run of block paragraphs).
+pub fn di_(terms: Vec<Vec<Span>>, definition: Vec<Paragraph>) -> DefinitionItem {
+    DefinitionItem::new()
+        .with_terms(terms)
+        .with_definition(definition)
 }
 
 pub fn span(txt: &str) -> Span {

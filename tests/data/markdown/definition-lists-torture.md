@@ -1,0 +1,100 @@
+# Definition list torture test
+
+Every definition-list shape the Markdown importer has to handle, in one
+document, so that a regression shows up as a diff rather than as a bug report.
+Each section is a separate list; the headings keep them apart.
+
+## One term, one definition
+
+Coffee
+: A hot black beverage
+
+## A definition of several paragraphs
+
+Firmware
+: Software written to a device's non-volatile memory.
+
+  Because it ships with the hardware, it is updated far less often than the
+  software running on top of it.
+
+## A list inside a definition
+
+Prerequisites
+: You will need:
+
+  - a Rust toolchain
+  - ten minutes
+
+## An indented code block inside a definition
+
+Layout
+:
+    The definition opens on the next line.
+
+        fn main() {}
+
+## A fenced code block, a quote, and a trailing paragraph
+
+Usage
+: Invoke the binary with a path:
+
+  > Output goes to the pager unless `--output` is given.
+
+  ```rust
+  println!("hello");
+  ```
+
+  That is the whole interface.
+
+## Several descriptions folding into one definition
+
+Milk
+: A cold white beverage
+: Best served chilled
+
+## A definition separated from its term by a blank line
+
+Latency
+
+: The delay before a transfer begins.
+
+## The tilde marker, which is deliberately not supported
+
+Strikethrough
+  ~ Some dialects accept `~` as a description marker. tdoc does not, because
+    pulldown-cmark spends `~` on strikethrough.
+
+## Inline styles in terms and definitions
+
+`--no-ansi`
+: Disable ANSI escapes. Useful when the terminal is *very* old, or when piping
+  into a file.
+
+**FTML**
+: The strict subset, described in the [README](https://example.com/readme).
+
+## Nested in a blockquote
+
+> Quoted intro.
+>
+> Blockquote
+> : A quoted definition list.
+
+## Nested in a list item
+
+- An item with its own list:
+
+  Item
+  : The definition sits inside the list item.
+
+- A plain second item.
+
+## Two lists separated only by a paragraph
+
+First
+: Ends here.
+
+An intervening paragraph, which keeps the two lists apart.
+
+Second
+: Starts here.

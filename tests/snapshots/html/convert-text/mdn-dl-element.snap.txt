@@ -1,0 +1,108 @@
+
+
+
+                   <dl>: The Description List element
+
+
+
+The <dl> HTML element represents a description list. The element
+encloses a list of groups of terms (specified using the <dt> element)
+and descriptions (provided by <dd> elements). Common uses for this
+element are to implement a glossary or to display metadata (a list of
+key-value pairs).
+
+
+
+Glossary
+========
+
+
+Cryptids of Cornwall:
+
+Beast of Bodmin
+    A large feline inhabiting Bodmin Moor.
+
+Morgawr
+    A sea serpent.
+
+Owlman
+    A giant owl-like creature.
+
+
+
+Single term and description
+===========================
+
+
+Firefox
+    A free, open source, cross-platform, graphical web browser developed
+    by the Mozilla Corporation and hundreds of volunteers.
+
+
+
+Multiple terms, single description
+==================================
+
+
+Firefox
+Mozilla Firefox
+Fx
+    A free, open source, cross-platform, graphical web browser developed
+    by the Mozilla Corporation and hundreds of volunteers.
+
+
+
+Single term, multiple descriptions
+==================================
+
+
+Firefox
+    A free, open source, cross-platform, graphical web browser developed
+    by the Mozilla Corporation and hundreds of volunteers.
+    
+    The Red Panda also known as the Lesser Panda, Wah, Bear Cat or
+    Firefox, is a mostly herbivorous mammal, slightly larger than a
+    domestic cat (60 cm long).
+
+
+
+Metadata
+========
+
+
+Description lists are useful for displaying metadata as a list of
+key-value pairs.
+
+Name
+    Godzilla
+
+Born
+    1952
+
+Birthplace
+    Japan
+
+Color
+    Green
+
+
+
+Wrapping name-value groups in div elements
+==========================================
+
+
+HTML allows wrapping each name-value group in a <dl> element in a <div>
+element. This can be useful when using microdata, or when global
+attributes apply to a whole group, or for styling purposes.
+
+Name
+    Godzilla
+
+Born
+    1952
+
+Birthplace
+    Japan
+
+Color
+    Green

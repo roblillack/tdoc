@@ -1416,6 +1416,18 @@ fn normalize_paragraph_spaces(paragraph: &mut Paragraph) {
                 }
             }
         }
+        Paragraph::DefinitionList { items } => {
+            // FTML has no definition-list syntax, so the parser never produces
+            // one; a document built by hand still normalizes cleanly, though.
+            for item in items {
+                for term in &mut item.terms {
+                    normalize_spans_spaces(term);
+                }
+                for paragraph in &mut item.definition {
+                    normalize_paragraph_spaces(paragraph);
+                }
+            }
+        }
         Paragraph::Checklist { .. }
         | Paragraph::Text { .. }
         | Paragraph::Header1 { .. }
@@ -1683,6 +1695,25 @@ mod tests {
                 "input: {input:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_definition_list_is_not_part_of_ftml() {
+        // FTML has no definition-list construct. `<dl>`/`<dt>`/`<dd>` are not
+        // recognized wrapper elements, so an empty list is simply ignored,
+        // leaving the surrounding blocks untouched.
+        let doc = parse(Cursor::new("<p>A</p><dl></dl><p>B</p>")).unwrap();
+        assert_eq!(
+            doc.paragraphs
+                .iter()
+                .map(|p| p.paragraph_type())
+                .collect::<Vec<_>>(),
+            vec![ParagraphType::Text, ParagraphType::Text],
+        );
+
+        // As with any unrecognized block wrapper, stray text inside one is
+        // rejected rather than silently absorbed.
+        assert!(parse(Cursor::new("<dl><dt>Term</dt><dd>Def</dd></dl>")).is_err());
     }
 
     #[test]
