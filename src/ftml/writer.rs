@@ -229,7 +229,6 @@ impl Writer {
             writeln!(writer)?;
         }
 
-        self.write_indent(writer, level)?;
         writeln!(writer, "</pre>")
     }
 
