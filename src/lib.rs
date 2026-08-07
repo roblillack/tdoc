@@ -13,6 +13,16 @@
 //! children. Nested checklist items are preserved end-to-end so complex task
 //! hierarchies round-trip across every parser and writer.
 //!
+//! Definition lists (HTML `<dl>`, or the PHP Markdown Extra `Term` / `:
+//! definition` syntax) map to [`ParagraphType::DefinitionList`] nodes holding
+//! [`DefinitionItem`] children, each pairing one or more terms with a single
+//! definition made of block paragraphs. Unlike checklists, they do not survive
+//! every format: FTML and Gemtext have no such element, so those writers
+//! flatten the structure into text, and Markdown cannot express several terms
+//! sharing one definition. See the
+//! [README](https://github.com/roblillack/tdoc#definition-lists) for what each
+//! writer does.
+//!
 //! Most applications start by building a [`Document`] manually or converting
 //! some source text via one of the format modules, manipulate or inspect the
 //! tree, and finally render it with [`ftml::Writer`], [`html::Writer`], or

@@ -504,8 +504,9 @@ macro_rules! __tdoc_definition_item_inner {
 /// `checklist`, and fenced `code` blocks. Inline runs can contain string
 /// literals or inline tags like `b`, `i`, `mark`, `code`, and `link`.
 ///
-/// For tdoc's non-FTML extensions (such as `table`), use [`doc!`](macro@crate::doc),
-/// which understands the same syntax plus the extra elements.
+/// For tdoc's non-FTML extensions (`table`, `hr`, and `dl`), use
+/// [`doc!`](macro@crate::doc), which understands the same syntax plus the extra
+/// elements.
 ///
 /// # Examples
 ///
@@ -531,6 +532,16 @@ macro_rules! __tdoc_definition_item_inner {
 ///     table { row { td { "nope" } } }
 /// };
 /// ```
+///
+/// The same goes for `hr` and for definition lists:
+///
+/// ```compile_fail
+/// use tdoc::ftml;
+///
+/// let document = ftml! {
+///     dl { item { term { "nope" } def { p { "not strict FTML" } } } }
+/// };
+/// ```
 macro_rules! ftml {
     ($($tt:tt)*) => {{
         let __paragraphs = __tdoc_collect_blocks!(ftml; $($tt)*);
@@ -543,11 +554,13 @@ macro_rules! ftml {
 ///
 /// `doc!` is a superset of [`ftml!`](macro@crate::ftml): it accepts every element the
 /// strict macro does, plus tdoc's extensions that go beyond strict FTML. Today
-/// that means tables; it is also the place where future extensions are added.
+/// those are tables (`table`), horizontal rules (`hr`), and definition lists
+/// (`dl`); it is also the place where future extensions are added.
 ///
 /// Tables follow the same HTML-flavored syntax as the rest of the DSL: a
 /// `table` contains `row`s, and each `row` contains header cells (`th`) and data
-/// cells (`td`), each holding inline content.
+/// cells (`td`), each holding inline content. A horizontal rule is the empty
+/// `hr { }`.
 ///
 /// # Examples
 ///
@@ -560,11 +573,58 @@ macro_rules! ftml {
 ///         row { th { "Name" } th { "Score" } }
 ///         row { td { "Alice" } td { "42" } }
 ///     }
+///     hr { }
 /// };
 ///
 /// assert_eq!(document.paragraphs[0].paragraph_type(), ParagraphType::Header1);
 /// assert_eq!(document.paragraphs[1].paragraph_type(), ParagraphType::Table);
+/// assert_eq!(document.paragraphs[2].paragraph_type(), ParagraphType::HorizontalRule);
 /// ```
+///
+/// # Definition lists
+///
+/// A `dl` holds `item`s, and each item pairs one or more `term`s with a single
+/// `def`. A `term` takes inline content; a `def` takes block content, so a
+/// definition can hold several paragraphs, a list, a quote, or a code block:
+///
+/// ```
+/// use tdoc::{doc, ParagraphType};
+///
+/// let document = doc! {
+///     dl {
+///         item {
+///             term { "HTTP" }
+///             def { p { "HyperText Transfer Protocol" } }
+///         }
+///         item {
+///             term { "TCP" }
+///             term { "UDP" }
+///             def {
+///                 p { "Transport protocols." }
+///                 p { "Both carry ", b { "HTTP" }, "." }
+///             }
+///         }
+///     }
+/// };
+///
+/// let items = document.paragraphs[0].definition_items();
+/// assert_eq!(document.paragraphs[0].paragraph_type(), ParagraphType::DefinitionList);
+/// assert_eq!(items.len(), 2);
+/// assert_eq!(items[1].terms.len(), 2);
+/// assert_eq!(items[1].definition.len(), 2);
+/// ```
+///
+/// Repeating `term` adds terms that share the definition, mirroring consecutive
+/// `<dt>`s in HTML. Repeating `def`, by contrast, *replaces* the definition:
+/// an item carries exactly one, so several descriptions for the same term go in
+/// as several blocks of a single `def`. Both `term` and `def` may be omitted —
+/// a term with nothing to say, or a description with no term, are shapes HTML
+/// can express and the tree therefore keeps.
+///
+/// Note that not every format can represent all of this. Markdown has no
+/// spelling for several terms sharing one definition, and FTML and Gemtext have
+/// no definition lists at all, so writers degrade the structure as documented
+/// in the [README](https://github.com/roblillack/tdoc#definition-lists).
 macro_rules! doc {
     ($($tt:tt)*) => {{
         let __paragraphs = __tdoc_collect_blocks!(doc; $($tt)*);

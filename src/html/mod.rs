@@ -1766,9 +1766,17 @@ p { margin-top: 0; margin-bottom: 16px; }
 
 ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 2em; }
 li + li { margin-top: 0.25em; }
-li > ul, li > ol { margin-top: 0.25em; margin-bottom: 0; }
+li > ul, li > ol, li > dl { margin-top: 0.25em; margin-bottom: 0; }
 li:has(> input[type="checkbox"]) { list-style: none; }
 li > input[type="checkbox"] { margin: 0 0.4em 0 -1.4em; vertical-align: middle; }
+
+dl { margin-top: 0; margin-bottom: 16px; }
+dt { margin-top: 16px; font-weight: 600; }
+dl > dt:first-child { margin-top: 0; }
+dt + dt { margin-top: 0; }
+dd { margin: 0 0 0 2em; }
+dd > :first-child { margin-top: 0; }
+dd > :last-child { margin-bottom: 0; }
 
 blockquote {
   margin: 0 0 16px 0;

@@ -1,0 +1,161 @@
+---
+source: tests/definition_lists.rs
+expression: html
+---
+<h1>Definition list torture test</h1>
+
+<p>
+  Every definition-list shape the Markdown importer has to handle, in one
+  document, so that a regression shows up as a diff rather than as a bug
+  report. Each section is a separate list; the headings keep them apart.
+</p>
+
+<h2>One term, one definition</h2>
+
+<dl>
+  <dt>Coffee</dt>
+  <dd>A hot black beverage</dd>
+</dl>
+
+<h2>A definition of several paragraphs</h2>
+
+<dl>
+  <dt>Firmware</dt>
+  <dd>
+    <p>Software written to a device's non-volatile memory.</p>
+
+    <p>
+      Because it ships with the hardware, it is updated far less often than the
+      software running on top of it.
+    </p>
+  </dd>
+</dl>
+
+<h2>A list inside a definition</h2>
+
+<dl>
+  <dt>Prerequisites</dt>
+  <dd>
+    <p>You will need:</p>
+
+    <ul>
+      <li>
+        <p>a Rust toolchain</p>
+      </li>
+
+      <li>
+        <p>ten minutes</p>
+      </li>
+    </ul>
+  </dd>
+</dl>
+
+<h2>An indented code block inside a definition</h2>
+
+<dl>
+  <dt>Layout</dt>
+  <dd>
+    <p>The definition opens on the next line.</p>
+
+    <pre>
+   fn main() {}
+    </pre>
+  </dd>
+</dl>
+
+<h2>A fenced code block, a quote, and a trailing paragraph</h2>
+
+<dl>
+  <dt>Usage</dt>
+  <dd>
+    <p>Invoke the binary with a path:</p>
+
+    <blockquote>
+      <p>Output goes to the pager unless <code>--output</code> is given.</p>
+    </blockquote>
+
+    <pre>
+println!("hello");
+    </pre>
+
+    <p>That is the whole interface.</p>
+  </dd>
+</dl>
+
+<h2>Several descriptions folding into one definition</h2>
+
+<dl>
+  <dt>Milk</dt>
+  <dd>
+    <p>A cold white beverage</p>
+
+    <p>Best served chilled</p>
+  </dd>
+</dl>
+
+<h2>A definition separated from its term by a blank line</h2>
+
+<dl>
+  <dt>Latency</dt>
+  <dd>The delay before a transfer begins.</dd>
+</dl>
+
+<h2>The tilde marker, which is deliberately not supported</h2>
+
+<p>
+  Strikethrough ~ Some dialects accept <code>~</code> as a description marker. tdoc does not, because pulldown-cmark spends <code>~</code> on strikethrough.
+</p>
+
+<h2>Inline styles in terms and definitions</h2>
+
+<dl>
+  <dt><code>--no-ansi</code></dt>
+  <dd>
+    Disable ANSI escapes. Useful when the terminal is <i>very</i> old, or when piping into a file.
+  </dd>
+  <dt><b>FTML</b></dt>
+  <dd>
+    The strict subset, described in the <a href="https://example.com/readme">README</a>.
+  </dd>
+</dl>
+
+<h2>Nested in a blockquote</h2>
+
+<blockquote>
+  <p>Quoted intro.</p>
+
+  <dl>
+    <dt>Blockquote</dt>
+    <dd>A quoted definition list.</dd>
+  </dl>
+</blockquote>
+
+<h2>Nested in a list item</h2>
+
+<ul>
+  <li>
+    <p>An item with its own list:</p>
+    <dl>
+      <dt>Item</dt>
+      <dd>The definition sits inside the list item.</dd>
+    </dl>
+  </li>
+
+  <li>
+    <p>A plain second item.</p>
+  </li>
+</ul>
+
+<h2>Two lists separated only by a paragraph</h2>
+
+<dl>
+  <dt>First</dt>
+  <dd>Ends here.</dd>
+</dl>
+
+<p>An intervening paragraph, which keeps the two lists apart.</p>
+
+<dl>
+  <dt>Second</dt>
+  <dd>Starts here.</dd>
+</dl>
