@@ -5,6 +5,7 @@ use crate::{
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::Write;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -19,6 +20,53 @@ static OSC8_SEQUENCE_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\x1b]8;([^;]*);([^\x1b]*)\x1b\\").expect("valid OSC8 regex"));
 static OSC8_ESCAPE_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\x1b]8;[^\x1b]*\x1b\\").expect("valid OSC8 escape regex"));
+
+/// A visible stand-in for a character that has no printable form, or `None` if
+/// the character should be written as-is.
+///
+/// `\n` and `\t` are left alone: both are real layout whitespace that the
+/// formatter positions itself.
+fn control_picture(ch: char) -> Option<char> {
+    match ch {
+        '\n' | '\t' => None,
+        // Unicode Control Pictures: U+2400 + code point, i.e. ␀..␟ (ESC -> ␛).
+        '\u{0}'..='\u{1f}' => char::from_u32(0x2400 + ch as u32),
+        '\u{7f}' => Some('\u{2421}'), // ␡
+        // The C1 controls have no picture of their own; flag them generically.
+        '\u{80}'..='\u{9f}' => Some('\u{fffd}'), // <?>
+        _ => None,
+    }
+}
+
+/// Substitutes the [`control_picture`] of every non-printable character in text
+/// that came out of the *document*, so it can never act on the terminal.
+///
+/// A terminal reads control characters as commands, and this formatter's whole
+/// output language is built from them: `\x1b[1m` for bold, OSC 8 for hyperlinks.
+/// Text carrying its own escape sequence would therefore be executed rather than
+/// shown — a note containing `\x1b[31m` would recolor the rest of the page — and
+/// even a lone `ESC` corrupts the layout, because both the wrapper here and the
+/// pager's own parser treat one as the start of a zero-width sequence and swallow
+/// the characters behind it. Substituting keeps the character visible, one cell
+/// wide, and inert.
+///
+/// Borrows unchanged in the overwhelmingly common case that there is nothing to
+/// substitute. The mapping is one char in, one char out, so a substituted string
+/// still measures and wraps exactly like the original.
+///
+/// This is deliberately applied at the few points where document strings enter
+/// the output — never to a string this formatter has already decorated, whose
+/// escape sequences are meant for the terminal.
+fn printable(text: &str) -> Cow<'_, str> {
+    if !text.chars().any(|ch| control_picture(ch).is_some()) {
+        return Cow::Borrowed(text);
+    }
+    Cow::Owned(
+        text.chars()
+            .map(|ch| control_picture(ch).unwrap_or(ch))
+            .collect(),
+    )
+}
 
 #[derive(Clone)]
 /// Opening and closing escape sequences for a particular inline style.
@@ -363,11 +411,12 @@ impl<W: Write> Formatter<W> {
             let label = self.link_label(link.index, max_label_width);
             let first_prefix = format!("{}{}", prefix, label);
             let continuation_prefix = format!("{}{}", prefix, " ".repeat(label.chars().count()));
+            let shown = printable(&link.target);
             let footnote_text = if self.style.enable_osc8_hyperlinks {
                 let hyperlink = self.next_osc8_link(&link.target);
-                self.osc8_wrap(&hyperlink, &link.target)
+                self.osc8_wrap(&hyperlink, &shown)
             } else {
-                link.target.clone()
+                shown.into_owned()
             };
             let parts = vec![footnote_text];
             self.write_wrapped_text(&parts, &first_prefix, &continuation_prefix)?;
@@ -1074,7 +1123,9 @@ impl<W: Write> Formatter<W> {
         for span in spans {
             Self::append_plain_text(span, &mut buffer);
         }
-        buffer
+        // Code is written through verbatim rather than via `push_text_fragment`,
+        // so it needs the same protection (see [`printable`]).
+        printable(&buffer).into_owned()
     }
 
     fn append_plain_text(span: &Span, buffer: &mut String) {
@@ -1320,12 +1371,14 @@ impl<W: Write> Formatter<W> {
         };
 
         if !span.has_content() {
-            let display = if let Some(link) = &hyperlink {
-                self.osc8_wrap(link, target)
-            } else {
-                target.clone()
-            };
-            self.push_text_fragment(parts, &display);
+            // A bare autolink shows its own target as the link text.
+            if let Some(link) = &hyperlink {
+                parts.push(self.osc8_start(link));
+            }
+            self.push_text_fragment(parts, target);
+            if hyperlink.is_some() {
+                parts.push(self.osc8_end());
+            }
             return Ok(());
         }
 
@@ -1402,10 +1455,19 @@ impl<W: Write> Formatter<W> {
         }
     }
 
+    /// Queues document text for output, splitting it at hard line breaks.
+    ///
+    /// Every visible run of document text passes through here, which makes this
+    /// the place to neutralize characters the terminal would otherwise act on
+    /// (see [`printable`]). Callers must pass *raw* document text for that reason
+    /// — never a string already wrapped in escape sequences.
     fn push_text_fragment(&self, parts: &mut Vec<String>, text: &str) {
         if text.is_empty() {
             return;
         }
+
+        let text = printable(text);
+        let text = text.as_ref();
 
         if text.contains('\n') {
             for (i, line) in text.split('\n').enumerate() {
@@ -1448,7 +1510,9 @@ impl<W: Write> Formatter<W> {
             .as_ref()
             .map(|id| format!("id={}", id))
             .unwrap_or_default();
-        format!("\x1b]8;{};{}\x1b\\", params, link.target)
+        // A target carrying `\x07` or `\x1b\\` would end the sequence early and
+        // hand the rest of itself to the terminal as commands.
+        format!("\x1b]8;{};{}\x1b\\", params, printable(&link.target))
     }
 
     fn osc8_end(&self) -> String {
@@ -2028,6 +2092,67 @@ mod tests {
     use crate::{TableCell, TableRow};
     use std::io::Cursor;
     use std::time::{Duration, Instant};
+
+    // ----- Non-printable characters in document text -----------------------
+
+    /// Every control character in `rendered`, ignoring line breaks and the escape
+    /// sequences the formatter itself emits for styling and hyperlinks.
+    fn stray_control_chars(rendered: &str) -> Vec<char> {
+        let without_osc8 = OSC8_ESCAPE_REGEX.replace_all(rendered, "");
+        let without_ansi = ANSI_ESCAPE_REGEX.replace_all(&without_osc8, "");
+        without_ansi
+            .chars()
+            .filter(|ch| ch.is_control() && *ch != '\n')
+            .collect()
+    }
+
+    #[test]
+    fn control_characters_in_text_are_shown_not_executed() {
+        let rendered = render_doc(
+            doc(vec![p__("red\u{1b}[31m alert and Depl\u{1b}oyment")]),
+            FormattingStyle::ascii(),
+        );
+        assert!(
+            rendered.contains("red␛[31m alert and Depl␛oyment"),
+            "{rendered:?}"
+        );
+        assert_eq!(stray_control_chars(&rendered), Vec::<char>::new());
+    }
+
+    #[test]
+    fn control_characters_in_code_blocks_are_shown_not_executed() {
+        let rendered = render_doc(
+            doc(vec![code_block__("clear\u{1b}[2J\tindented")]),
+            FormattingStyle::ascii(),
+        );
+        assert!(rendered.contains("clear␛[2J\tindented"), "{rendered:?}");
+        // The tab is real layout whitespace and stays as it is.
+        assert_eq!(stray_control_chars(&rendered), vec!['\t']);
+    }
+
+    #[test]
+    fn a_link_target_cannot_break_out_of_the_osc8_sequence() {
+        // `\x07` and `\x1b\\` both terminate an OSC 8 sequence: a target carrying
+        // one would hand the remainder of itself to the terminal as commands.
+        let rendered = render_doc(
+            doc(vec![p_(vec![link__("https://x/\u{7}\u{1b}[31m")])]),
+            FormattingStyle::ansi(),
+        );
+        assert!(rendered.contains("https://x/␇␛[31m"), "{rendered:?}");
+        assert_eq!(stray_control_chars(&rendered), Vec::<char>::new());
+        // One complete hyperlink, opened and closed exactly once.
+        assert_eq!(rendered.matches("\u{1b}]8;").count(), 2, "{rendered:?}");
+    }
+
+    #[test]
+    fn a_substituted_character_still_occupies_one_column() {
+        // The wrapper (and the pager) read an ESC as the start of a zero-width
+        // escape sequence and swallow what follows it; the stand-in measures like
+        // any other single-cell glyph, so the layout stays honest.
+        let rendered = render_doc(doc(vec![p__("a\u{1b}bc")]), FormattingStyle::ascii());
+        let line = rendered.lines().find(|l| !l.trim().is_empty()).unwrap();
+        assert_eq!(visible_line_width(line), 4, "{line:?}");
+    }
 
     // ----- Width-aware table rendering -------------------------------------
 
