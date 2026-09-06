@@ -24,13 +24,13 @@ path = "src/bin/tdoc/main.rs"
 
 [features]
 default = ["remote"]
-remote = ["dep:reqwest", "dep:rustls", "dep:rustls-native-certs", "dep:webpki-roots"]
+remote = ["dep:reqwest", "dep:rustls", "dep:rustls-native-certs", "dep:webpki-roots", "dep:native-tls"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 regex = "1.10"
 thiserror = "1.0"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls"], optional = true }
+reqwest = { version = "0.11", default-features = false, features = ["blocking"], optional = true }
 url = "2.4"
 crossterm = "0.27"
 atty = "0.2"
@@ -41,6 +41,19 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 once_cell = "1.19"
 unicode-width = "0.1"
+
+# TLS backend selection.
+#
+# Windows uses native-tls, which resolves to SChannel and needs no C toolchain.
+# rustls pulls in ring, and ring's build script requires Clang when targeting
+# aarch64-pc-windows-msvc, which is not part of a stock MSVC install.
+# Every other platform keeps rustls.
+[target.'cfg(windows)'.dependencies]
+reqwest = { version = "0.11", default-features = false, features = ["native-tls"], optional = true }
+native-tls = { version = "0.2", optional = true }
+
+[target.'cfg(not(windows))'.dependencies]
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"], optional = true }
 rustls = { version = "0.23", optional = true, default-features = false, features = ["ring", "logging", "std", "tls12"] }
 rustls-native-certs = { version = "0.8", optional = true }
 webpki-roots = { version = "0.26", optional = true }
