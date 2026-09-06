@@ -1,60 +1,196 @@
-use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
-use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
-use rustls::{DigitallySignedStruct, Error, SignatureScheme};
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
-use std::sync::Arc;
 use url::Url;
 
 const DEFAULT_GEMINI_PORT: u16 = 1965;
 
-// Custom certificate verifier that accepts all certificates (TOFU model for Gemini)
-#[derive(Debug)]
-struct AcceptAllCertsVerifier;
+// TLS backend. Both implementations expose `connect()` returning a `Stream`
+// that reads and writes plaintext, and both intentionally skip certificate
+// validation: Gemini uses a TOFU trust model, where self-signed certificates
+// and mismatched hostnames are the norm rather than the exception.
+#[cfg(not(windows))]
+mod tls {
+    use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+    use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
+    use rustls::{DigitallySignedStruct, Error, SignatureScheme};
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+    use std::sync::Arc;
 
-impl ServerCertVerifier for AcceptAllCertsVerifier {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &CertificateDer<'_>,
-        _intermediates: &[CertificateDer<'_>],
-        _server_name: &ServerName<'_>,
-        _ocsp_response: &[u8],
-        _now: UnixTime,
-    ) -> Result<ServerCertVerified, Error> {
-        Ok(ServerCertVerified::assertion())
+    // Custom certificate verifier that accepts all certificates (TOFU model for Gemini)
+    #[derive(Debug)]
+    struct AcceptAllCertsVerifier;
+
+    impl ServerCertVerifier for AcceptAllCertsVerifier {
+        fn verify_server_cert(
+            &self,
+            _end_entity: &CertificateDer<'_>,
+            _intermediates: &[CertificateDer<'_>],
+            _server_name: &ServerName<'_>,
+            _ocsp_response: &[u8],
+            _now: UnixTime,
+        ) -> Result<ServerCertVerified, Error> {
+            Ok(ServerCertVerified::assertion())
+        }
+
+        fn verify_tls12_signature(
+            &self,
+            _message: &[u8],
+            _cert: &CertificateDer<'_>,
+            _dss: &DigitallySignedStruct,
+        ) -> Result<HandshakeSignatureValid, Error> {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+
+        fn verify_tls13_signature(
+            &self,
+            _message: &[u8],
+            _cert: &CertificateDer<'_>,
+            _dss: &DigitallySignedStruct,
+        ) -> Result<HandshakeSignatureValid, Error> {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+
+        fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+            vec![
+                SignatureScheme::RSA_PKCS1_SHA256,
+                SignatureScheme::RSA_PKCS1_SHA384,
+                SignatureScheme::RSA_PKCS1_SHA512,
+                SignatureScheme::ECDSA_NISTP256_SHA256,
+                SignatureScheme::ECDSA_NISTP384_SHA384,
+                SignatureScheme::ECDSA_NISTP521_SHA512,
+                SignatureScheme::RSA_PSS_SHA256,
+                SignatureScheme::RSA_PSS_SHA384,
+                SignatureScheme::RSA_PSS_SHA512,
+                SignatureScheme::ED25519,
+            ]
+        }
     }
 
-    fn verify_tls12_signature(
-        &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, Error> {
-        Ok(HandshakeSignatureValid::assertion())
+    pub fn connect(host: &str, port: u16) -> Result<Stream, String> {
+        // Setup TLS configuration with custom verifier (Gemini uses TOFU model)
+        let config = rustls::ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(AcceptAllCertsVerifier))
+            .with_no_client_auth();
+
+        let server_name = ServerName::try_from(host.to_string())
+            .map_err(|e| format!("Invalid hostname: {}", e))?;
+
+        let mut conn = rustls::ClientConnection::new(Arc::new(config), server_name)
+            .map_err(|e| format!("TLS connection setup failed: {}", e))?;
+
+        // Connect to server
+        let addr = format!("{}:{}", host, port);
+        let mut sock = TcpStream::connect(&addr)
+            .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
+
+        // Complete TLS handshake
+        while conn.is_handshaking() {
+            conn.complete_io(&mut sock)
+                .map_err(|e| format!("TLS handshake failed: {}", e))?;
+        }
+
+        Ok(Stream { conn, sock })
     }
 
-    fn verify_tls13_signature(
-        &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, Error> {
-        Ok(HandshakeSignatureValid::assertion())
+    // Adapter to use a rustls ClientConnection as a plain reader/writer
+    pub struct Stream {
+        conn: rustls::ClientConnection,
+        sock: TcpStream,
     }
 
-    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        vec![
-            SignatureScheme::RSA_PKCS1_SHA256,
-            SignatureScheme::RSA_PKCS1_SHA384,
-            SignatureScheme::RSA_PKCS1_SHA512,
-            SignatureScheme::ECDSA_NISTP256_SHA256,
-            SignatureScheme::ECDSA_NISTP384_SHA384,
-            SignatureScheme::ECDSA_NISTP521_SHA512,
-            SignatureScheme::RSA_PSS_SHA256,
-            SignatureScheme::RSA_PSS_SHA384,
-            SignatureScheme::RSA_PSS_SHA512,
-            SignatureScheme::ED25519,
-        ]
+    impl Read for Stream {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            // Process TLS data and read decrypted content
+            while self.conn.wants_read() {
+                match self.conn.read_tls(&mut self.sock) {
+                    Ok(0) => break, // EOF
+                    Ok(_) => {
+                        self.conn
+                            .process_new_packets()
+                            .map_err(std::io::Error::other)?;
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                    Err(e) => return Err(e),
+                }
+            }
+
+            self.conn.reader().read(buf)
+        }
+    }
+
+    impl Write for Stream {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.conn.writer().write(buf)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.conn.writer().flush()?;
+            self.conn.complete_io(&mut self.sock)?;
+            Ok(())
+        }
+    }
+}
+
+#[cfg(windows)]
+mod tls {
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+
+    pub fn connect(host: &str, port: u16) -> Result<Stream, String> {
+        // Accept any certificate (Gemini uses TOFU model)
+        let connector = native_tls::TlsConnector::builder()
+            .danger_accept_invalid_certs(true)
+            .danger_accept_invalid_hostnames(true)
+            .build()
+            .map_err(|e| format!("TLS connection setup failed: {}", e))?;
+
+        // Connect to server
+        let addr = format!("{}:{}", host, port);
+        let sock = TcpStream::connect(&addr)
+            .map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
+
+        // The handshake is completed as part of connect()
+        let stream = connector
+            .connect(host, sock)
+            .map_err(|e| format!("TLS handshake failed: {}", e))?;
+
+        Ok(Stream { stream })
+    }
+
+    pub struct Stream {
+        stream: native_tls::TlsStream<TcpStream>,
+    }
+
+    impl Read for Stream {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            // Gemini signals the end of the body by closing the connection, and
+            // many servers drop it without sending a TLS close_notify first.
+            // Treat that as a clean EOF, like the rustls backend does.
+            match self.stream.read(buf) {
+                Err(ref e)
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::UnexpectedEof
+                            | std::io::ErrorKind::ConnectionAborted
+                            | std::io::ErrorKind::ConnectionReset
+                    ) =>
+                {
+                    Ok(0)
+                }
+                other => other,
+            }
+        }
+    }
+
+    impl Write for Stream {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.stream.write(buf)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.stream.flush()
+        }
     }
 }
 
@@ -95,44 +231,21 @@ pub fn fetch(url_str: &str) -> Result<GeminiResponse, String> {
         .ok_or_else(|| "URL has no host".to_string())?;
     let port = url.port().unwrap_or(DEFAULT_GEMINI_PORT);
 
-    // Setup TLS configuration with custom verifier (Gemini uses TOFU model)
-    let config = rustls::ClientConfig::builder()
-        .dangerous()
-        .with_custom_certificate_verifier(Arc::new(AcceptAllCertsVerifier))
-        .with_no_client_auth();
-
-    let server_name =
-        ServerName::try_from(host.to_string()).map_err(|e| format!("Invalid hostname: {}", e))?;
-
-    let mut conn = rustls::ClientConnection::new(Arc::new(config), server_name)
-        .map_err(|e| format!("TLS connection setup failed: {}", e))?;
-
-    // Connect to server
-    let addr = format!("{}:{}", host, port);
-    let mut sock =
-        TcpStream::connect(&addr).map_err(|e| format!("Failed to connect to {}: {}", addr, e))?;
-
-    // Complete TLS handshake
-    while conn.is_handshaking() {
-        conn.complete_io(&mut sock)
-            .map_err(|e| format!("TLS handshake failed: {}", e))?;
-    }
+    let mut stream = tls::connect(host, port)?;
 
     // Send Gemini request: URL + CRLF
     let request = format!("{}\r\n", url_str);
-    conn.writer()
+    stream
         .write_all(request.as_bytes())
         .map_err(|e| format!("Failed to write request: {}", e))?;
 
     // Flush the TLS stream
-    conn.complete_io(&mut sock)
+    stream
+        .flush()
         .map_err(|e| format!("Failed to send request: {}", e))?;
 
     // Read response
-    let mut reader = BufReader::new(IoAdapter {
-        conn: &mut conn,
-        sock: &mut sock,
-    });
+    let mut reader = BufReader::new(stream);
 
     // Read status line: <STATUS><SPACE><META><CR><LF>
     let mut status_line = String::new();
@@ -163,30 +276,4 @@ pub fn fetch(url_str: &str) -> Result<GeminiResponse, String> {
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     Ok(GeminiResponse { status, meta, body })
-}
-
-// Adapter to use rustls ClientConnection with BufReader
-struct IoAdapter<'a> {
-    conn: &'a mut rustls::ClientConnection,
-    sock: &'a mut TcpStream,
-}
-
-impl<'a> Read for IoAdapter<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        // Process TLS data and read decrypted content
-        while self.conn.wants_read() {
-            match self.conn.read_tls(self.sock) {
-                Ok(0) => break, // EOF
-                Ok(_) => {
-                    self.conn
-                        .process_new_packets()
-                        .map_err(std::io::Error::other)?;
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
-                Err(e) => return Err(e),
-            }
-        }
-
-        self.conn.reader().read(buf)
-    }
 }
