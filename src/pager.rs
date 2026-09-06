@@ -1,8 +1,8 @@
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{
-        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
-        MouseButton, MouseEvent, MouseEventKind,
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+        KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
     },
     execute, queue,
     style::{
@@ -1082,12 +1082,12 @@ fn collect_links(content: &[ParsedLine], policy: &LinkPolicy) -> Vec<LinkInfo> {
                 let width = UnicodeWidthChar::width(ch).unwrap_or(0);
 
                 if let Some(hyperlink) = &segment.hyperlink {
-                    if let Some(idx) = current_without_id.take() {
-                        // Close any id-less link before switching to an id-based hyperlink.
-                        ensure_span_width(&mut links[idx]);
-                    }
-
                     if let Some(id) = &hyperlink.id {
+                        if let Some(idx) = current_without_id.take() {
+                            // Close any id-less link before switching to an id-based hyperlink.
+                            ensure_span_width(&mut links[idx]);
+                        }
+
                         let entry = links_by_id.entry(id.clone()).or_insert_with(|| {
                             let activates = policy.activates(&hyperlink.url);
                             links.push(LinkInfo {
@@ -1886,6 +1886,14 @@ fn handle_key_event(
     needs_redraw: &mut bool,
     link_to_open: &mut Option<String>,
 ) -> bool {
+    // Windows consoles (and terminals speaking the kitty keyboard protocol)
+    // report a key release in addition to the press. Acting on both would run
+    // every binding twice per keystroke: Tab, for instance, would skip every
+    // other link.
+    if key_event.kind == KeyEventKind::Release {
+        return true;
+    }
+
     if matches!(state.search_mode, SearchMode::EnteringQuery) {
         match key_event.code {
             KeyCode::Enter => {
@@ -2444,5 +2452,89 @@ fn page_output_boxed(
     } else {
         print!("{}", content);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Mimics what [`crate::formatter::Formatter`] emits for a link: an OSC 8
+    /// sequence carrying a per-link id, the link text, and a closing sequence.
+    fn link_line(id: u32, url: &str, text: &str) -> String {
+        format!("\x1b]8;id={id};{url}\x1b\\{text}\x1b]8;;\x1b\\")
+    }
+
+    fn pager_with_three_links() -> (PagerState, Vec<ParsedLine>) {
+        let rendered = format!(
+            "{}\n{}\n{}",
+            link_line(1, "gemini://example.com/one", "One"),
+            link_line(2, "gemini://example.com/two", "Two"),
+            link_line(3, "gemini://example.com/three", "Three"),
+        );
+        let content = parse_content_to_lines(&rendered);
+        let mut state = PagerState::new(content.len(), 10, LinkPolicy::default());
+        state.rebuild_links(&content);
+        (state, content)
+    }
+
+    fn send_key(state: &mut PagerState, content: &[ParsedLine], code: KeyCode, kind: KeyEventKind) {
+        let mut needs_redraw = false;
+        let mut link_to_open = None;
+        let keep_running = handle_key_event(
+            KeyEvent::new_with_kind(code, KeyModifiers::NONE, kind),
+            state,
+            content,
+            &mut needs_redraw,
+            &mut link_to_open,
+        );
+        assert!(keep_running);
+    }
+
+    #[test]
+    fn tab_advances_a_single_link_per_keystroke() {
+        let (mut state, content) = pager_with_three_links();
+
+        // Windows consoles deliver a release event alongside every press; only
+        // the press may move the focus.
+        send_key(&mut state, &content, KeyCode::Tab, KeyEventKind::Press);
+        send_key(&mut state, &content, KeyCode::Tab, KeyEventKind::Release);
+        assert_eq!(
+            state.current_link_target(),
+            Some("gemini://example.com/one")
+        );
+
+        send_key(&mut state, &content, KeyCode::Tab, KeyEventKind::Press);
+        send_key(&mut state, &content, KeyCode::Tab, KeyEventKind::Release);
+        assert_eq!(
+            state.current_link_target(),
+            Some("gemini://example.com/two")
+        );
+    }
+
+    #[test]
+    fn key_release_events_do_not_scroll() {
+        let (mut state, content) = pager_with_three_links();
+        state.viewport_height = 1;
+
+        send_key(&mut state, &content, KeyCode::Down, KeyEventKind::Press);
+        assert_eq!(state.scroll_offset, 1);
+
+        send_key(&mut state, &content, KeyCode::Down, KeyEventKind::Release);
+        assert_eq!(state.scroll_offset, 1);
+    }
+
+    #[test]
+    fn a_run_of_idless_hyperlink_text_is_one_link() {
+        // Content that was not rendered by this crate may use OSC 8 sequences
+        // without an id; consecutive characters still belong to one link.
+        let rendered = "\x1b]8;;https://example.com/\x1b\\Example\x1b]8;;\x1b\\ tail";
+        let content = parse_content_to_lines(rendered);
+        let mut state = PagerState::new(content.len(), 10, LinkPolicy::default());
+        state.rebuild_links(&content);
+
+        assert_eq!(state.links.len(), 1);
+        let span = state.links[0].primary_span();
+        assert_eq!((span.start_char, span.end_char), (0, 7));
     }
 }
